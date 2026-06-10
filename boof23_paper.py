@@ -170,22 +170,21 @@ def get_bars(symbols, timeframe_str, bars=200):
                                     start=start, end=now, limit=bars)
             resp = data_client.get_stock_bars(req).df
             if resp.empty: continue
-            if isinstance(resp.index, pd.MultiIndex):
+            resp = resp.reset_index()
+            if "symbol" in resp.columns:
                 for sym in chunk:
-                    try:
-                        sym_bars = resp.xs(sym, level="symbol").copy().reset_index()
-                        sym_bars = sym_bars.rename(columns={"timestamp":"time","open":"open",
-                                                             "high":"high","low":"low",
-                                                             "close":"close","volume":"volume"})
-                        sym_bars["time"] = pd.to_datetime(sym_bars["time"]).dt.tz_convert(ET)
-                        out[sym] = sym_bars
-                    except KeyError: pass
+                    sym_df = resp[resp["symbol"] == sym].copy().reset_index(drop=True)
+                    if sym_df.empty: continue
+                    sym_df = sym_df.rename(columns={"timestamp": "time"})
+                    sym_df["time"] = pd.to_datetime(sym_df["time"]).dt.tz_convert(ET)
+                    out[sym] = sym_df
             else:
                 if len(chunk) == 1:
-                    sym_bars = resp.copy().reset_index()
-                    sym_bars = sym_bars.rename(columns={"timestamp":"time"})
-                    sym_bars["time"] = pd.to_datetime(sym_bars["time"]).dt.tz_convert(ET)
-                    out[chunk[0]] = sym_bars
+                    resp = resp.rename(columns={"timestamp": "time"})
+                    resp["time"] = pd.to_datetime(resp["time"]).dt.tz_convert(ET)
+                    out[chunk[0]] = resp
+                else:
+                    log.warning(f"Bar fetch: no symbol column in response for chunk {chunk[:3]}")
         except Exception as e:
             log.warning(f"Bar fetch error ({chunk[:3]}...): {e}")
     return out
