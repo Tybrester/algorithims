@@ -244,7 +244,7 @@ def scan_signals():
             if sig_time is not None:
                 age_secs = (now_et - sig_time).total_seconds()
                 log.info(f"  {sym}: {last['direction'].upper()} signal ({age_secs/60:.1f} min old)")
-                if age_secs > 600:
+                if age_secs > 3600:
                     continue
             else:
                 log.info(f"  {sym}: {last['direction'].upper()} signal (no time)")
