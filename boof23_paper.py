@@ -24,7 +24,7 @@ BASE_URL     = "https://paper-api.alpaca.markets"
 SUPABASE_URL     = "https://isanhutzyctcjygjhzbn.supabase.co"
 SUPABASE_KEY     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0"
 SUPABASE_USER_ID = "d0bb84ba-f968-446c-9792-9bcff8849e37"
-BOT_ID           = "9b869540-549b-419d-be2d-da0ca043dcc0"
+BOT_ID           = "63b10810-676a-4c0c-b0bd-d9f09af1a849"
 
 # ── CONFIG ────────────────────────────────────────────────────────────
 TP_PCT       = 0.0045   # +0.45%
