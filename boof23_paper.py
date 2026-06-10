@@ -268,6 +268,9 @@ def scan_signals():
         price = get_latest_price(sym) or price
         if price <= 0:
             continue
+        if price < 20:
+            log.info(f"  {sym}: skipped (price ${price:.2f} too low, SL too tight)")
+            continue
         tier = trade_info.get('tier', 'expanded')
         shares = calc_shares(price, tier)
         if shares < 1:
