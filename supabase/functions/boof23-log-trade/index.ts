@@ -1,10 +1,10 @@
 /**
- * boof29-log-trade — Edge Function
- * Called by boof29_paper.py to insert/close trades in the trades table
+ * boof23-log-trade — Edge Function
+ * Called by boof23_paper.py to insert/close trades in the trades table
  * Uses service role key so RLS is bypassed
  *
- * POST /boof29-log-trade
- * Body: { action: "open"|"close", symbol, entry_px, exit_px?, shares, order_id, trade_id?, pnl?, user_id }
+ * POST /boof23-log-trade
+ * Body: { action: "open"|"close", symbol, entry_px, exit_px?, shares, order_id, trade_id?, pnl?, user_id, direction? }
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     );
 
     const body = await req.json();
-    const { action, symbol, entry_px, exit_px, shares, order_id, trade_id, pnl, user_id, bot_id } = body;
+    const { action, symbol, entry_px, exit_px, shares, order_id, trade_id, pnl, user_id, direction, bot_id } = body;
 
     if (!action || !user_id) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -39,21 +39,21 @@ Deno.serve(async (req) => {
         user_id,
         bot_id,
         symbol,
-        action:      "buy",
-        direction:   "Long",
+        action:      direction === "short" ? "sell" : "buy",
+        direction:   direction === "short" ? "Short" : "Long",
         quantity:    shares,
         price:       entry_px,
         entry_price: entry_px,
         order_type:  "market",
         broker:      "paper",
-        source:      "Boof 29 Paper",
+        source:      "Boof 23 Paper",
         status:      "filled",
         filled_at:   new Date().toISOString(),
         created_at:  new Date().toISOString(),
       }).select("id").single();
 
       if (error) {
-        console.error("[boof29-log] Insert error:", error.message);
+        console.error("[boof23-log] Insert error:", error.message);
         return new Response(JSON.stringify({ error: error.message }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       }).eq("id", trade_id);
 
       if (error) {
-        console.error("[boof29-log] Close error:", error.message);
+        console.error("[boof23-log] Close error:", error.message);
         return new Response(JSON.stringify({ error: error.message }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (e) {
-    console.error("[boof29-log] Error:", e);
+    console.error("[boof23-log] Error:", e);
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
