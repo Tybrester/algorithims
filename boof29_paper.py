@@ -368,22 +368,27 @@ def wait_until_et(hour, minute, label):
         time.sleep(30)
     return True
 
+_last_hb_min_b29 = -1
 def wait_for_market_open():
     """Sleep until next market open, polling every 60s."""
+    global _last_hb_min_b29
     import pytz
     et = pytz.timezone("America/New_York")
     while True:
         try:
+            now_et = datetime.datetime.now(et)
+            if now_et.minute != _last_hb_min_b29:
+                log.info(f"[Heartbeat] Boof 29 Alive — {now_et.strftime('%Y-%m-%d %H:%M')} ET")
+                _last_hb_min_b29 = now_et.minute
             clock = trade_client.get_clock()
             if clock.is_open:
                 return
             next_open = clock.next_open.astimezone(et)
-            now_et    = datetime.datetime.now(et)
             secs      = max(0, (next_open - now_et).total_seconds())
             if secs > 120:
                 log.info(f"Market closed. Next open: {next_open.strftime('%Y-%m-%d %H:%M')} ET  "
                          f"(sleeping {secs/3600:.1f}h)")
-                time.sleep(min(secs - 60, 3600))
+                time.sleep(60)
             else:
                 time.sleep(30)
         except Exception as e:
