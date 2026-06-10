@@ -167,7 +167,7 @@ def get_bars(symbols, timeframe_str, bars=200):
         chunk = symbols[i:i+50]
         try:
             req  = StockBarsRequest(symbol_or_symbols=chunk, timeframe=tf,
-                                    start=start, end=now, limit=bars)
+                                    start=start, end=now)
             resp = data_client.get_stock_bars(req).df
             if resp.empty: continue
             log.info(f"  [debug] raw index type: {type(resp.index).__name__}, shape: {resp.shape}, cols: {list(resp.columns[:5])}")
