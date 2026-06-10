@@ -197,11 +197,9 @@ def get_latest_price(symbol):
     except:
         return None
 
-def calc_shares(equity, price):
-    account = trade_client.get_account()
-    buying_power = float(account.buying_power)
-    max_position_value = (buying_power * 0.50) / MAX_POSITIONS
-    return max(1, int(max_position_value / price))
+def calc_shares(price, tier='expanded'):
+    dollars = 600 if tier == 'core' else 200
+    return max(1, int(dollars / price))
 
 # ── STATE ─────────────────────────────────────────────────────────────
 open_positions = {}    # sym -> {shares, entry_px, direction, tp, sl, entry_time}
@@ -270,7 +268,8 @@ def scan_signals():
         price = get_latest_price(sym) or price
         if price <= 0:
             continue
-        shares = calc_shares(equity, price)
+        tier = trade_info.get('tier', 'expanded')
+        shares = calc_shares(price, tier)
         if shares < 1:
             log.warning(f"  {sym}: not enough equity for 1 share @ ${price:.2f}")
             continue
