@@ -279,6 +279,7 @@ def scan_signals():
         tp   = price * (1 + TP_PCT) if direction == "long" else price * (1 - TP_PCT)
         sl   = price * (1 - SL_PCT) if direction == "long" else price * (1 + SL_PCT)
 
+        open_positions[sym] = {"reserved": True}  # reserve slot before order
         try:
             req   = MarketOrderRequest(symbol=sym, qty=shares,
                                        side=side, time_in_force=TimeInForce.DAY)
