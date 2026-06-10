@@ -238,13 +238,16 @@ def scan_signals():
                 df1, sym, tp_pct=TP_PCT, sl_pct=SL_PCT, cooldown_bars=10
             )
             if not trades:
+                log.info(f"  {sym}: no setup")
                 continue
             last = trades[-1]
             sig_time = last.get('signal_time')
             if sig_time is not None:
                 age_secs = (now_et - sig_time).total_seconds()
                 if age_secs > 600:  # signal older than 10 min — stale
+                    log.info(f"  {sym}: stale signal ({age_secs/60:.1f} min old)")
                     continue
+            log.info(f"  {sym}: FRESH {last['direction'].upper()} signal!")
             signals.append((sym, last['direction'], df1.iloc[-1]['close'], last))
         except Exception as e:
             log.warning(f"  {sym} signal error: {e}")
