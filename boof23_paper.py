@@ -429,10 +429,10 @@ def run_day():
 
         if now_et < eod_cutoff:
             check_exits()
-            if now_et.second < 10:  # scan at top of each 30s tick that falls in a new minute
+            if now_et.second < 5:  # scan once per minute
                 scan_signals()
 
-        time.sleep(30)
+        time.sleep(5)
 
     close_all_eod()
     print_summary()
