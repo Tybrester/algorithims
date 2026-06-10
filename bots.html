@@ -543,6 +543,16 @@
               <button id="btn-recalc-bots" onclick="recalcAllBotsFromBotsPage()" style="background:#ff6b6b;border:2px solid #ff6b6b;color:#000;font-size:0.85rem;font-weight:700;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='#ff8585';this.style.borderColor='#ff8585'" onmouseout="this.style.background='#ff6b6b';this.style.borderColor='#ff6b6b'">RECALC ALL BOTS</button>
             </div>
           </div>
+          <!-- BOOF 23 PAPER BOT — Static Alpaca Card -->
+          <div class="section-divider" style="margin-bottom:0;">
+            <div class="section-divider-line"></div>
+            <div class="section-divider-label" style="color:#00e676;">&#9679; Boof 23 Paper (Alpaca)</div>
+            <div class="section-divider-line"></div>
+          </div>
+          <div id="boof23-card-container" style="padding:0 0 8px 0;">
+            <div class="empty-state" style="border-color:#1a3a1a;">Loading Boof 23...</div>
+          </div>
+
           <!-- BOOF 29 PAPER BOT — Static Alpaca Card -->
           <div class="section-divider" style="margin-bottom:0;">
             <div class="section-divider-line"></div>
@@ -3852,6 +3862,89 @@
       }
     }
 
+    async function loadBoof23Card() {
+      const container = document.getElementById('boof23-card-container');
+      if (!container) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      const { data: trades } = await sbClient
+        .from('trades')
+        .select('*')
+        .eq('source', 'Boof 23 Paper')
+        .gte('created_at', today + 'T00:00:00')
+        .order('created_at', { ascending: false });
+
+      const allTrades = trades || [];
+      const closed = allTrades.filter(t => t.status === 'closed');
+      const open   = allTrades.filter(t => t.status === 'filled');
+      const totalPnl = closed.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0);
+      const wins = closed.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+      const wr   = closed.length ? ((wins / closed.length) * 100).toFixed(0) : '--';
+      const pnlColor = totalPnl >= 0 ? '#00e676' : '#ff4444';
+      const pnlSign  = totalPnl >= 0 ? '+' : '';
+
+      const tradeRows = allTrades.map(t => {
+        const pnl = parseFloat(t.pnl);
+        const isOpen = t.status === 'filled';
+        const pnlStr = isOpen ? '<span style="color:#888;font-style:italic;">Open</span>'
+          : `<span style="color:${pnl>=0?'#00e676':'#ff4444'};font-weight:700;">${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(2)}</span>`;
+        const time = new Date(t.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+        const dir = (t.direction||'').toLowerCase() === 'short' ? '<span style="color:#ff4444;">SHORT</span>' : '<span style="color:#00e676;">LONG</span>';
+        return `<tr>
+          <td style="font-weight:700;">${t.symbol}</td>
+          <td>${dir}</td>
+          <td>$${parseFloat(t.entry_price||t.price||0).toFixed(2)}</td>
+          <td>${t.exit_price ? '$'+parseFloat(t.exit_price).toFixed(2) : '<span style="color:#555;">--</span>'}</td>
+          <td>${t.quantity}</td>
+          <td>${pnlStr}</td>
+          <td style="color:#555;font-size:0.75rem;">${time}</td>
+        </tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <div style="background:#0d1a0d;border:1px solid #1a3a1a;border-radius:14px;padding:20px 24px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <div>
+              <div style="font-size:1rem;font-weight:800;color:#00e676;">Boof 23 Paper Bot</div>
+              <div style="font-size:0.75rem;color:#555;margin-top:3px;">Alpaca Paper &nbsp;&#8226;&nbsp; acct: PKAJ7LELQVQMPJPEJTGZDRT3XP &nbsp;&#8226;&nbsp; 9:30 ET → 3:55 ET &nbsp;&#8226;&nbsp; TP=+0.45% SL=-0.18%</div>
+            </div>
+            <div style="display:flex;gap:20px;">
+              <div style="text-align:center;">
+                <div style="font-size:0.65rem;color:#555;text-transform:uppercase;font-weight:700;">Today P&amp;L</div>
+                <div style="font-size:1.3rem;font-weight:900;color:${pnlColor};">${pnlSign}$${Math.abs(totalPnl).toFixed(2)}</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:0.65rem;color:#555;text-transform:uppercase;font-weight:700;">Trades</div>
+                <div style="font-size:1.3rem;font-weight:900;">${allTrades.length}</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:0.65rem;color:#555;text-transform:uppercase;font-weight:700;">Win Rate</div>
+                <div style="font-size:1.3rem;font-weight:900;">${wr}%</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:0.65rem;color:#555;text-transform:uppercase;font-weight:700;">Open</div>
+                <div style="font-size:1.3rem;font-weight:900;color:#ffc107;">${open.length}</div>
+              </div>
+            </div>
+          </div>
+          ${allTrades.length === 0
+            ? `<div style="color:#444;font-size:0.85rem;padding:12px 0;">No trades today yet. Bot runs at 9:30 ET.</div>`
+            : `<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">
+              <thead><tr style="color:#555;font-size:0.65rem;text-transform:uppercase;font-weight:700;">
+                <th style="padding:6px 0;text-align:left;">Symbol</th>
+                <th style="padding:6px 0;text-align:left;">Dir</th>
+                <th style="padding:6px 0;text-align:left;">Entry</th>
+                <th style="padding:6px 0;text-align:left;">Exit</th>
+                <th style="padding:6px 0;text-align:left;">Qty</th>
+                <th style="padding:6px 0;text-align:left;">P&amp;L</th>
+                <th style="padding:6px 0;text-align:left;">Time</th>
+              </tr></thead>
+              <tbody>${tradeRows}</tbody>
+            </table>`
+          }
+        </div>`;
+    }
+
     async function loadBoof29Card() {
       const container = document.getElementById('boof29-card-container');
       if (!container) return;
@@ -6030,6 +6123,7 @@
       await loadOptionsBots();
       await loadAllTrades();
       loadSlippageStats();
+      loadBoof23Card();
       loadBoof29Card();
 
       // TP/SL Daemon: check every 30s so positions close near target instead of overshooting
