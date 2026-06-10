@@ -198,8 +198,10 @@ def get_latest_price(symbol):
         return None
 
 def calc_shares(equity, price):
-    risk_dollars = equity * RISK_PCT
-    return max(1, int(risk_dollars / price))
+    account = trade_client.get_account()
+    buying_power = float(account.buying_power)
+    max_position_value = (buying_power * 0.50) / MAX_POSITIONS
+    return max(1, int(max_position_value / price))
 
 # ── STATE ─────────────────────────────────────────────────────────────
 open_positions = {}    # sym -> {shares, entry_px, direction, tp, sl, entry_time}
