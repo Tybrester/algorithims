@@ -508,40 +508,7 @@
         <!-- Left: Bot cards -->
         <div class="bots-col">
           <div class="page-header">
-            <div style="display:flex;align-items:center;gap:16px;">
-              <h1>Bots</h1>
-              <div id="total-trades-counter" style="background:#1a1a1a;border:1px solid #333;padding:8px 16px;border-radius:8px;font-size:0.85rem;display:flex;gap:10px;align-items:center;">
-                <span style="color:#888;">Trades:</span>
-                <span id="trades-per-bot" style="display:flex;gap:8px;"></span>
-              </div>
-              <div id="live-pnl-counter" style="background:#1a1a1a;border:1px solid #333;padding:8px 16px;border-radius:8px;font-size:0.85rem;">
-                <span style="color:#888;">Live:</span>
-                <span id="pnl-live" style="color:#ffd700;font-weight:700;">-</span>
-              </div>
-              <div id="slippage-banner" style="background:#0a1a0a;border:1px solid #1a3a1a;padding:8px 16px;border-radius:8px;font-size:0.85rem;display:flex;gap:12px;align-items:center;">
-                <span style="color:#888;">Fills:</span>
-                <span id="slippage-fills" style="color:#aaa;font-weight:700;">0</span>
-                <span style="color:#555;">|</span>
-                <span style="color:#888;">Blind Ask Cost:</span>
-                <span id="slippage-ask-cost" style="color:#ff7043;font-weight:700;">$0.00</span>
-                <span style="color:#555;">|</span>
-                <span style="color:#888;">Actual Cost:</span>
-                <span id="slippage-actual-cost" style="color:#aaa;font-weight:700;">$0.00</span>
-                <span style="color:#555;">|</span>
-                <span style="color:#888;">Saved:</span>
-                <span id="slippage-saved" style="color:#00e676;font-weight:700;">$0.00</span>
-                <span style="color:#555;font-size:0.75rem;">(<span id="slippage-pct">0%</span>)</span>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;">
-              <button class="new-options-btn" onclick="toggleAllBots(false)" style="background:#331111;border-color:#ff4444;color:#ff4444;" onmouseover="this.style.background='#ff4444';this.style.color='#fff'" onmouseout="this.style.background='#331111';this.style.color='#ff4444'">Stop All</button>
-              <button class="new-options-btn" onclick="toggleAllBots(true)" style="background:#113311;border-color:#00e676;color:#00e676;" onmouseover="this.style.background='#00e676';this.style.color='#000'" onmouseout="this.style.background='#113311';this.style.color='#00e676'">Start All</button>
-              <button id="btn-new-stock" onclick="promptNewStockBot()" style="background:rgba(0,230,118,0.07);border:1px solid rgba(0,230,118,0.25);color:#b2f5d4;font-size:0.82rem;font-weight:600;padding:9px 18px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='rgba(0,230,118,0.14)'" onmouseout="this.style.background='rgba(0,230,118,0.07)'">+ New Stock Bot</button>
-              <button id="btn-new-options" onclick="promptNewOptionsBot()" style="background:rgba(0,230,118,0.07);border:1px solid rgba(0,230,118,0.25);color:#b2f5d4;font-size:0.82rem;font-weight:600;padding:9px 18px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='rgba(0,230,118,0.14)'" onmouseout="this.style.background='rgba(0,230,118,0.07)'">+ New Options Bot</button>
-              <button id="btn-hide-trades" onclick="clearAllBotTrades()" style="background:#1a1a1a;border:1px solid #333;color:#666;font-size:0.82rem;font-weight:600;padding:9px 18px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.borderColor='#ff7043';this.style.color='#ff7043'" onmouseout="this.style.borderColor='#333';this.style.color='#666'">Hide All Trades</button>
-              <button id="btn-delete-trades" onclick="clearAllTrades()" style="background:#2a0a0a;border:1px solid #5a1a1a;color:#ff4444;font-size:0.82rem;font-weight:600;padding:9px 18px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.borderColor='#ff4444'" onmouseout="this.style.borderColor='#5a1a1a'">DELETE All Trades</button>
-              <button id="btn-recalc-bots" onclick="recalcAllBotsFromBotsPage()" style="background:#ff6b6b;border:2px solid #ff6b6b;color:#000;font-size:0.85rem;font-weight:700;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='#ff8585';this.style.borderColor='#ff8585'" onmouseout="this.style.background='#ff6b6b';this.style.borderColor='#ff6b6b'">RECALC ALL BOTS</button>
-            </div>
+            <h1>Bots</h1>
           </div>
           <!-- BOOF 23 PAPER BOT — Static Alpaca Card -->
           <div class="section-divider" style="margin-bottom:0;">
@@ -563,28 +530,6 @@
             <div class="empty-state" style="border-color:#1a3a1a;">Loading Boof 29...</div>
           </div>
 
-          <div id="bots-container">
-            <div class="empty-state">Loading bots...</div>
-          </div>
-
-          <!-- Options Bots Section -->
-          <div class="section-divider">
-            <div class="section-divider-line"></div>
-            <div class="section-divider-label">Options Bots</div>
-            <div class="section-divider-line"></div>
-          </div>
-
-          <div id="options-bots-container">
-            <div class="empty-state" style="border-color:#2a2000;">Loading options bots...</div>
-          </div>
-
-          <!-- Live Options Bots Section -->
-          <div class="section-divider" id="live-options-section" style="display:none;">
-            <div class="section-divider-line"></div>
-            <div class="section-divider-label" style="color:#ff7043;">&#9679; Live Options Bots</div>
-            <div class="section-divider-line"></div>
-          </div>
-          <div id="live-options-bots-container"></div>
         </div>
 
         <!-- ALL TRADES SECTION -->
