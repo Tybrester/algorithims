@@ -1,0 +1,22 @@
+# Boof Options Scan List - Volatile Sub-$10 Stocks
+# Designed for 0DTE options trading with Boof 15.0/16.0
+# Focus on high volatility stocks with liquid options chains
+
+# Top performers (positive expectancy in backtest)
+RIVN  # Rivian - 50% win rate, +0.18% expectancy
+AMC   # AMC Entertainment - 42.9% win rate, +0.22% expectancy
+
+# Decent performers (high win rate, near breakeven)
+SOFI  # SoFi Technologies - 27.3% win rate, -0.23% expectancy
+NIO   # NIO Inc - 35.3% win rate, -0.20% expectancy
+XPEV  # XPeng Inc - 38.9% win rate, -0.13% expectancy
+
+# Additional volatile sub-$10 stocks with options
+GME   # GameStop - highly volatile meme stock
+HOOD  # Robinhood - fintech volatility
+SPCE  # Virgin Galactic - speculative volatility
+NKLA  # Nikola - EV volatility
+PLUG  # Plug Power - clean energy volatility
+FCEL  # FuelCell Energy - clean energy volatility
+SENS  # Senseonics - medical device volatility
+LCID  # Lucid Motors - EV volatility (33.3% win rate, -0.25% expectancy)

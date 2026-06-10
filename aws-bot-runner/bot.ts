@@ -1,0 +1,1097 @@
+// ═══════════════════════════════════════════════════════════════════
+//  Boof Capital — AWS EC2 Live Bot Runner
+//  Deploys to: EC2 t3.nano/t4g.nano in us-east-1 (same AZ as Alpaca)
+//  Runtime: Node.js + ts-node + PM2
+//  Replaces: Supabase pg_cron + Edge Function cold starts
+// ═══════════════════════════════════════════════════════════════════
+
+import * as dotenv from 'dotenv';
+dotenv.config();
+
+import { createClient } from '@supabase/supabase-js';
+// Polyfill WebSocket for Supabase realtime on Node 20
+import WS from 'ws';
+if (typeof (globalThis as any).WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = WS;
+}
+
+import { getBoof22Signal } from './src/signals/boof22';
+import { getBoof23Signal } from './src/signals/boof23';
+import { getBoof25Signal } from './src/signals/boof25';
+
+// ─────────────────────────────────────────────
+// CLIENTS
+// ─────────────────────────────────────────────
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_KEY!   // service role key
+);
+
+const ALPACA_KEY    = process.env.ALPACA_KEY!;
+const ALPACA_SECRET = process.env.ALPACA_SECRET!;
+const IS_PAPER      = process.env.ALPACA_PAPER === 'true';
+
+const BASE_URL  = IS_PAPER ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets';
+const DATA_URL  = 'https://data.alpaca.markets';
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const SLIPPAGE_BUFFER = 0.02;
+const LIMIT_TIMEOUT_MS = 5000;
+const R = 0.05;
+
+// Dynamically built from active bot configs after Supabase load
+let WATCH_SYMBOLS: string[] = [];
+
+// ─────────────────────────────────────────────
+// CANDLE CACHE  (rolling 150-bar window per symbol, 1m bars)
+// ─────────────────────────────────────────────
+interface Candle {
+  time: number; open: number; high: number; low: number; close: number; volume: number;
+}
+const candleCache: Map<string, Candle[]> = new Map();
+const MAX_CANDLES = 150;
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function alpacaHeaders() {
+  return {
+    'APCA-API-KEY-ID': ALPACA_KEY,
+    'APCA-API-SECRET-KEY': ALPACA_SECRET,
+    'Content-Type': 'application/json',
+  };
+}
+
+async function fetchCandles(symbol: string, timeframe: string, limit = 150): Promise<Candle[]> {
+  const tf = timeframe.replace(/^(\d+)m$/, '$1Min').replace(/^(\d+)h$/, '$1Hour');
+  const url = `${DATA_URL}/v2/stocks/${symbol}/bars?timeframe=${tf}&limit=${limit}&adjustment=raw&feed=sip`;
+  const res = await fetch(url, { headers: alpacaHeaders() });
+  if (!res.ok) return [];
+  const json: any = await res.json();
+  return (json.bars || []).map((b: any) => ({
+    time: new Date(b.t).getTime(), open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v,
+  }));
+}
+
+async function fetchInitialCandles(symbol: string): Promise<void> {
+  const url = `${DATA_URL}/v2/stocks/${symbol}/bars?timeframe=1Min&limit=${MAX_CANDLES}&adjustment=raw&feed=sip`;
+  const res = await fetch(url, { headers: alpacaHeaders() });
+  if (!res.ok) { console.error(`[Init] Failed to fetch candles for ${symbol}: ${res.status}`); return; }
+  const json: any = await res.json();
+  const bars: Candle[] = (json.bars || []).map((b: any) => ({
+    time: new Date(b.t).getTime(), open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v,
+  }));
+  candleCache.set(symbol, bars);
+  console.log(`[Init] Loaded ${bars.length} candles for ${symbol}`);
+}
+
+function pushCandle(symbol: string, c: Candle): void {
+  const arr = candleCache.get(symbol) ?? [];
+  arr.push(c);
+  if (arr.length > MAX_CANDLES) arr.shift();
+  candleCache.set(symbol, arr);
+}
+
+function formatOptionSymbol(symbol: string, expDate: string, type: 'call'|'put', strike: number): string {
+  const d = new Date(expDate);
+  const yy = String(d.getUTCFullYear()).slice(2);
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const K = String(Math.round(strike * 1000)).padStart(8, '0');
+  const formatted = `${symbol}${yy}${mm}${dd}${type === 'call' ? 'C' : 'P'}${K}`;
+  console.log(`[FormatSymbol] Input: ${symbol} ${expDate} ${type} $${strike} → Output: ${formatted}`);
+  return formatted;
+}
+
+function nearestFriday(): string {
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = et.getDay();
+  const daysUntilFri = (5 - day + 7) % 7 || 7;
+  et.setDate(et.getDate() + daysUntilFri);
+  return et.toISOString().slice(0, 10);
+}
+
+function thirdFriday(): string {
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const year = et.getFullYear();
+  const month = et.getMonth();
+  // Find first Friday of month
+  const firstDay = new Date(year, month, 1);
+  let firstFriday = 1 + ((5 - firstDay.getDay() + 7) % 7);
+  // Third Friday is first Friday + 14 days
+  const thirdFriday = firstFriday + 14;
+  const expDate = new Date(year, month, thirdFriday);
+  return expDate.toISOString().slice(0, 10);
+}
+
+function pickStrike(spot: number, type: 'call'|'put', atr: number): number {
+  // 0.3 ATR OTM = closer to ATM for better delta and win rate
+  // 0.5 ATR was too far OTM for expensive stocks, causing lottery tickets
+  const rawStrike = spot + (type === 'call' ? atr * 0.3 : -atr * 0.3);
+  // Round to valid strike intervals
+  // - Stocks > $500: $5 intervals (LLY, etc)
+  // - Stocks $50-$500: $2.50 intervals (AAPL, MSFT, etc)
+  // - Stocks < $50: $1 intervals
+  let interval: number;
+  if (spot > 500) interval = 5;
+  else if (spot > 50) interval = 2.5;
+  else interval = 1;
+  const rounded = Math.round(rawStrike / interval) * interval;
+  return rounded;
+}
+
+function blackScholes(S: number, K: number, T: number, r: number, sigma: number, type: 'call'|'put'): number {
+  if (T <= 0 || sigma <= 0) return Math.max(0.01, type === 'call' ? S - K : K - S);
+  const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  const N = (x: number) => {
+    const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+    const sign = x < 0 ? -1 : 1; const ax = Math.abs(x);
+    const t = 1 / (1 + p * ax);
+    return 0.5 * (1 + sign * (1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-ax*ax/2)));
+  };
+  return type === 'call'
+    ? S * N(d1) - K * Math.exp(-r * T) * N(d2)
+    : K * Math.exp(-r * T) * N(-d2) - S * N(-d1);
+}
+
+function calcADX(candles: Candle[], period = 14): number {
+  if (candles.length < period + 1) return 25;
+  const trueRanges: number[] = [];
+  const plusDM:  number[] = [];
+  const minusDM: number[] = [];
+  for (let i = 1; i < candles.length; i++) {
+    const high = candles[i].high, low = candles[i].low;
+    const prevHigh = candles[i-1].high, prevLow = candles[i-1].low, prevClose = candles[i-1].close;
+    trueRanges.push(Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose)));
+    const upMove = high - prevHigh;
+    const downMove = prevLow - low;
+    plusDM.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    minusDM.push(downMove > upMove && downMove > 0 ? downMove : 0);
+  }
+  const smooth = (arr: number[]) => {
+    let val = arr.slice(0, period).reduce((a, b) => a + b, 0);
+    const out = [val];
+    for (let i = period; i < arr.length; i++) { val = val - val / period + arr[i]; out.push(val); }
+    return out;
+  };
+  const atrS = smooth(trueRanges);
+  const pS   = smooth(plusDM);
+  const mS   = smooth(minusDM);
+  const dxArr: number[] = [];
+  for (let i = 0; i < atrS.length; i++) {
+    if (atrS[i] === 0) continue;
+    const pdi = 100 * pS[i] / atrS[i];
+    const mdi = 100 * mS[i] / atrS[i];
+    const sum = pdi + mdi;
+    dxArr.push(sum === 0 ? 0 : 100 * Math.abs(pdi - mdi) / sum);
+  }
+  if (dxArr.length < period) return 25;
+  return dxArr.slice(-period).reduce((a, b) => a + b, 0) / period;
+}
+
+function isChoppy(candles: Candle[]): boolean {
+  return calcADX(candles) < 20;
+}
+
+function calcHistVol(closes: number[]): number {
+  if (closes.length < 21) return 0.3;
+  const slice = closes.slice(-21);
+  const rets = slice.slice(1).map((c, i) => Math.log(c / slice[i]));
+  const mean = rets.reduce((a, b) => a + b) / rets.length;
+  const variance = rets.reduce((a, b) => a + (b - mean) ** 2, 0) / rets.length;
+  return Math.sqrt(variance * 252); // daily-scale annualised vol
+}
+
+function isMarketOpen(): boolean {
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const d = et.getDay(), h = et.getHours(), m = et.getMinutes();
+  const weekend = d === 0 || d === 6;
+  const open = (h > 9 || (h === 9 && m >= 30)) && (h < 15 || (h === 15 && m <= 55));
+  return !weekend && open;
+}
+
+// ─────────────────────────────────────────────
+// ORDER PLACEMENT  (market orders only)
+// ─────────────────────────────────────────────
+async function placeProtectedOrder(
+  optSymbol: string, side: 'buy'|'sell', qty: number, midPrice: number,
+  blindAsk?: number, botId?: string, userId?: string, forceFill = false
+): Promise<{ orderId: string; fillPrice: number | null; status: string } | null> {
+  // Market orders only — no limits, no buffers, immediate fill
+  console.log(`[Order] ${side.toUpperCase()} ${qty}x ${optSymbol} @ MARKET (ask=$${blindAsk?.toFixed(2) ?? 'n/a'}, mid=$${midPrice.toFixed(2)})`);
+
+  const orderBody = {
+    symbol: optSymbol, qty: String(qty), side,
+    type: 'market', time_in_force: 'day',
+    position_effect: side === 'buy' ? 'open' : 'close',
+  };
+
+  const res = await fetch(`${BASE_URL}/v2/orders`, {
+    method: 'POST', headers: alpacaHeaders(), body: JSON.stringify(orderBody),
+  });
+  const order: any = await res.json();
+  if (!res.ok) { 
+    console.error(`[Order] Market order failed:`, order.message); 
+    (placeProtectedOrder as any)._lastError = order.message || res.statusText;
+    return null; 
+  }
+
+  console.log(`[Order] Market ${side} ${qty}x ${optSymbol} → ${order.id}`);
+
+  // Poll until filled (market orders fill quickly)
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 100));
+    const pollRes = await fetch(`${BASE_URL}/v2/orders/${order.id}`, { headers: alpacaHeaders() });
+    const polled: any = await pollRes.json();
+
+    if (polled.filled_avg_price) {
+      const fillPrice = Number(polled.filled_avg_price);
+      
+      // Compare: old limit-3c approach vs market fill
+      const oldLimitPrice = side === 'buy' && blindAsk ? blindAsk - 0.03 : fillPrice;
+      const oldLimitCost = oldLimitPrice * qty * 100;
+      const actualCost = fillPrice * qty * 100;
+      const savedVsLimit = oldLimitCost - actualCost; // positive = market was better
+      
+      const spreadPaid = blindAsk ? (fillPrice - blindAsk) * 100 * qty : 0;
+      console.log(`[Order] Filled @ $${fillPrice} | vs ask: $${spreadPaid.toFixed(2)} | vs limit-3c: $${savedVsLimit.toFixed(2)}`);
+
+      // Log fill metrics async
+      supabase.from('slippage_logs').insert({
+        symbol:               optSymbol,
+        order_id:             order.id,
+        bot_id:               botId ?? null,
+        user_id:              userId ?? null,
+        blind_ask_price:      blindAsk ?? midPrice,
+        target_mid_price:     midPrice,
+        limit_price:          oldLimitPrice,
+        actual_filled_price:  fillPrice,
+        mid_slippage_pennies: Math.round((fillPrice - midPrice) * 100),
+        cash_saved_dollars:   savedVsLimit,
+        qty,
+        timestamp:            new Date().toISOString(),
+      }).then(() => {}, (e: any) => console.error('[Slippage] Log failed:', e.message));
+
+      return { orderId: order.id, fillPrice, status: polled.status };
+    }
+  }
+
+  console.log(`[Order] Market order not filled after 3s — skipping`);
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// LOAD ENABLED BOTS FROM SUPABASE
+// ─────────────────────────────────────────────
+interface BotRow {
+  id: string; user_id: string; name: string; broker: string;
+  bot_signal: string; bot_symbol: string; bot_scan_mode: string; bot_interval: string;
+  take_profit_pct: number; stop_loss_pct: number;
+  paper_balance: number; contracts: number; amount_per_trade: number;
+  bot_dollar_amount: number | null; neutral_chop_amount: number | null; neutral_trend_amount: number | null;
+  max_daily_trades: number | null; daily_trade_count: number;
+  option_type: string; bot_expiry_type: string;
+  consecutive_losses: number | null; max_consecutive_losses: number | null; cooldown_minutes: number | null; cooldown_until: string | null;
+}
+
+let activeBots: BotRow[] = [];
+const openPositions = new Set<string>(); // "botId:symbol" — in-memory guard against race conditions
+
+async function reloadBots(): Promise<void> {
+  const { data, error } = await supabase
+    .from('options_bots')
+    .select('*')
+    .eq('enabled', true)
+    .eq('auto_submit', true);
+  if (error) { console.error('[Bots] Reload failed:', error.message); return; }
+  activeBots = (data || []) as BotRow[];
+  // Rebuild watch list from all active bot scan lists
+  const symSet = new Set<string>();
+  for (const bot of activeBots) {
+    const scanList = getScanList(bot.bot_scan_mode);
+    const syms = scanList.length > 0
+      ? scanList
+      : (bot.bot_symbol || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean);
+    syms.forEach((s: string) => symSet.add(s));
+  }
+  const newSymbols = Array.from(symSet);
+  const changed = newSymbols.length !== WATCH_SYMBOLS.length || newSymbols.some(s => !WATCH_SYMBOLS.includes(s));
+  WATCH_SYMBOLS = newSymbols;
+  console.log(`[Bots] Loaded ${activeBots.length}: ${activeBots.map(b => b.name).join(', ')}`);
+  console.log(`[Bots] Watching ${WATCH_SYMBOLS.length} symbols: ${WATCH_SYMBOLS.join(', ')}`);
+  if (changed && activeWs?.readyState === 1) {
+    activeWs.send(JSON.stringify({ action: 'subscribe', bars: WATCH_SYMBOLS }));
+    console.log(`[WS] Re-subscribed to updated symbol list`);
+  }
+}
+
+// ─────────────────────────────────────────────
+// CORE SIGNAL EVALUATION
+// Called once per 1m bar close per underlying symbol
+// ─────────────────────────────────────────────
+async function onBar(symbol: string, candles: Candle[]): Promise<void> {
+  console.log(`[onBar] ${symbol}: ${candles.length} bars, marketOpen=${isMarketOpen()}`);
+  if (!isMarketOpen()) { console.log(`[onBar] ${symbol}: market closed, returning`); return; }
+
+  const botsForSymbol = activeBots.filter(b => {
+    const scanList = getScanList(b.bot_scan_mode);
+    const symList = scanList.length > 0
+      ? scanList
+      : (b.bot_symbol || '').split(',').map((s: string) => s.trim().toUpperCase()).filter(Boolean);
+    return symList.includes(symbol);
+  });
+
+  if (!botsForSymbol.length) return;
+
+  for (const bot of botsForSymbol) {
+    try {
+      if (bot.max_daily_trades && bot.daily_trade_count >= bot.max_daily_trades) {
+        console.log(`[TradeLimit] ${bot.name}: Hit daily limit ${bot.daily_trade_count}/${bot.max_daily_trades}`);
+        continue;
+      }
+
+      // Interval gate: only evaluate on the correct bar boundary
+      const interval = bot.bot_interval || '1m';
+      const intervalMins = interval === '15m' ? 15 : interval === '5m' ? 5 : 1;
+      if (intervalMins > 1) {
+        const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        if (etNow.getMinutes() % intervalMins !== 0) continue;
+      }
+
+      // In-memory guard first (prevents race conditions)
+      const posKey = `${bot.id}:${symbol}`;
+      if (openPositions.has(posKey)) {
+        console.log(`[PositionLock] ${bot.name} ${symbol}: Blocked by in-memory lock (size=${openPositions.size})`);
+        continue;
+      }
+
+      // DB check as secondary guard
+      const { data: openTrades } = await supabase
+        .from('options_trades')
+        .select('id')
+        .eq('bot_id', bot.id)
+        .eq('symbol', symbol)
+        .eq('status', 'open')
+        .limit(1);
+      if (openTrades && openTrades.length > 0) {
+        openPositions.add(posKey); // sync in-memory with DB
+        continue;
+      }
+
+      // Block new 0DTE entries after 12pm MST (18:00 UTC)
+      if (bot.bot_expiry_type === '0dte') {
+        const utcH = new Date().getUTCHours(), utcM = new Date().getUTCMinutes();
+        if (utcH > 18 || (utcH === 18 && utcM >= 0)) {
+          console.log(`[Gate] ${bot.name} ${symbol}: skipping 0DTE entry — past 12pm MST`);
+          continue;
+        }
+      }
+
+      const tpPct = Number(bot.take_profit_pct ?? 40) / 100;
+      const slPct = Math.abs(Number(bot.stop_loss_pct ?? 15)) / 100;
+      const sig   = bot.bot_signal;
+
+      // ── FETCH CORRECT TIMEFRAME CANDLES FOR SIGNAL ──
+      const sigCandles = intervalMins > 1
+        ? await fetchCandles(symbol, interval, 150)
+        : candles;
+      if (sigCandles.length < 50) continue;
+
+      // ── ADX CHOP DETECTION (for .5 variants) ──
+      const choppy = isChoppy(sigCandles as any);
+      const isHalfVariant = sig === 'boof22_5' || sig === 'boof23_5';
+      if (isHalfVariant && choppy) {
+        console.log(`[Chop] ${bot.name} ${symbol}: ADX<20 chop detected — using chop sizing`);
+      }
+
+      // ── RUN BOOF22 / BOOF23 / BOOF25 SIGNAL MATH ──
+      let result: any = null;
+      if (sig === 'boof22' || sig === 'boof22_5') {
+        result = getBoof22Signal(sigCandles as any, symbol, tpPct, slPct);
+      } else if (sig === 'boof23' || sig === 'boof23_5') {
+        result = getBoof23Signal(sigCandles as any, symbol, tpPct, slPct);
+      } else if (sig === 'boof25') {
+        result = getBoof25Signal(sigCandles as any, symbol, tpPct, slPct);
+      }
+
+      // DEBUG: Log ALL signal results
+      console.log(`[SignalDebug] ${bot.name} ${symbol}: signal=${result?.signal}, reason=${result?.reason || 'no result'}`);
+      
+      if (!result || result.signal === 'none') {
+        continue;
+      }
+
+      const signal    = result.signal as 'buy' | 'sell';
+      const optType: 'call'|'put' = signal === 'buy' ? 'call' : 'put';
+      if (bot.option_type === 'call' && optType !== 'call') continue;
+      if (bot.option_type === 'put'  && optType !== 'put')  continue;
+
+      // ── CHECK FOR EXISTING OPEN POSITION ──
+      const { data: existingPos } = await supabase.from('options_trades')
+        .select('*')
+        .eq('symbol', symbol)
+        .eq('status', 'open')
+        .eq('bot_id', bot.id)
+        .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()) // Within last 10 mins
+        .limit(1);
+      
+      if (existingPos && existingPos.length > 0) {
+        console.log(`[SignalSkip] ${bot.name} ${symbol}: Already have open position from ${existingPos[0].created_at}`);
+        continue;
+      }
+
+      const spot    = sigCandles[sigCandles.length - 1].close;
+      const closes  = sigCandles.map(c => c.close);
+      const sigma   = calcHistVol(closes);
+      const highs   = sigCandles.map(c => c.high);
+      const lows    = sigCandles.map(c => c.low);
+      const atrVals = sigCandles.map((c, i) => i === 0 ? c.high - c.low :
+        Math.max(c.high - c.low, Math.abs(c.high - sigCandles[i-1].close), Math.abs(c.low - sigCandles[i-1].close)));
+      const atr     = atrVals.slice(-14).reduce((a, b) => a + b) / 14;
+
+      const expDate   = nearestFriday(); // 0DTE/1DTE - tomorrow's expiration
+      const T         = Math.max(0, (new Date(expDate).getTime() - Date.now()) / (365 * 24 * 3600 * 1000));
+      const strikeInterval = spot > 500 ? 5 : spot > 50 ? 2.5 : 1;
+
+      // ── TRADE SIZING: symbol slack score → tier amount ──
+      // Daily decay: move halfway back toward neutral (100) each new trading day
+      const { data: slackRow } = await supabase
+        .from('symbol_slack_scores')
+        .select('slack_score, total_trades, last_decayed')
+        .eq('bot_id', bot.id)
+        .eq('symbol', symbol)
+        .maybeSingle();
+      
+      const rawSlack = slackRow?.slack_score ?? 100;
+      const lastDecay = slackRow?.last_decayed ? new Date(slackRow.last_decayed).toDateString() : null;
+      const todayStr = new Date().toDateString();
+      
+      // Apply half-life decay if this is a new day
+      let symbolSlack = rawSlack;
+      if (lastDecay !== todayStr) {
+        symbolSlack = Math.round((rawSlack + 100) / 2); // Halfway back to neutral
+        // Update decayed score back to DB
+        supabase.from('symbol_slack_scores').upsert({
+          bot_id: bot.id,
+          symbol: symbol,
+          slack_score: symbolSlack,
+          last_decayed: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }).then(() => {}, (e: any) => console.error('[SlackDecay] Update failed:', e.message));
+        console.log(`[SlackDecay] ${symbol}: ${rawSlack} → ${symbolSlack} (daily decay to neutral)`);
+      }
+      
+      const hasHistory  = (slackRow?.total_trades ?? 0) >= 5;
+
+      // Discrete slack tier amounts: High=$500, Normal=$250, Low=$150
+      const isTieredSignal = ['boof22','boof22_5','boof23','boof23_5'].includes(bot.bot_signal);
+      let amount: number;
+      if (isTieredSignal) {
+        if (hasHistory && symbolSlack >= 120)  amount = 500;  // High slack
+        else if (!hasHistory)                   amount = 250;  // New symbol = normal size
+        else if (symbolSlack >= 80)            amount = 250;  // Normal slack
+        else                                    amount = 150;  // Low slack (<80)
+      } else if (isHalfVariant && choppy && bot.neutral_chop_amount) {
+        amount = Number(bot.neutral_chop_amount);
+      } else if (isHalfVariant && !choppy && bot.neutral_trend_amount) {
+        amount = Number(bot.neutral_trend_amount);
+      } else {
+        amount = Number(bot.bot_dollar_amount ?? bot.amount_per_trade ?? 250);
+      }
+      // ── SUPABASE RISK MANAGEMENT: Signal slack + Daily P&L filtering ──
+      // Get today's trades for daily P&L calculation
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: dailyTrades } = await supabase
+        .from('options_trades')
+        .select('pnl')
+        .eq('bot_id', bot.id)
+        .gte('created_at', today);
+      const dailyPnL = (dailyTrades || []).reduce((sum: number, t: any) => sum + (t.pnl || 0), 0);
+      const baseAmountForR = bot.bot_dollar_amount || 250;
+      const dailyR = dailyPnL / baseAmountForR;
+
+      // Signal slack from the signal result
+      const signalSlack = result.slack ?? 0;
+
+      // Symbol slack multiplier (like Supabase)
+      let symbolSlackMultiplier = 1.0;
+      let slackStatus = 'normal';
+      if (hasHistory) {
+        if (symbolSlack < 50) {
+          symbolSlackMultiplier = 0.25;
+          slackStatus = 'min-size';
+        } else if (symbolSlack < 100) {
+          symbolSlackMultiplier = 0.5;
+          slackStatus = 'reduced';
+        }
+      }
+
+      // Risk overlays (from Supabase)
+      const isLosingStreak = dailyR < -2.0;  // Down more than 2R today
+      const isVeryLowSlack = signalSlack < 0.3; // No confidence
+      const riskOff = isLosingStreak || isVeryLowSlack;
+
+      // Core signal detection (from Supabase)
+      const isCore = signalSlack >= 0.8 && !riskOff;
+      const signalMultiplier = riskOff ? 0.5 : (isCore ? 2.0 : 1.0);
+      const tieredTier = riskOff ? 'reduced' : (isCore ? 'core' : 'expanded');
+
+      // Combined multiplier (signal * symbol slack)
+      const combinedMultiplier = signalMultiplier * symbolSlackMultiplier;
+
+      // Apply multiplier to amount
+      const finalAmount = Math.round(amount * combinedMultiplier);
+
+      console.log(`[RiskMgmt] ${bot.name} ${symbol}: signalSlack=${signalSlack.toFixed(2)}, symbolSlack=${symbolSlack.toFixed(1)} [${slackStatus}], dailyR=${dailyR.toFixed(2)}, riskOff=${riskOff}, tier=${tieredTier}, combinedMult=${combinedMultiplier.toFixed(2)}x, ${amount}→${finalAmount}`);
+
+      // Update amount for rest of logic
+      amount = finalAmount;
+
+      // Pick initial strike (0.5 ATR OTM - affordable but not lottery ticket)
+      let strike = pickStrike(spot, optType, atr);
+      let midPrice = 0;
+      // Limit OTM walking to max 3 strikes to prevent buying deep lottery tickets
+      for (let i = 0; i < 3; i++) {
+        const p = blackScholes(spot, strike, T, R, sigma, optType);
+        midPrice = p < 0.05 ? 0.05 : p;
+        if (midPrice * 100 <= amount) break;
+        strike = optType === 'call' ? strike + strikeInterval : strike - strikeInterval;
+      }
+      if (midPrice * 100 > amount) {
+        console.log(`[Skip] ${bot.name} ${symbol}: no affordable strike within 3 steps OTM (budget $${amount})`);
+        continue;
+      }
+      const qty       = Math.max(1, Math.floor(amount / (midPrice * 100)));
+      const optSymbol = formatOptionSymbol(symbol, expDate, optType, strike);
+
+      console.log(`[Signal] ${bot.name} → ${signal.toUpperCase()} ${symbol} ${optType} $${strike} exp=${expDate} mid=$${midPrice.toFixed(2)} qty=${qty} | ${result.reason}`);
+
+      // ── FETCH LIVE QUOTE SNAPSHOT FOR REAL MID-PRICE ──
+      let blindAsk: number | undefined;
+      const TARGET_MIN = 1.00;  // Allow cheaper options (was 1.50)
+      const TARGET_MAX = 3.00;  // Cap at $3.00 max (was 4.00) - prevents expensive options
+
+      async function fetchLiveQuote(sym: string): Promise<{ mid: number; ask: number } | null> {
+        // Use batch snapshots endpoint with feed parameter (like working Supabase version)
+        for (const feed of ['opra', 'indicative']) {
+          const url = `${DATA_URL}/v1beta1/options/snapshots?symbols=${encodeURIComponent(sym)}&feed=${feed}`;
+          const r = await fetch(url, { headers: alpacaHeaders() });
+          if (!r.ok) continue; // Try next feed
+          const j: any = await r.json();
+          const snap = j?.snapshots?.[sym];
+          const bid = snap?.latestQuote?.bp;
+          const ask = snap?.latestQuote?.ap;
+          if (bid > 0 && ask > 0) {
+            const mid = Math.round(((bid + ask) / 2) * 100) / 100;
+            console.log(`[Quote] Got ${feed} quote for ${sym}: bid=$${bid} ask=$${ask} mid=$${mid}`);
+            return { mid, ask };
+          }
+          const lastTrade = snap?.latestTrade?.p;
+          if (lastTrade > 0) {
+            console.log(`[Quote] Got ${feed} last trade for ${sym}: $${lastTrade}`);
+            return { mid: lastTrade, ask: lastTrade };
+          }
+        }
+        console.log(`[Quote] No valid quote for ${sym} from any feed`);
+        return null;
+      }
+
+      // Initial quote
+      // Dynamic targets based on stock price - expensive stocks need pricier options
+      const dynamicMin = Math.max(TARGET_MIN, spot * 0.001); // 0.1% of stock price, min $0.25
+      const dynamicMax = Math.min(TARGET_MAX, spot * 0.005); // 0.5% of stock price, max $4.00
+      
+      let liveQ = await fetchLiveQuote(optSymbol);
+      
+      // Fallback: if initial strike fails, search extensively in BOTH directions until finding target range
+      if (!liveQ) {
+        console.log(`[Quote] Initial strike ${strike} failed, searching extensively for valid strikes...`);
+        // Search up to 50 strikes in both directions until we find one in target range
+        for (let offset = 1; offset <= 50; offset++) {
+          // Try ITM (in-the-money direction) - closer to ATM, usually more liquid
+          const itmStrike = strike + (optType === 'call' ? -offset * strikeInterval : offset * strikeInterval);
+          const itmSym = formatOptionSymbol(symbol, expDate, optType, itmStrike);
+          const itmQ = await fetchLiveQuote(itmSym);
+          if (itmQ && itmQ.mid >= dynamicMin && itmQ.mid <= dynamicMax) {
+            console.log(`[Quote] Found target ITM strike ${itmStrike} with mid=$${itmQ.mid} (walk=${offset})`);
+            liveQ = itmQ;
+            strike = itmStrike;
+            break;
+          }
+          // Try OTM (out-of-the-money direction)
+          const otmStrike = strike + (optType === 'call' ? offset * strikeInterval : -offset * strikeInterval);
+          const otmSym = formatOptionSymbol(symbol, expDate, optType, otmStrike);
+          const otmQ = await fetchLiveQuote(otmSym);
+          if (otmQ && otmQ.mid >= dynamicMin && otmQ.mid <= dynamicMax) {
+            console.log(`[Quote] Found target OTM strike ${otmStrike} with mid=$${otmQ.mid} (walk=${offset})`);
+            liveQ = otmQ;
+            strike = otmStrike;
+            break;
+          }
+        }
+      }
+      
+      if (liveQ) {
+        blindAsk = liveQ.ask;
+        midPrice = liveQ.mid;
+        console.log(`[Quote] Initial ask=$${blindAsk} mid=$${midPrice} for ${optSymbol}, targets=[$${dynamicMin.toFixed(2)}-$${dynamicMax.toFixed(2)}]`);
+
+        // If too cheap (< dynamicMin), walk strike back toward ATM (ITM direction)
+        if (midPrice < dynamicMin) {
+          let walkStrike = strike;
+          for (let w = 0; w < 50; w++) {
+            walkStrike = optType === 'call' ? walkStrike - strikeInterval : walkStrike + strikeInterval;
+            const walkSym = formatOptionSymbol(symbol, expDate, optType, walkStrike);
+            const wq = await fetchLiveQuote(walkSym);
+            if (!wq) continue;
+            console.log(`[QuoteWalk] strike=${walkStrike} mid=$${wq.mid} ask=$${wq.ask}`);
+            // Accept if in range AND affordable
+            if (wq.mid >= dynamicMin && wq.mid <= dynamicMax) {
+              if (wq.mid * 100 <= amount * 2) {
+                strike = walkStrike;
+                midPrice = wq.mid;
+                blindAsk = wq.ask;
+                console.log(`[QuoteWalk] Found target strike=${strike} mid=$${midPrice}`);
+              }
+              break;
+            }
+            // Stop if we walked too far ITM (price > $10)
+            if (wq.mid > 10) break;
+          }
+        }
+
+        // If too expensive (> dynamicMax), walk strike further OTM (away from ATM)
+        if (midPrice > dynamicMax) {
+          let walkStrike = strike;
+          for (let w = 0; w < 50; w++) {
+            walkStrike = optType === 'call' ? walkStrike + strikeInterval : walkStrike - strikeInterval;
+            const walkSym = formatOptionSymbol(symbol, expDate, optType, walkStrike);
+            const wq = await fetchLiveQuote(walkSym);
+            if (!wq) continue;
+            console.log(`[QuoteWalk OTM] strike=${walkStrike} mid=$${wq.mid} ask=$${wq.ask}`);
+            if (wq.mid <= dynamicMax && wq.mid >= dynamicMin) {
+              strike = walkStrike;
+              midPrice = wq.mid;
+              blindAsk = wq.ask;
+              console.log(`[QuoteWalk OTM] Found target strike=${strike} mid=$${midPrice}`);
+              break;
+            }
+            // Stop if we walked too far and it's too cheap — went too deep OTM
+            if (wq.mid < dynamicMin) break;
+          }
+        }
+        
+        // Final check: reject if still too cheap (illiquid/junk option)
+        if (midPrice < 1.00) {
+          console.log(`[Quote] Rejecting ${symbol} - best price $${midPrice} too cheap (min $1.00)`);
+          continue;
+        }
+      }
+
+      // Reject if price still too cheap after quote walking (or if no live quote)
+      if (midPrice < 1.00) {
+        console.log(`[Order] Rejecting ${symbol} - final price $${midPrice} too cheap (min $1.00), no liquid options found`);
+        continue;
+      }
+
+      // Recalc symbol + qty after potential quote walk updated strike/midPrice
+      const finalOptSymbol = formatOptionSymbol(symbol, expDate, optType, strike);
+      
+      // STRICT BUDGET CHECK: Reject if option is too expensive for our budget
+      const maxAffordableContracts = Math.floor(amount / (midPrice * 100));
+      if (maxAffordableContracts < 1 || midPrice * 100 > amount * 1.5) {
+        console.log(`[Order] REJECTED: ${finalOptSymbol} at $${midPrice.toFixed(2)} is too expensive for $${amount} budget`);
+        openPositions.delete(posKey); // Clear lock so we can try different strike
+        continue;
+      }
+      
+      const finalQty = Math.max(1, maxAffordableContracts);
+      console.log(`[Order] Final: ${finalOptSymbol} strike=${strike} optType=${optType} exp=${expDate} mid=$${midPrice.toFixed(2)} qty=${finalQty} budget=$${amount}`);
+      console.log(`[OrderDebug] About to place order: symbol=${symbol} optType=${optType} strike=${strike} expDate=${expDate} finalOptSymbol=${finalOptSymbol}`);
+
+      // ── GLOBAL POSITION LIMIT: Max 3 simultaneous positions per bot ──
+      const globalOpenCount = Array.from(openPositions).filter(k => k.startsWith(`${bot.id}:`)).length;
+      if (globalOpenCount >= 3) {
+        console.log(`[GlobalLimit] ${bot.name}: Already has ${globalOpenCount} positions open (max 3)`);
+        continue;
+      }
+
+      // ── FIRE LIMIT ORDER AT MID (better fill than ask) ──
+      openPositions.add(posKey); // lock immediately before order fires
+      const orderResult = await placeProtectedOrder(finalOptSymbol, 'buy', finalQty, midPrice, midPrice, bot.id, bot.user_id);
+      if (!orderResult) { openPositions.delete(posKey); continue; }
+
+      const fillPremium = orderResult.fillPrice ?? midPrice;
+      const totalCost   = fillPremium * finalQty * 100;
+
+      // ── LOG TO SUPABASE ──
+      try {
+        const { error: insertErr } = await supabase.from('options_trades').insert({
+          bot_id:               bot.id,
+          user_id:              bot.user_id,
+          symbol,
+          option_type:          optType,
+          strike,
+          expiration_date:      expDate,
+          premium_per_contract: fillPremium,
+          entry_price:          fillPremium,
+          total_cost:           totalCost,
+          contracts:            finalQty,
+          status:               'open',
+          created_at:           new Date().toISOString(),
+          reason:               result.reason,
+          entry_slack:          result.slack ?? 1,
+          signal_version:       bot.bot_signal,
+          broker:               bot.broker || 'alpaca_paper',
+          mode:                 result.tier === 'core' ? 'core' : (choppy ? 'chop' : 'trend'),
+          signal:               signal,
+        });
+        if (insertErr) {
+          console.error(`[DB] INSERT FAILED for ${bot.name} ${symbol}:`, insertErr.message);
+        } else {
+          console.log(`[DB] Trade logged for ${bot.name} ${symbol}: optType=${optType} strike=${strike} finalQty=${finalQty} fillPremium=${fillPremium}`);
+        }
+      } catch (e: any) {
+        console.error(`[DB] INSERT EXCEPTION for ${bot.name} ${symbol}:`, e.message);
+      }
+
+      // Update paper balance async
+      supabase.from('options_bots').update({
+        paper_balance:    Math.max(0, Number(bot.paper_balance) - totalCost),
+        daily_trade_count: (bot.daily_trade_count ?? 0) + 1,
+        last_run_at:      new Date().toISOString(),
+      }).eq('id', bot.id).then();
+
+      bot.daily_trade_count = (bot.daily_trade_count ?? 0) + 1;
+
+    } catch (err: any) {
+      console.error(`[Bot:${bot.name}] Error on ${symbol}:`, err.message);
+    }
+  }
+}
+
+function getScanList(mode: string): string[] {
+  const lists: Record<string, string[]> = {
+    scan_boof5_22:          ['NVDA','AAPL','META','GOOG','MSFT','AMZN','AMD'],
+    scan_boof5_with_etf_22: ['NVDA','AAPL','META','GOOG','MSFT','AMZN','AMD','QQQ','SPY'],
+    scan_boof5_23:          ['NVDA','AAPL','META','GOOG','AMD'],
+    scan_boof5_with_etf_23: ['NVDA','AAPL','META','GOOG','AMD','QQQ','SPY'],
+    scan_boof5:             ['NVDA','AAPL','META','GOOG','MSFT','AMZN','AMD'],
+    scan_boof5_with_etf:    ['NVDA','AAPL','META','GOOG','MSFT','AMZN','AMD','QQQ','SPY'],
+    scan_boofinator:        ['SPY','QQQ','TSLA','NVDA','COIN','PLTR','AMD','AAPL','AMZN','META','GOOG'],
+    scan_boofinator_stocks: ['TSLA','NVDA','COIN','PLTR','AMD','AAPL','AMZN','META','GOOG'],
+    scan_boof24:            ['NVDA','AAPL','META','MSFT','AMZN','GOOG','AVGO','TSLA','LLY','PLTR'],
+    scan_boof_noetf:        ['NVDA','AAPL','MSFT','AMZN','GOOG','AVGO','META','TSLA','LLY'],
+    scan_boof_etf:          ['NVDA','AAPL','MSFT','AMZN','GOOG','AVGO','META','TSLA','LLY','QQQ','SPY'],
+    scan_boof_duo:          ['SPY','QQQ'],
+    scan_duo:               ['SPY','QQQ'],
+    scan_boof:              ['QQQ','SPY','TSLA','NVDA','AMD','AAPL','MSFT','AMZN'],
+    scan_top10:             ['SMCI','TSLA','NVDA','COIN','PLTR','AMD','MRNA','MSTY','ENPH','VKTX','CCL'],
+    scan_9_backtest:        ['TSLA','NVDA','COIN','PLTR','TSM','AAPL','AMZN','META','GOOG'],
+  };
+  return lists[mode] ?? [];
+}
+
+// ─────────────────────────────────────────────
+// TP/SL DAEMON — checks all open trades every 30s
+// Same formulas as old Edge Function tpsl_daemon
+// ─────────────────────────────────────────────
+async function fetchRealOptionPrice(
+  symbol: string, strike: number, expiration: string,
+  optionType: string, candles: Candle[]
+): Promise<number> {
+  // Use same symbol formatting as entry logic to ensure consistency
+  const alpacaSymbol = formatOptionSymbol(symbol, expiration, optionType.toLowerCase() as 'call'|'put', strike);
+  try {
+    // Use batch snapshots endpoint with feed parameter (like working Supabase version)
+    for (const feed of ['opra', 'indicative']) {
+      const snapUrl = `${DATA_URL}/v1beta1/options/snapshots?symbols=${encodeURIComponent(alpacaSymbol)}&feed=${feed}`;
+      const snapRes = await fetch(snapUrl, { headers: alpacaHeaders() });
+      if (!snapRes.ok) continue;
+      const snapJson: any = await snapRes.json();
+      const snap = snapJson?.snapshots?.[alpacaSymbol];
+      const bid = snap?.latestQuote?.bp;
+      const ask = snap?.latestQuote?.ap;
+      if (bid > 0 && ask > 0) {
+        const mid = Math.round(((bid + ask) / 2) * 100) / 100;
+        console.log(`[TPSL Price] ${alpacaSymbol} ${feed}: bid=$${bid} ask=$${ask} mid=$${mid}`);
+        return mid;
+      }
+      const lastTrade = snap?.latestTrade?.p;
+      if (lastTrade > 0) {
+        console.log(`[TPSL Price] ${alpacaSymbol} ${feed} last trade: $${lastTrade}`);
+        return lastTrade;
+      }
+    }
+  } catch (_) {}
+
+  // Fall back to Black-Scholes only if Alpaca quote unavailable
+  if (!candles.length) return 0;
+  const spotPrice = candles[candles.length - 1].close;
+  const etfs = ['SPY','QQQ','IWM','DIA','GLD','TLT','XLF','XLE','XLK','XLV','EEM','VXX'];
+  const highVol = ['TSLA','NVDA','AMD','MSTR','COIN','PLTR','GME','AMC','RIVN','LCID'];
+  let baseIv = etfs.includes(symbol) ? 0.18 : highVol.includes(symbol) ? 0.55 : 0.30;
+  const closes = candles.map(c => c.close);
+  const histVol = calcHistVol(closes);
+  if (histVol > 0.01 && histVol < 5) baseIv = baseIv * 0.6 + histVol * 0.4;
+  const now = new Date();
+  const expMs = new Date(expiration).getTime() - now.getTime();
+  const T = Math.max(0.0001, expMs / (1000 * 60 * 60 * 24 * 365));
+  console.log(`[TPSL Price] ${symbol} $${strike} ${optionType} — no Alpaca quote, using Black-Scholes`);
+  const price = blackScholes(spotPrice, strike, T, R, baseIv, optionType.toLowerCase() as 'call'|'put');
+  return Math.max(0.01, price);
+}
+
+async function runTpSlDaemon(): Promise<void> {
+  if (!isMarketOpen()) { console.log('[TPSL] Market closed, skipping'); return; }
+
+  console.log('[TPSL] Checking open trades...');
+  const { data: openTrades, error } = await supabase
+    .from('options_trades')
+    .select('*, options_bots!inner(take_profit_pct, stop_loss_pct, broker, name, bot_signal, bot_expiry_type)')
+    .eq('status', 'open');
+
+  if (error) { console.error('[TPSL] DB error:', error); return; }
+  if (!openTrades || openTrades.length === 0) { console.log('[TPSL] No open trades found'); return; }
+  console.log(`[TPSL] Found ${openTrades.length} open trades to check`);
+
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+  for (const open of openTrades) {
+    try {
+      const bot = (open as any).options_bots;
+      const botSignal = bot?.bot_signal || 'boof23';
+
+      // Use per-trade ATR TP/SL for boof22, else bot-level settings
+      // For 22.5/23.5 bots in CHOP mode: use tighter -8% stop loss
+      const isHalfVariant = ['boof22_5', 'boof23_5'].includes(botSignal);
+      const tradeMode = (open as any).mode;
+      const isChopTrade = isHalfVariant && tradeMode === 'chop';
+      
+      const tradeHasAtrTpSl = botSignal === 'boof22' && (open as any).take_profit_pct != null && (open as any).stop_loss_pct != null;
+      let takeProfitPct = tradeHasAtrTpSl ? Number((open as any).take_profit_pct) : Number(bot?.take_profit_pct ?? 35);
+      let stopLossPct   = tradeHasAtrTpSl ? Number((open as any).stop_loss_pct)   : Number(bot?.stop_loss_pct ?? -25);
+      
+      // Override for chop trades: tighter stop loss
+      if (isChopTrade) {
+        stopLossPct = -8;  // Tighter stop for chop conditions
+        console.log(`[TPSL] ${open.symbol}: CHOP mode detected - using -8% stop loss`);
+      }
+      
+      const slThreshold   = stopLossPct < 0 ? stopLossPct : -Math.abs(stopLossPct);
+
+      const symbolCandles = candleCache.get(open.symbol) ?? [];
+      const optionPrice = await fetchRealOptionPrice(open.symbol, open.strike, open.expiration_date, open.option_type, symbolCandles);
+      console.log(`[TPSL Debug] ${open.symbol} ${open.option_type} $${open.strike}: optPrice=$${optionPrice}, entry=$${open.premium_per_contract}, qty=${open.contracts}, totalCost=$${open.total_cost}`);
+      if (!optionPrice || optionPrice <= 0) {
+        console.log(`[TPSL Debug] ${open.symbol}: SKIP — no option price`);
+        continue;
+      }
+
+      const totalCost   = Number(open.total_cost) || (Number(open.premium_per_contract) * open.contracts * 100);
+      const currentValue = optionPrice * open.contracts * 100;
+      const pnl          = currentValue - totalCost;
+      const pctChange    = (pnl / totalCost) * 100;
+      console.log(`[TPSL Debug] ${open.symbol}: totalCost=$${totalCost}, curValue=$${currentValue}, pnl=$${pnl}, pct=${pctChange.toFixed(2)}%, slThreshold=${slThreshold}%`);
+
+      // EOD exit logic — same as Edge Function
+      const expDateStr   = open.expiration_date?.slice(0, 10) || open.expiration_date;
+      const botExpiryType = bot?.bot_expiry_type ?? 'weekly';
+      const is0dte = botExpiryType === '0dte' || expDateStr === todayStr;
+      const is1dte = botExpiryType === '1dte' || expDateStr === tomorrowStr;
+      const utcHour   = now.getUTCHours();
+      const utcMinute = now.getUTCMinutes();
+      const shouldEOD_0dte = is0dte && (utcHour > 18 || (utcHour === 18 && utcMinute >= 0));
+      const shouldEOD_1dte = is1dte && (utcHour === 19 && utcMinute >= 59);
+      const entryTime  = new Date(open.created_at || now);
+      const minutesHeld = (now.getTime() - entryTime.getTime()) / (1000 * 60);
+      const tradeCandles = candleCache.get(open.symbol) ?? [];
+      const tradeInChop = isChoppy(tradeCandles);
+      const timeExitMins = tradeInChop ? 20 : 30;
+      const shouldTimeExit1DTE = is1dte && minutesHeld >= timeExitMins;
+      const shouldTimeExit0DTE = is0dte && minutesHeld >= 20; // 20-min max hold for 0DTEs
+      const shouldEOD = shouldEOD_0dte || shouldEOD_1dte || shouldTimeExit1DTE || shouldTimeExit0DTE;
+
+      const shouldTP = pctChange >= takeProfitPct;
+      const shouldSL = pctChange <= slThreshold;
+      const isPaper  = bot?.broker === 'paper' || IS_PAPER;
+
+      console.log(`[TPSL] ${open.symbol} ${open.option_type} $${open.strike}: cur=$${optionPrice.toFixed(2)} pct=${pctChange.toFixed(1)}% tp=${takeProfitPct}% sl=${slThreshold}% minsHeld=${minutesHeld.toFixed(1)} shouldTP=${shouldTP} shouldSL=${shouldSL} timeExit0DTE=${shouldTimeExit0DTE} eod=${shouldEOD}`);
+
+      if (!shouldTP && !shouldSL && !shouldEOD) continue;
+
+      const exitType   = shouldTP ? 'tp' : shouldSL ? 'sl' : (shouldTimeExit1DTE || shouldTimeExit0DTE) ? 'time_exit' : 'eod';
+      const exitReason = shouldEOD ? 'eod_close' : shouldTP ? 'take_profit' : 'stop_loss';
+      const exactPnl   = isPaper && !shouldEOD
+        ? Math.round(totalCost * (shouldTP ? takeProfitPct : slThreshold) / 100 * 100) / 100
+        : pnl;
+
+      console.log(`[TPSL] ✓ CLOSING ${open.symbol} ${open.option_type} $${open.strike}: ${exitReason} pnl=$${exactPnl.toFixed(2)}`);
+
+      // Fire Alpaca sell order FIRST — only close DB if we have confirmed fill
+      const closeOptSym = formatOptionSymbol(open.symbol, open.expiration_date, open.option_type, open.strike);
+      const sellResult = await placeProtectedOrder(closeOptSym, 'sell', open.contracts, optionPrice, undefined, open.bot_id, open.user_id, true);
+      
+      if (!sellResult || !sellResult.fillPrice) {
+        console.warn(`[TPSL] Sell order failed or no fill for ${closeOptSym}`);
+        // Check if this is a "position doesn't exist" error (cash-secured put margin requirement)
+        // If Alpaca thinks we need cash-secured put buying power, it means we don't have the long position
+        // In this case, mark the trade as closed in DB to fix sync issue
+        const isMissingPositionError = (placeProtectedOrder as any)._lastError?.includes?.('cash-secured put') || 
+                                       (placeProtectedOrder as any)._lastError?.includes?.('buying power');
+        if (isMissingPositionError) {
+          console.warn(`[TPSL] Position ${closeOptSym} doesn't exist in Alpaca - marking as closed in DB to fix sync`);
+          await supabase.from('options_trades')
+            .update({ status: 'closed', exit_price: 0, pnl: -open.total_cost, closed_at: new Date().toISOString(), close_reason: 'sync_fix_missing_position' })
+            .eq('id', open.id);
+          openPositions.delete(`${open.bot_id}:${open.symbol}`);
+          continue;
+        }
+        // Otherwise retry next cycle
+        continue;
+      }
+      
+      console.log(`[TPSL] Sell order filled for ${closeOptSym} @ $${sellResult.fillPrice}`);
+
+      // Clear in-memory lock so bot can re-enter this symbol
+      const lockKey = `${open.bot_id}:${open.symbol}`;
+      openPositions.delete(lockKey);
+      console.log(`[PositionLock] Cleared lock for ${lockKey}, size=${openPositions.size}`);
+
+      // Step 1 — close status + pnl
+      await supabase.from('options_trades').update({ status: 'closed', pnl: exactPnl }).eq('id', open.id);
+      // Step 2 — exit details (triggers slack score recalculation via Postgres trigger)
+      await supabase.from('options_trades').update({
+        exit_price: optionPrice, closed_at: now.toISOString(),
+        exit_reason: exitReason, exit_type: exitType,
+      }).eq('id', open.id);
+
+      // Update paper balance
+      if (isPaper) {
+        const { data: bRow } = await supabase.from('options_bots').select('paper_balance').eq('id', open.bot_id).single();
+        const bal = Number(bRow?.paper_balance ?? 100000);
+        await supabase.from('options_bots').update({ paper_balance: bal + totalCost + exactPnl }).eq('id', open.bot_id);
+      }
+      // Note: consecutive_loss tracking disabled — columns don't exist in DB
+    } catch (err: any) {
+      console.error(`[TPSL] Error on trade ${open.id}:`, err.message);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// WEBSOCKET STREAM — SIP feed, auto-reconnect
+// ─────────────────────────────────────────────
+let activeWs: InstanceType<typeof WS> | null = null;
+
+function connectStream(symbols: string[]): void {
+  const WS_URL = 'wss://stream.data.alpaca.markets/v2/sip';
+  const ws = new WS(WS_URL);
+  activeWs = ws;
+
+  ws.on('open', () => {
+    ws.send(JSON.stringify({ action: 'auth', key: ALPACA_KEY, secret: ALPACA_SECRET }));
+  });
+
+  ws.on('message', async (raw: Buffer) => {
+    const msgs: any[] = JSON.parse(raw.toString());
+    for (const msg of msgs) {
+
+      if (msg.T === 'success' && msg.msg === 'authenticated') {
+        console.log('[WS] Authenticated to Alpaca SIP stream');
+        ws.send(JSON.stringify({ action: 'subscribe', bars: symbols }));
+        console.log(`[WS] Subscribed to 1m bars: ${symbols.join(', ')}`);
+      }
+
+      if (msg.T === 'b') {
+        const symbol = msg.S as string;
+        const newBar: Candle = {
+          time: new Date(msg.t).getTime(),
+          open: msg.o, high: msg.h, low: msg.l, close: msg.c, volume: msg.v,
+        };
+        pushCandle(symbol, newBar);
+        const candles = candleCache.get(symbol) ?? [];
+        console.log(`[Bar] ${symbol} @ ${newBar.close} | cache=${candles.length} bars`);
+        if (candles.length >= 50) {
+          await onBar(symbol, candles);
+        } else {
+          console.log(`[Bar] ${symbol}: waiting for 50 bars, have ${candles.length}`);
+        }
+      }
+
+      if (msg.T === 'error') {
+        console.error('[WS] Stream error:', msg.code, msg.msg);
+      }
+    }
+  });
+
+  ws.on('close', (code: number) => {
+    console.warn(`[WS] Connection closed (code ${code}), reconnecting in 5s...`);
+    setTimeout(() => connectStream(symbols), 5000);
+  });
+
+  ws.on('error', (err: Error) => {
+    console.error('[WS] WebSocket error:', err.message);
+  });
+}
+
+// ─────────────────────────────────────────────
+// ENTRY POINT
+// ─────────────────────────────────────────────
+async function main(): Promise<void> {
+  console.log('═══════════════════════════════════════════════════');
+  console.log(' Boof Capital — AWS EC2 Bot Runner  [us-east-1]');
+  console.log(`  Paper mode: ${IS_PAPER}`);
+  console.log(`  Supabase:   ${process.env.SUPABASE_URL}`);
+  console.log('═══════════════════════════════════════════════════');
+
+  // 1. Load all enabled bots from Supabase
+  await reloadBots();
+
+  // 2. Pre-load candle history for all watched symbols
+  console.log('[Init] Pre-loading candle history...');
+  await Promise.all(WATCH_SYMBOLS.map(fetchInitialCandles));
+
+  // 3. Reload bot configs every 60s
+  setInterval(reloadBots, 60_000);
+
+  // 4. Connect WebSocket — bars arrive instantly on close
+  connectStream(WATCH_SYMBOLS);
+
+  // 5. TP/SL daemon — checks all open trades every 5s for fast exits
+  setInterval(() => { runTpSlDaemon().catch(e => console.error('[TPSL] Daemon error:', e.message)); }, 5_000);
+  console.log('[TPSL] Daemon started — checking open trades every 5s');
+  // Force first run immediately
+  setTimeout(() => runTpSlDaemon().catch(e => console.error('[TPSL] Daemon error:', e.message)), 2000);
+
+  // 6. Position lock sync — clear in-memory locks for closed positions every 30s
+  setInterval(async () => {
+    try {
+      const { data: openTrades } = await supabase.from('options_trades').select('bot_id, symbol').eq('status', 'open');
+      const validLocks = new Set((openTrades || []).map(t => `${t.bot_id}:${t.symbol}`));
+      let cleared = 0;
+      for (const lock of openPositions) {
+        if (!validLocks.has(lock)) {
+          openPositions.delete(lock);
+          cleared++;
+        }
+      }
+      if (cleared > 0) console.log(`[LockSync] Cleared ${cleared} stale position locks`);
+    } catch (e) {
+      console.error('[LockSync] Error:', e);
+    }
+  }, 30_000);
+  console.log('[LockSync] Started — clearing stale locks every 30s');
+
+  console.log('[Runner] Live. Waiting for next 1m bar...');
+}
+
+main().catch(err => {
+  console.error('[Fatal]', err);
+  process.exit(1);
+});

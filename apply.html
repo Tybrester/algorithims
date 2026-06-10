@@ -1,0 +1,149 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apply for Access — BoofCapital</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --surface: #111; --border: #1f1f1f;
+      --accent: #00e676; --text: #f5f5f5; --muted: #888; --card: #141414;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+
+    .logo { font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 40px;   color: var(--text); text-decoration: none;}
+    .logo span { color: var(--accent); }
+
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 40px; width: 100%; max-width: 460px;
+    }
+    h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 8px; }
+    .sub { color: var(--muted); font-size: 0.92rem; margin-bottom: 32px; line-height: 1.5; }
+
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 0.83rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    input, textarea {
+      width: 100%; background: #0e0e0e; border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.95rem;
+      padding: 12px 14px; outline: none; transition: border-color 0.2s;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 90px; }
+    select {
+      width: 100%; background: #0e0e0e; border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: 'Inter', sans-serif; font-size: 0.95rem;
+      padding: 12px 14px; outline: none; transition: border-color 0.2s; cursor: pointer;
+      appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center;
+    }
+    select option { background: #141414; color: var(--text); }
+
+    .btn {
+      width: 100%; background: var(--accent); color: #000; border: none; border-radius: 8px;
+      padding: 14px; font-size: 1rem; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s; margin-top: 8px;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .success {
+      display: none; text-align: center; padding: 32px 0;
+    }
+    .success .check { font-size: 3rem; margin-bottom: 16px; }
+    .success h2 { font-size: 1.3rem; margin-bottom: 8px; }
+    .success p { color: var(--muted); font-size: 0.92rem; }
+
+    .back { display: block; text-align: center; margin-top: 24px; color: var(--muted); font-size: 0.88rem; text-decoration: none; }
+    .back:hover { color: var(--text); }
+
+    .error-msg { color: #ff5252; font-size: 0.85rem; margin-top: 6px; display: none; }
+  </style>
+</head>
+<body>
+
+  <a href="index.html" class="logo" style="color:var(--text);text-decoration:none;">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a>
+
+  <div class="card">
+    <div id="form-view">
+      <h1>Apply for Access</h1>
+      <p class="sub">BoofCapital is currently invite-only. Submit your info and we'll review your application.</p>
+
+      <form id="apply-form">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="name" placeholder="John Smith" maxlength="100" required />
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="email" placeholder="you@example.com" maxlength="200" required />
+        </div>
+        <div class="form-group">
+          <label>What are you interested in? <span style="color:#444;font-weight:400;">(optional)</span></label>
+          <select id="reason">
+            <option value="">Select an option...</option>
+            <option value="TradingView Systems">TradingView Systems</option>
+            <option value="Stock / Crypto Bots">Stock / Crypto Bots</option>
+            <option value="Futures Bots">Futures Bots</option>
+            <option value="Options Bots">Options Bots</option>
+          </select>
+        </div>
+        <p class="error-msg" id="error-msg">Something went wrong. Please try again.</p>
+        <button type="submit" class="btn" id="submit-btn">Submit Application</button>
+      </form>
+    </div>
+
+    <div class="success" id="success-view">
+      <div class="check">✅</div>
+      <h2>Application Submitted</h2>
+      <p>We'll review your application and reach out to <strong id="confirmed-email"></strong> when access is granted.</p>
+    </div>
+  </div>
+
+  <a href="signin.html" class="back">Already have an account? Sign in →</a>
+
+  <script>
+    const SUPABASE_URL = 'https://isanhutzyctcjygjhzbn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.getElementById('apply-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const errEl = document.getElementById('error-msg');
+      const name  = document.getElementById('name').value.trim().slice(0, 100);
+      const email = document.getElementById('email').value.trim().slice(0, 200);
+      const reason = document.getElementById('reason').value.trim().slice(0, 500);
+
+      if (!name || !email) return;
+      btn.disabled = true;
+      btn.textContent = 'Submitting…';
+      errEl.style.display = 'none';
+
+      const { error } = await sb.from('access_requests').insert({ name, email, reason, status: 'pending' });
+
+      if (error) {
+        if (error.code === '23505') {
+          errEl.textContent = 'This email has already applied.';
+        } else {
+          errEl.textContent = 'Something went wrong. Please try again.';
+        }
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Submit Application';
+        return;
+      }
+
+      document.getElementById('confirmed-email').textContent = email;
+      document.getElementById('form-view').style.display = 'none';
+      document.getElementById('success-view').style.display = 'block';
+    });
+  </script>
+</body>
+</html>

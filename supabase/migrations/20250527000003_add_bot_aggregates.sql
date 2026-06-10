@@ -1,0 +1,24 @@
+-- Add pre-calculated aggregate columns to options_bots
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_realized_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_unrealized_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_total_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_peak_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_trough_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_total_trades INTEGER DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_wins INTEGER DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_losses INTEGER DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_win_rate DECIMAL(5,2) DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_open_count INTEGER DEFAULT 0;
+ALTER TABLE options_bots ADD COLUMN IF NOT EXISTS stats_updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Add same columns to stock_bots for consistency
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_realized_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_total_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_peak_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_trough_pnl DECIMAL(12,2) DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_total_trades INTEGER DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_wins INTEGER DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_losses INTEGER DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_win_rate DECIMAL(5,2) DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_open_count INTEGER DEFAULT 0;
+ALTER TABLE stock_bots ADD COLUMN IF NOT EXISTS stats_updated_at TIMESTAMPTZ DEFAULT NOW();

@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    { "source": "/alpaca-trades", "destination": "/alpaca-trades.html" },
+    { "source": "/accounts", "destination": "/accounts.html" },
+    { "source": "/bots", "destination": "/bots.html" },
+    { "source": "/trades", "destination": "/trades.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/alerts", "destination": "/alerts.html" },
+    { "source": "/brokers", "destination": "/brokers.html" },
+    { "source": "/kalshi", "destination": "/kalshi.html" },
+    { "source": "/stats", "destination": "/stats.html" }
+  ]
+}

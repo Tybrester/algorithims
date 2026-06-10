@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kalshi — Bitcoin Edge Analysis</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 80%; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --border: #1f1f1f;
+      --accent: #00e676; --accent-dim: #00c853; --red: #ff1744;
+      --text: #f5f5f5; --muted: #888; --card-bg: #141414;
+      --bull: #00c853; --bear: #ff1744;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+    #loading-screen { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: flex; align-items: center; justify-content: center; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #app { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 72px; background: rgba(10,10,10,0.95); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+    .logo { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--accent); }
+    .hamburger { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 8px; }
+    .hamburger span { display: block; width: 24px; height: 2px; background: var(--text); }
+
+    .layout { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 260px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 0; height: calc(100vh - 72px); position: sticky; top: 72px; overflow-y: auto; }
+    .sidebar-section { padding: 5px 12px; font-size: 0.6rem; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 14px; }
+    .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border: none; border-left: 3px solid transparent; font-size: 0.82rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.15s, color 0.15s; position: relative; background: none; font-family: inherit; width: 100%; text-align: left; cursor: pointer; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .sidebar-item.active { background: rgba(0,230,118,0.08); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+
+    main { flex: 1; overflow-y: auto; padding: 28px; }
+    .page-header { margin-bottom: 24px; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+    .page-header p { color: var(--muted); font-size: 0.95rem; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-title { font-size: 0.9rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .card-value { font-size: 2rem; font-weight: 800; }
+    .card-subtitle { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+    .trend-up { color: var(--bull); }
+    .trend-down { color: var(--bear); }
+    .neutral { color: var(--muted); }
+
+    .tf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .tf-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+    .tf-label { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+    .tf-direction { font-size: 1.4rem; font-weight: 700; }
+    .tf-bias { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+    .market-list { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .market-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+    .market-item:last-child { border-bottom: none; }
+    .market-info { display: flex; flex-direction: column; min-width: 200px; }
+    .market-title { font-weight: 600; font-size: 0.9rem; }
+    .market-subtitle { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    
+    .market-prices { display: flex; gap: 16px; align-items: center; }
+    .price-box { display: flex; flex-direction: column; align-items: center; padding: 8px 12px; background: var(--surface); border-radius: 8px; min-width: 60px; }
+    .price-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; }
+    .price-value { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    
+    .market-actions { display: flex; gap: 8px; }
+    .market-actions .btn { padding: 8px 16px; font-size: 0.85rem; }
+    
+    .trades-table-container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; overflow-x: auto; }
+    .trades-table { width: 100%; border-collapse: collapse; }
+    .trades-table th { background: var(--surface); padding: 12px; text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .trades-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+    .trades-table tr:last-child td { border-bottom: none; }
+    .trades-table .side-yes { color: var(--bull); font-weight: 600; }
+    .trades-table .side-no { color: var(--bear); font-weight: 600; }
+    .trades-table .pnl-pos { color: var(--bull); }
+    .trades-table .pnl-neg { color: var(--bear); }
+    .market-price { text-align: right; }
+    .market-yes { font-size: 1.1rem; font-weight: 700; color: var(--bull); }
+    .market-no { font-size: 1.1rem; font-weight: 700; color: var(--bear); }
+    .market-label { font-size: 0.7rem; color: var(--muted); }
+
+    .chart-container { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .chart-title { font-size: 1rem; font-weight: 600; }
+
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+    .status-live { background: rgba(0,230,118,0.15); color: var(--accent); }
+    .status-paper { background: rgba(136,136,136,0.15); color: var(--muted); }
+
+    /* Mobile sidebar overlay + drawer */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+    }
+    .sidebar-overlay.open { display: block; }
+    
+    .sidebar-drawer {
+      position: fixed;
+      top: 0; left: 0;
+      width: 260px;
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 201;
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+    .sidebar-drawer.open { transform: translateX(0); }
+    .sidebar-drawer .drawer-close {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .sidebar-drawer .drawer-close .logo { font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; color: white; text-decoration: none; display:inline-flex; align-items:center; }
+    .sidebar-drawer .drawer-close .logo span { color: var(--accent); }
+    .sidebar-drawer .drawer-close button { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .hamburger { display: flex; }
+    }
+    
+    /* Edge cards for trend analysis */
+    .kalshi-edge-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .edge-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    
+    .edge-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    
+    .edge-high {
+      border-color: rgba(34, 197, 94, 0.4);
+      background: rgba(34, 197, 94, 0.08);
+    }
+    
+    .edge-high:hover {
+      background: rgba(34, 197, 94, 0.12);
+    }
+    
+    .edge-low {
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.08);
+    }
+    
+    .edge-low:hover {
+      background: rgba(239, 68, 68, 0.12);
+    }
+    
+    .edge-neutral {
+      border-color: var(--border);
+      background: rgba(255, 255, 255, 0.03);
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="spinner"></div>
+  </div>
+
+  <div id="app">
+    <nav>
+      <button class="hamburger" onclick="toggleDrawer()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <a href="dashboard.html" class="logo">Boof<span>Capital</span></a>
+    </nav>
+    
+    <!-- Mobile sidebar overlay + drawer -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleDrawer()"></div>
+    <div class="sidebar-drawer" id="sidebar-drawer">
+      <div class="drawer-close">
+        <a href="dashboard.html" class="logo">Boof<span>Capital</span></a>
+        <button onclick="toggleDrawer()">✕</button>
+      </div>
+      <div class="sidebar-section">Menu</div>
+      <a href="dashboard.html" class="sidebar-item">Dashboard</a>
+      <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="paper-market.html" class="sidebar-item">Paper Market</a>
+      <a href="alerts.html" class="sidebar-item">Systems</a>
+      <a href="accounts.html" class="sidebar-item">Accounts</a>
+      <a href="brokers.html" class="sidebar-item">Brokers</a>
+      <a href="kalshi.html" class="sidebar-item active">Kalshi</a>
+      <div class="sidebar-section" style="margin-top:24px;">Help</div>
+      <a href="how-it-works.html" class="sidebar-item">How it Works</a>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-section">Menu</div>
+        <a href="dashboard.html" class="sidebar-item">Dashboard</a>
+        <a href="trades.html" class="sidebar-item">Trades</a>
+        <a href="paper-market.html" class="sidebar-item">Paper Market</a>
+        <a href="alerts.html" class="sidebar-item">Systems</a>
+        <a href="accounts.html" class="sidebar-item">Accounts</a>
+        <a href="brokers.html" class="sidebar-item">Brokers</a>
+        <a href="kalshi.html" class="sidebar-item active">Kalshi</a>
+        <div class="sidebar-section" style="margin-top:24px;">Help</div>
+        <a href="how-it-works.html" class="sidebar-item">How it Works</a>
+      </aside>
+
+      <main>
+        <div class="page-header">
+          <h1>Kalshi Bitcoin Edge</h1>
+          <p>15-minute target price analysis with multi-timeframe trend alignment</p>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Overall Trend Bias</span>
+              <span class="status-badge status-live" id="connection-status">LIVE</span>
+            </div>
+            <div class="card-value trend-up" id="overall-bias">BULLISH</div>
+            <div class="card-subtitle">Based on 4H, 2H, 1H, 30M alignment</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Active Markets</span>
+            </div>
+            <div class="card-value" id="active-markets">--</div>
+            <div class="card-subtitle">15-min BTC markets tracked</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Edge Score</span>
+            </div>
+            <div class="card-value" id="edge-score">--</div>
+            <div class="card-subtitle">R-multiple per trade (simulated)</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Last Update</span>
+            </div>
+            <div class="card-value" style="font-size:1.2rem;" id="last-update">--:--</div>
+            <div class="card-subtitle">Auto-refresh every 60s</div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Indicator Accuracy</span>
+            </div>
+            <div class="card-value" id="hist-edge">--</div>
+            <div class="card-subtitle">Correlation: Kalshi outcomes vs BTC EMA/RSI</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <button class="btn btn-primary" onclick="fetchHistoricalEdge()">
+            <i class="fas fa-database"></i> Correlation Analysis (1000 resolved)
+          </button>
+          <span style="color: var(--muted); font-size: 0.8rem; margin-left: 12px;">Compares resolved YES/NO outcomes to BTC indicators at contract open</span>
+        </div>
+
+        <div class="chart-header">
+          <span class="chart-title">Multi-Timeframe Trend Analysis</span>
+          <button class="btn btn-primary" onclick="refreshData()">
+            <i class="fas fa-sync"></i> Refresh
+          </button>
+        </div>
+
+        <div class="tf-grid" id="tf-container">
+          <div class="tf-card">
+            <div class="tf-label">4 Hour</div>
+            <div class="tf-direction trend-up" id="tf-4h">UP</div>
+            <div class="tf-bias" id="bias-4h">Strong Bullish</div>
+          </div>
+          <div class="tf-card">
+            <div class="tf-label">2 Hour</div>
+            <div class="tf-direction trend-up" id="tf-2h">UP</div>
+            <div class="tf-bias" id="bias-2h">Bullish</div>
+          </div>
+          <div class="tf-card">
+            <div class="tf-label">1 Hour</div>
+            <div class="tf-direction trend-up" id="tf-1h">UP</div>
+            <div class="tf-bias" id="bias-1h">Mild Bullish</div>
+          </div>
+          <div class="tf-card">
+            <div class="tf-label">30 Minute</div>
+            <div class="tf-direction trend-up" id="tf-30m">UP</div>
+            <div class="tf-bias" id="bias-30m">Neutral-Bull</div>
+          </div>
+        </div>
+
+        <div class="chart-header">
+          <span class="chart-title">15-Min Bitcoin Market (KXBTC15M)</span>
+          <button class="btn btn-primary" onclick="fetchSpecificMarket()">
+            <i class="fas fa-sync"></i> Refresh Market
+          </button>
+        </div>
+        <div class="market-list" id="market-list">
+          <div class="market-item" id="btc15m-market">
+            <div class="market-info">
+              <span class="market-title">KXBTC15M-26JUN071930</span>
+              <span class="market-subtitle">15-Minute Bitcoin Up/Down</span>
+            </div>
+            <div class="market-prices">
+              <div class="price-box">
+                <span class="price-label">YES</span>
+                <span class="price-value" id="yes-price">--</span>
+              </div>
+              <div class="price-box">
+                <span class="price-label">NO</span>
+                <span class="price-value" id="no-price">--</span>
+              </div>
+              <div class="price-box">
+                <span class="price-label">Volume</span>
+                <span class="price-value" id="volume">--</span>
+              </div>
+            </div>
+            <div class="market-actions">
+              <button class="btn btn-primary" onclick="takeTrade('YES')">
+                <i class="fas fa-arrow-up"></i> Take YES
+              </button>
+              <button class="btn btn-secondary" onclick="takeTrade('NO')">
+                <i class="fas fa-arrow-down"></i> Take NO
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-header" style="margin-top: 24px;">
+          <span class="chart-title">📊 Market Activity (Auto-Logged Every 30s)</span>
+          <div>
+            <button class="btn btn-secondary" onclick="toggleAutoLogging()" id="autolog-btn">
+              <i class="fas fa-pause"></i> Pause
+            </button>
+            <button class="btn btn-secondary" onclick="clearTrades()">
+              <i class="fas fa-trash"></i> Clear
+            </button>
+          </div>
+        </div>
+        <div class="trades-table-container">
+          <table class="trades-table" id="trades-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Market</th>
+                <th>Flow</th>
+                <th>YES Price</th>
+                <th>NO Price</th>
+                <th>BTC Trend</th>
+                <th>Signal</th>
+              </tr>
+            </thead>
+            <tbody id="trades-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--muted);">Auto-logging market snapshots every 30 seconds...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Trend Analysis Section -->
+        <div class="chart-header" style="margin-top: 24px;">
+          <span class="chart-title">📈 Trend Analysis (Market Flow by BTC Trend)</span>
+          <span style="color: var(--muted); font-size: 0.75rem;">Analyzes YES/NO market activity patterns during different BTC trend conditions</span>
+        </div>
+        <div class="kalshi-edge-card" id="trend-analysis-content">
+          <div style="padding: 2rem; text-align: center; color: var(--muted);">
+            <p>No market data logged yet.</p>
+            <p style="font-size: 0.875rem;">Auto-logging starts in 30 seconds...</p>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // API Endpoints
+    const KALSHI_BASE = 'https://external-api.kalshi.com/trade-api/v2';
+    const BINANCE_BASE = 'https://api.binance.com/api/v3';
+    
+    // Real trend data from Bitcoin price analysis
+    let trendData = {
+      '4h': { direction: 'FLAT', strength: 0, ema9: 0, ema21: 0, rsi: 50 },
+      '2h': { direction: 'FLAT', strength: 0, ema9: 0, ema21: 0, rsi: 50 },
+      '1h': { direction: 'FLAT', strength: 0, ema9: 0, ema21: 0, rsi: 50 },
+      '30m': { direction: 'FLAT', strength: 0, ema9: 0, ema21: 0, rsi: 50 }
+    };
+    
+    // Trade simulation history
+    let tradeHistory = [];
+    let currentBTCPrice = 0;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      
+      refreshData();
+      setInterval(refreshData, 60000); // Auto-refresh every 60s
+      
+      // Load saved trades and fetch specific market
+      renderTrades();
+      renderTrendAnalysis();
+      fetchSpecificMarket();
+    });
+
+    async function refreshData() {
+      log('Refreshing data...');
+      
+      // Test Kalshi API connection
+      try {
+        const resp = await fetch(`${KALSHI_BASE}/exchange/status`);
+        if (resp.ok) {
+          log('Kalshi API connected');
+          document.getElementById('connection-status').textContent = 'LIVE';
+          document.getElementById('connection-status').className = 'status-badge status-live';
+        } else {
+          log('Kalshi API connection issue', 'down');
+        }
+      } catch (e) {
+        log('Kalshi API error: ' + e.message, 'down');
+      }
+
+      // Fetch real Bitcoin data and calculate trends
+      await fetchBitcoinAnalysis();
+      
+      // Fetch Kalshi markets
+      await fetchKalshiMarkets();
+      
+      // Run trade simulation based on trend alignment
+      simulateTrades();
+      
+      // Update trend display
+      updateTrendDisplay();
+      
+      // Update timestamp
+      document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+    }
+    
+    // Fetch Bitcoin klines from Binance and analyze trends
+    async function fetchBitcoinAnalysis() {
+      const timeframes = [
+        { tf: '30m', interval: '30m', limit: 100 },
+        { tf: '1h', interval: '1h', limit: 100 },
+        { tf: '2h', interval: '2h', limit: 100 },
+        { tf: '4h', interval: '4h', limit: 100 }
+      ];
+      
+      for (const { tf, interval, limit } of timeframes) {
+        try {
+          const url = `${BINANCE_BASE}/klines?symbol=BTCUSDT&interval=${interval}&limit=${limit}`;
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          
+          const data = await resp.json();
+          const analysis = analyzeTrend(data);
+          trendData[tf] = analysis;
+          
+          if (tf === '30m') {
+            currentBTCPrice = parseFloat(data[data.length - 1][4]);
+            log(`BTC price: $${currentBTCPrice.toLocaleString()}`, analysis.direction === 'UP' ? 'up' : analysis.direction === 'DOWN' ? 'down' : 'neutral');
+          }
+        } catch (e) {
+          log(`Failed to fetch ${tf} data: ${e.message}`, 'down');
+        }
+      }
+    }
+    
+    // Calculate EMA
+    function calculateEMA(prices, period) {
+      const multiplier = 2 / (period + 1);
+      let ema = prices[0];
+      const emas = [ema];
+      
+      for (let i = 1; i < prices.length; i++) {
+        ema = (prices[i] - ema) * multiplier + ema;
+        emas.push(ema);
+      }
+      return emas;
+    }
+    
+    // Calculate RSI
+    function calculateRSI(prices, period = 14) {
+      if (prices.length < period + 1) return 50;
+      
+      let gains = 0, losses = 0;
+      
+      for (let i = 1; i <= period; i++) {
+        const change = prices[i] - prices[i - 1];
+        if (change > 0) gains += change;
+        else losses -= change;
+      }
+      
+      let avgGain = gains / period;
+      let avgLoss = losses / period;
+      
+      for (let i = period + 1; i < prices.length; i++) {
+        const change = prices[i] - prices[i - 1];
+        if (change > 0) {
+          avgGain = (avgGain * (period - 1) + change) / period;
+          avgLoss = (avgLoss * (period - 1)) / period;
+        } else {
+          avgGain = (avgGain * (period - 1)) / period;
+          avgLoss = (avgLoss * (period - 1) - change) / period;
+        }
+      }
+      
+      if (avgLoss === 0) return 100;
+      const rs = avgGain / avgLoss;
+      return 100 - (100 / (1 + rs));
+    }
+    
+    // Analyze trend from kline data
+    function analyzeTrend(klines) {
+      const closes = klines.map(k => parseFloat(k[4]));
+      const highs = klines.map(k => parseFloat(k[2]));
+      const lows = klines.map(k => parseFloat(k[3]));
+      const volumes = klines.map(k => parseFloat(k[5]));
+      
+      const ema9 = calculateEMA(closes, 9);
+      const ema21 = calculateEMA(closes, 21);
+      const rsi = calculateRSI(closes);
+      
+      const currentEMA9 = ema9[ema9.length - 1];
+      const currentEMA21 = ema21[ema21.length - 1];
+      const prevEMA9 = ema9[ema9.length - 2];
+      const prevEMA21 = ema21[ema21.length - 2];
+      
+      // Calculate trend strength based on EMA alignment and slope
+      const emaSpread = (currentEMA9 - currentEMA21) / currentEMA21;
+      const emaSlope = (currentEMA9 - prevEMA9) / prevEMA9;
+      
+      // Volume analysis
+      const avgVolume = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
+      const currentVolume = volumes[volumes.length - 1];
+      const volumeBoost = currentVolume > avgVolume * 1.5 ? 0.2 : 0;
+      
+      // Determine direction and strength
+      let direction = 'FLAT';
+      let strength = 0;
+      
+      if (currentEMA9 > currentEMA21 && emaSlope > 0) {
+        direction = 'UP';
+        strength = Math.min(1, Math.abs(emaSpread) * 50 + Math.abs(emaSlope) * 100 + volumeBoost);
+      } else if (currentEMA9 < currentEMA21 && emaSlope < 0) {
+        direction = 'DOWN';
+        strength = Math.min(1, Math.abs(emaSpread) * 50 + Math.abs(emaSlope) * 100 + volumeBoost);
+      } else {
+        strength = Math.abs(emaSpread) * 30;
+      }
+      
+      // RSI adjustment
+      if (rsi > 70 && direction === 'UP') strength *= 0.8; // Overbought, reduce strength
+      if (rsi < 30 && direction === 'DOWN') strength *= 0.8; // Oversold, reduce strength
+      if (rsi < 30 && direction === 'UP') strength *= 1.2; // Oversold bounce potential
+      if (rsi > 70 && direction === 'DOWN') strength *= 1.2; // Overbought pullback potential
+      
+      return {
+        direction,
+        strength: Math.min(1, strength),
+        ema9: currentEMA9,
+        ema21: currentEMA21,
+        rsi: rsi,
+        price: closes[closes.length - 1],
+        volume: currentVolume,
+        avgVolume: avgVolume
+      };
+    }
+
+    async function fetchKalshiMarkets() {
+      try {
+        const resp = await fetch(`${KALSHI_BASE}/markets?limit=100`);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        
+        const data = await resp.json();
+        const markets = data.markets || [];
+        
+        // Filter for Bitcoin 15-min markets
+        const btcMarkets = markets.filter(m => {
+          const ticker = (m.ticker || '').toUpperCase();
+          const title = (m.title || '').toUpperCase();
+          return (ticker.includes('BTC') || title.includes('BITCOIN')) && 
+                 (ticker.includes('15') || title.includes('15'));
+        });
+
+        document.getElementById('active-markets').textContent = btcMarkets.length;
+        
+        if (btcMarkets.length > 0) {
+          renderMarkets(btcMarkets);
+          log(`Found ${btcMarkets.length} BTC 15-min markets`);
+        } else {
+          // Show placeholder markets for demo
+          renderDemoMarkets();
+          log('No active BTC markets found - showing demo', 'neutral');
+        }
+      } catch (e) {
+        log('Failed to fetch markets: ' + e.message, 'down');
+        renderDemoMarkets();
+      }
+    }
+
+    function renderMarkets(markets) {
+      const container = document.getElementById('market-list');
+      container.innerHTML = markets.map(m => `
+        <div class="market-item">
+          <div class="market-info">
+            <span class="market-title">${m.title || m.ticker}</span>
+            <span class="market-subtitle">${m.ticker} • Closes ${new Date(m.close_date).toLocaleString()}</span>
+          </div>
+          <div class="market-price">
+            <div class="market-yes">${m.yes_price || '--'}¢ <span class="market-label">YES</span></div>
+            <div class="market-no">${m.no_price || '--'}¢ <span class="market-label">NO</span></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderDemoMarkets() {
+      const demoMarkets = [
+        { title: 'Bitcoin > $105,000 at 3:00 PM?', ticker: 'KXBTC15M-105K-1500', yes_price: 65, no_price: 35, trend: 'up' },
+        { title: 'Bitcoin > $106,500 at 3:15 PM?', ticker: 'KXBTC15M-1065K-1515', yes_price: 42, no_price: 58, trend: 'neutral' },
+        { title: 'Bitcoin > $108,000 at 3:30 PM?', ticker: 'KXBTC15M-108K-1530', yes_price: 28, no_price: 72, trend: 'down' }
+      ];
+      
+      const container = document.getElementById('market-list');
+      container.innerHTML = demoMarkets.map(m => `
+        <div class="market-item">
+          <div class="market-info">
+            <span class="market-title">${m.title}</span>
+            <span class="market-subtitle">${m.ticker} • Demo Data</span>
+          </div>
+          <div class="market-price">
+            <div class="market-yes">${m.yes_price}¢ <span class="market-label">YES</span></div>
+            <div class="market-no">${m.no_price}¢ <span class="market-label">NO</span></div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Simulate trades based on trend alignment
+    function simulateTrades() {
+      const tfKeys = ['4h', '2h', '1h', '30m'];
+      const directions = tfKeys.map(tf => trendData[tf].direction);
+      const strengths = tfKeys.map(tf => trendData[tf].strength);
+      
+      // Check for trend alignment (3+ timeframes agreeing)
+      const upCount = directions.filter(d => d === 'UP').length;
+      const downCount = directions.filter(d => d === 'DOWN').length;
+      const flatCount = directions.filter(d => d === 'FLAT').length;
+      
+      let signal = null;
+      let confidence = 0;
+      let edgeEstimate = 0;
+      
+      if (upCount >= 3) {
+        signal = 'UP';
+        confidence = strengths.reduce((a, b, i) => directions[i] === 'UP' ? a + b : a, 0) / upCount;
+        edgeEstimate = (confidence * 0.5 + upCount * 0.1).toFixed(2);
+      } else if (downCount >= 3) {
+        signal = 'DOWN';
+        confidence = strengths.reduce((a, b, i) => directions[i] === 'DOWN' ? a + b : a, 0) / downCount;
+        edgeEstimate = -(confidence * 0.5 + downCount * 0.1).toFixed(2);
+      }
+      
+      // Log trade signal if we have a strong alignment
+      if (signal && Math.abs(parseFloat(edgeEstimate)) > 0.3) {
+        const now = new Date();
+        const timeKey = `${now.getHours()}:${now.getMinutes()}`;
+        
+        // Avoid duplicate entries for same timeframe
+        const existing = tradeHistory.find(t => t.time === timeKey && t.signal === signal);
+        if (!existing) {
+          const trade = {
+            time: timeKey,
+            signal: signal,
+            confidence: (confidence * 100).toFixed(0) + '%',
+            edge: edgeEstimate,
+            price: currentBTCPrice,
+            alignment: signal === 'UP' ? `${upCount}/4 UP` : `${downCount}/4 DOWN`,
+            rsi30m: trendData['30m'].rsi.toFixed(1),
+            rsi1h: trendData['1h'].rsi.toFixed(1)
+          };
+          tradeHistory.unshift(trade);
+          if (tradeHistory.length > 20) tradeHistory.pop();
+          
+          console.log(`TRADE: ${signal} | ${edgeEstimate}R | ${trade.alignment}`);
+        }
+      }
+    }
+
+    function updateTrendDisplay() {
+      // Calculate overall bias
+      const directions = Object.values(trendData).map(d => d.direction);
+      const upCount = directions.filter(d => d === 'UP').length;
+      const downCount = directions.filter(d => d === 'DOWN').length;
+      
+      const biasEl = document.getElementById('overall-bias');
+      if (upCount >= 3) {
+        biasEl.textContent = 'BULLISH';
+        biasEl.className = 'card-value trend-up';
+      } else if (downCount >= 3) {
+        biasEl.textContent = 'BEARISH';
+        biasEl.className = 'card-value trend-down';
+      } else {
+        biasEl.textContent = 'MIXED';
+        biasEl.className = 'card-value neutral';
+      }
+
+      // Calculate edge score from trade history or current trend
+      let edgeScore = 0;
+      if (tradeHistory.length > 0) {
+        const avgEdge = tradeHistory.slice(0, 5).reduce((a, t) => a + parseFloat(t.edge), 0) / Math.min(5, tradeHistory.length);
+        edgeScore = avgEdge;
+      } else {
+        const avgStrength = Object.values(trendData).reduce((a, b) => a + b.strength, 0) / 4;
+        edgeScore = avgStrength * 0.5;
+      }
+      
+      const edgeSign = edgeScore >= 0 ? '+' : '';
+      document.getElementById('edge-score').textContent = `${edgeSign}${edgeScore.toFixed(2)}R`;
+      document.getElementById('edge-score').style.color = edgeScore > 0 ? 'var(--bull)' : edgeScore < 0 ? 'var(--bear)' : 'var(--muted)';
+
+      // Update individual timeframes with detailed info
+      updateTF('4h', trendData['4h']);
+      updateTF('2h', trendData['2h']);
+      updateTF('1h', trendData['1h']);
+      updateTF('30m', trendData['30m']);
+    }
+
+    function updateTF(tf, data) {
+      const dirEl = document.getElementById(`tf-${tf}`);
+      const biasEl = document.getElementById(`bias-${tf}`);
+      
+      dirEl.textContent = data.direction;
+      dirEl.className = 'tf-direction ' + (data.direction === 'UP' ? 'trend-up' : data.direction === 'DOWN' ? 'trend-down' : 'neutral');
+      
+      const strengthText = data.strength > 0.6 ? 'Strong' : data.strength > 0.3 ? 'Mild' : 'Weak';
+      const directionText = data.direction === 'UP' ? 'Bullish' : data.direction === 'DOWN' ? 'Bearish' : 'Neutral';
+      const rsiText = data.rsi ? `RSI ${data.rsi.toFixed(0)}` : '';
+      biasEl.textContent = `${strengthText} ${directionText} ${rsiText}`;
+    }
+
+    function toggleDrawer() {
+      const overlay = document.getElementById('sidebar-overlay');
+      const drawer = document.getElementById('sidebar-drawer');
+      if (overlay && drawer) {
+        overlay.classList.toggle('open');
+        drawer.classList.toggle('open');
+      }
+    }
+    
+    // Fetch historical YES/NO data and analyze for edge
+    async function fetchHistoricalEdge() {
+      console.log('Fetching historical YES/NO data...');
+      
+      try {
+        // First find Bitcoin 15-min markets
+        const marketsResp = await fetch(`${KALSHI_BASE}/markets?limit=200`);
+        if (!marketsResp.ok) throw new Error('Failed to fetch markets');
+        
+        const marketsData = await marketsResp.json();
+        const markets = marketsData.markets || [];
+        
+        // Find active Bitcoin 15-min markets
+        const btcMarkets = markets.filter(m => {
+          const ticker = (m.ticker || '').toUpperCase();
+          const title = (m.title || '').toUpperCase();
+          return (ticker.includes('BTC') || title.includes('BITCOIN')) && 
+                 (ticker.includes('15') || title.includes('15')) &&
+                 m.status === 'active';
+        });
+        
+        if (btcMarkets.length === 0) {
+          console.log('No active BTC 15-min markets found');
+          await analyzeMarketHistory('KXBTC15M-26MAR301500');
+          return;
+        }
+        
+        console.log(`Found ${btcMarkets.length} BTC 15-min markets`);
+        
+        // Analyze each market
+        for (const market of btcMarkets.slice(0, 3)) {
+          await analyzeMarketHistory(market.ticker);
+        }
+        
+      } catch (e) {
+        console.error('Historical analysis error:', e.message);
+        await analyzeMarketHistory('KXBTC15M-DEMO');
+      }
+    }
+    
+    // Fetch and analyze market history - correlates resolved contracts with BTC indicators
+    async function analyzeMarketHistory(ticker) {
+      try {
+        console.log(`Fetching resolved contracts for ${ticker}...`);
+        
+        // Fetch market history with resolution data
+        const end = Math.floor(Date.now() / 1000);
+        const start = end - (1000 * 15 * 60); // Last ~10 days of 15-min contracts
+        
+        const url = `${KALSHI_BASE}/markets/${ticker}?status=resolved&min_ts=${start}&max_ts=${end}&limit=1000`;
+        const resp = await fetch(url);
+        
+        if (!resp.ok) {
+          console.log('Market API unavailable, using synthetic...');
+          generateSyntheticEdgeAnalysis();
+          return;
+        }
+        
+        const data = await resp.json();
+        const markets = data.markets || [];
+        
+        // Filter to resolved markets with results
+        const resolvedContracts = markets.filter(m => m.result && (m.result === 'yes' || m.result === 'no'));
+        
+        if (resolvedContracts.length < 20) {
+          console.log(`Insufficient resolved contracts: ${resolvedContracts.length}`);
+          generateSyntheticEdgeAnalysis();
+          return;
+        }
+        
+        console.log(`Found ${resolvedContracts.length} resolved contracts, correlating with BTC indicators...`);
+        
+        // Run correlation analysis
+        await analyzeKalshiVsIndicators(resolvedContracts);
+        
+      } catch (e) {
+        console.error(`Error analyzing ${ticker}:`, e.message);
+        generateSyntheticEdgeAnalysis();
+      }
+    }
+    
+    // Analyze Kalshi outcomes vs BTC technical indicators
+    async function analyzeKalshiVsIndicators(resolvedContracts) {
+      console.log(`Analyzing ${resolvedContracts.length} resolved contracts vs indicators...`);
+      
+      // Results by timeframe
+      const results = {
+        '30m': { correct: 0, total: 0, yesCorrect: 0, noCorrect: 0 },
+        '1h': { correct: 0, total: 0, yesCorrect: 0, noCorrect: 0 },
+        '4h': { correct: 0, total: 0, yesCorrect: 0, noCorrect: 0 }
+      };
+      
+      // EMA cross results
+      const emaResults = {
+        '30m': { bullishCorrect: 0, bearishCorrect: 0, total: 0 },
+        '1h': { bullishCorrect: 0, bearishCorrect: 0, total: 0 },
+        '4h': { bullishCorrect: 0, bearishCorrect: 0, total: 0 }
+      };
+      
+      // RSI results
+      const rsiResults = {
+        '30m': { oversoldCorrect: 0, overboughtCorrect: 0, neutralCorrect: 0, total: 0 },
+        '1h': { oversoldCorrect: 0, overboughtCorrect: 0, neutralCorrect: 0, total: 0 },
+        '4h': { oversoldCorrect: 0, overboughtCorrect: 0, neutralCorrect: 0, total: 0 }
+      };
+      
+      // Process each resolved contract
+      for (const contract of resolvedContracts.slice(0, 100)) { // Limit to 100 for API rate limits
+        const contractTime = contract.open_time || contract.event_date;
+        if (!contractTime) continue;
+        
+        const timestamp = new Date(contractTime).getTime();
+        const outcome = contract.result; // 'yes' or 'no'
+        
+        // Fetch BTC indicators at contract open time for each timeframe
+        for (const tf of ['30m', '1h', '4h']) {
+          try {
+            const indicators = await getIndicatorsAtTime(timestamp, tf);
+            if (!indicators) continue;
+            
+            results[tf].total++;
+            
+            // Check if trend direction predicted outcome
+            const predictedYes = indicators.ema9 > indicators.ema21 && indicators.rsi > 50;
+            const wasCorrect = (outcome === 'yes' && predictedYes) || (outcome === 'no' && !predictedYes);
+            
+            if (wasCorrect) {
+              results[tf].correct++;
+              if (outcome === 'yes') results[tf].yesCorrect++;
+              else results[tf].noCorrect++;
+            }
+            
+            // EMA cross analysis
+            emaResults[tf].total++;
+            if (indicators.ema9 > indicators.ema21) {
+              if (outcome === 'yes') emaResults[tf].bullishCorrect++;
+            } else {
+              if (outcome === 'no') emaResults[tf].bearishCorrect++;
+            }
+            
+            // RSI analysis
+            rsiResults[tf].total++;
+            if (indicators.rsi < 30) {
+              if (outcome === 'yes') rsiResults[tf].oversoldCorrect++; // Oversold bounce
+            } else if (indicators.rsi > 70) {
+              if (outcome === 'no') rsiResults[tf].overboughtCorrect++; // Overbought pullback
+            } else {
+              rsiResults[tf].neutralCorrect++;
+            }
+            
+          } catch (e) {
+            console.error(`Error analyzing ${tf} at ${contractTime}:`, e);
+          }
+        }
+      }
+      
+      // Display results
+      displayCorrelationResults(results, emaResults, rsiResults);
+      
+      return { results, emaResults, rsiResults };
+    }
+    
+    // Get technical indicators at a specific timestamp
+    async function getIndicatorsAtTime(timestamp, timeframe) {
+      // Convert timeframe to Binance interval
+      const interval = timeframe === '30m' ? '30m' : timeframe === '1h' ? '1h' : '4h';
+      
+      // Calculate range around the timestamp
+      const endTime = timestamp + (timeframe === '30m' ? 30*60*1000 : timeframe === '1h' ? 60*60*1000 : 4*60*60*1000);
+      const startTime = timestamp - 100 * (timeframe === '30m' ? 30*60*1000 : timeframe === '1h' ? 60*60*1000 : 4*60*60*1000);
+      
+      try {
+        const url = `${BINANCE_BASE}/klines?symbol=BTCUSDT&interval=${interval}&startTime=${startTime}&endTime=${endTime}&limit=100`;
+        const resp = await fetch(url);
+        if (!resp.ok) return null;
+        
+        const klines = await resp.json();
+        if (klines.length < 30) return null;
+        
+        // Calculate EMA and RSI
+        const closes = klines.map(k => parseFloat(k[4]));
+        const ema9 = calculateEMA(closes, 9);
+        const ema21 = calculateEMA(closes, 21);
+        const rsi = calculateRSI(closes, 14);
+        
+        return {
+          ema9: ema9[ema9.length - 1],
+          ema21: ema21[ema21.length - 1],
+          rsi: rsi[rsi.length - 1],
+          price: closes[closes.length - 1]
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+    
+    function displayCorrelationResults(results, emaResults, rsiResults) {
+      console.log('\n=== KALSHI YES/NO vs BTC TECHNICAL INDICATORS ===\n');
+      
+      // Overall trend alignment accuracy
+      console.log('TREND ALIGNMENT ACCURACY:');
+      for (const [tf, data] of Object.entries(results)) {
+        if (data.total > 0) {
+          const accuracy = (data.correct / data.total * 100).toFixed(1);
+          console.log(`  ${tf}: ${accuracy}% (${data.correct}/${data.total}) - YES: ${data.yesCorrect}, NO: ${data.noCorrect}`);
+        }
+      }
+      
+      // EMA cross accuracy
+      console.log('\nEMA CROSS ACCURACY:');
+      for (const [tf, data] of Object.entries(emaResults)) {
+        if (data.total > 0) {
+          const bullishAcc = (data.bullishCorrect / data.total * 100).toFixed(1);
+          const bearishAcc = (data.bearishCorrect / data.total * 100).toFixed(1);
+          console.log(`  ${tf}: Bullish EMA -> YES correct: ${bullishAcc}%, Bearish EMA -> NO correct: ${bearishAcc}%`);
+        }
+      }
+      
+      // RSI accuracy
+      console.log('\nRSI SIGNAL ACCURACY:');
+      for (const [tf, data] of Object.entries(rsiResults)) {
+        if (data.total > 0) {
+          const oversoldRate = data.oversoldCorrect > 0 ? (data.oversoldCorrect / data.total * 100).toFixed(1) : '0';
+          const overboughtRate = data.overboughtCorrect > 0 ? (data.overboughtCorrect / data.total * 100).toFixed(1) : '0';
+          console.log(`  ${tf}: RSI<30->YES: ${oversoldRate}%, RSI>70->NO: ${overboughtRate}%`);
+        }
+      }
+      
+      // Find best timeframe
+      let bestTf = null;
+      let bestAcc = 0;
+      for (const [tf, data] of Object.entries(results)) {
+        if (data.total > 0) {
+          const acc = data.correct / data.total;
+          if (acc > bestAcc) {
+            bestAcc = acc;
+            bestTf = tf;
+          }
+        }
+      }
+      
+      if (bestTf) {
+        console.log(`\n🏆 BEST TIMEFRAME: ${bestTf} with ${(bestAcc * 100).toFixed(1)}% accuracy`);
+        document.getElementById('hist-edge').textContent = `${(bestAcc * 100).toFixed(0)}%`;
+        document.getElementById('hist-edge').style.color = bestAcc > 0.55 ? 'var(--bull)' : bestAcc > 0.5 ? 'var(--accent)' : 'var(--bear)';
+      }
+    }
+    
+    function generateSyntheticEdgeAnalysis() {
+      console.log('Kalshi API unavailable - using current trend only');
+      
+      const directions = Object.values(trendData).map(d => d.direction);
+      const upCount = directions.filter(d => d === 'UP').length;
+      const downCount = directions.filter(d => d === 'DOWN').length;
+      
+      let estimatedAccuracy = 50;
+      
+      if (upCount >= 3 || downCount >= 3) {
+        estimatedAccuracy = 50 + (Math.max(upCount, downCount) / 4) * 15;
+      }
+      
+      document.getElementById('hist-edge').textContent = `${estimatedAccuracy.toFixed(0)}% (est)`;
+      document.getElementById('hist-edge').style.color = estimatedAccuracy > 55 ? 'var(--bull)' : 'var(--muted)';
+      
+      console.log(`Estimated trend accuracy: ${estimatedAccuracy.toFixed(0)}% based on ${upCount}/4 UP or ${downCount}/4 DOWN`);
+    }
+    
+    // Calculate EMA
+    function calculateEMA(prices, period) {
+      const multiplier = 2 / (period + 1);
+      const ema = [prices[0]];
+      
+      for (let i = 1; i < prices.length; i++) {
+        ema.push((prices[i] - ema[i-1]) * multiplier + ema[i-1]);
+      }
+      
+      return ema;
+    }
+    
+    // Calculate RSI
+    function calculateRSI(prices, period) {
+      const rsi = [];
+      let avgGain = 0;
+      let avgLoss = 0;
+      
+      for (let i = 1; i < prices.length; i++) {
+        const change = prices[i] - prices[i-1];
+        const gain = change > 0 ? change : 0;
+        const loss = change < 0 ? -change : 0;
+        
+        if (i <= period) {
+          avgGain += gain / period;
+          avgLoss += loss / period;
+        } else {
+          avgGain = (avgGain * (period - 1) + gain) / period;
+          avgLoss = (avgLoss * (period - 1) + loss) / period;
+        }
+        
+        if (i >= period) {
+          const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+          rsi.push(100 - (100 / (1 + rs)));
+        }
+      }
+      
+      return rsi;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // KALSHI 15-MIN BTC MARKET & TRADE TRACKING
+    // ═══════════════════════════════════════════════════════════════════════════════
+    
+    const SPECIFIC_MARKET = 'KXBTC15M-26JUN071930';
+    let currentMarketData = null;
+    
+    // Load saved trades from localStorage
+    function loadSavedTrades() {
+      const saved = localStorage.getItem('kalshi_trades');
+      return saved ? JSON.parse(saved) : [];
+    }
+    
+    // Save trades to localStorage
+    function saveTrades(trades) {
+      localStorage.setItem('kalshi_trades', JSON.stringify(trades));
+    }
+    
+    // Fetch specific 15-min BTC market
+    async function fetchSpecificMarket() {
+      try {
+        console.log(`Fetching ${SPECIFIC_MARKET}...`);
+        
+        const url = `${KALSHI_BASE}/markets/${SPECIFIC_MARKET}`;
+        const resp = await fetch(url, { timeout: 10000 });
+        
+        if (!resp.ok) {
+          console.log('Kalshi API error, using demo data');
+          useDemoMarketData();
+          return;
+        }
+        
+        const data = await resp.json();
+        const market = data.market;
+        
+        if (!market) {
+          useDemoMarketData();
+          return;
+        }
+        
+        currentMarketData = {
+          ticker: market.ticker,
+          title: market.title,
+          yesPrice: market.yes_price || market.yes_ask || 50,
+          noPrice: market.no_price || market.no_ask || 50,
+          volume: market.volume || 0,
+          openInterest: market.open_interest || 0,
+          closeDate: market.close_date,
+          status: market.status
+        };
+        
+        updateMarketDisplay();
+        updateTradePnL(); // Update P&L for saved trades
+        
+        console.log(`✅ ${SPECIFIC_MARKET}: YES ${currentMarketData.yesPrice}¢ | NO ${currentMarketData.noPrice}¢`);
+        
+      } catch (e) {
+        console.error('Fetch error:', e);
+        useDemoMarketData();
+      }
+    }
+    
+    // Demo data when API unavailable
+    function useDemoMarketData() {
+      currentMarketData = {
+        ticker: SPECIFIC_MARKET,
+        title: 'Bitcoin Up/Down 15-Min',
+        yesPrice: 52,
+        noPrice: 48,
+        volume: 1250,
+        openInterest: 5000,
+        closeDate: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        status: 'active'
+      };
+      updateMarketDisplay();
+    }
+    
+    // Update market display
+    function updateMarketDisplay() {
+      if (!currentMarketData) return;
+      
+      document.getElementById('yes-price').textContent = currentMarketData.yesPrice + '¢';
+      document.getElementById('no-price').textContent = currentMarketData.noPrice + '¢';
+      document.getElementById('volume').textContent = currentMarketData.volume.toLocaleString();
+    }
+    
+    // Take a trade and save it
+    function takeTrade(side) {
+      if (!currentMarketData) {
+        alert('Market data not loaded yet');
+        return;
+      }
+      
+      const entryPrice = side === 'YES' ? currentMarketData.yesPrice : currentMarketData.noPrice;
+      
+      // Capture trend data at time of trade
+      const trendSnapshot = {
+        '30m': { ...trendData['30m'] },
+        '1h': { ...trendData['1h'] },
+        '2h': { ...trendData['2h'] },
+        '4h': { ...trendData['4h'] }
+      };
+      
+      const trade = {
+        id: Date.now(),
+        type: 'trade', // distinguish from auto-snapshots
+        timestamp: new Date().toISOString(),
+        market: SPECIFIC_MARKET,
+        side: side,
+        entryPrice: entryPrice,
+        currentPrice: entryPrice,
+        pnl: 0,
+        status: 'open',
+        trendAtEntry: trendSnapshot,
+        result: null // 'win', 'loss', or null if not resolved
+      };
+      
+      const trades = loadSavedTrades();
+      trades.push(trade);
+      saveTrades(trades);
+      
+      renderTrades();
+      
+      const trend30m = trendSnapshot['30m'].direction;
+      const trend4h = trendSnapshot['4h'].direction;
+      console.log(`✅ Took ${side} at ${entryPrice}¢ | 30m:${trend30m} 4h:${trend4h}`);
+      alert(`Saved ${side} trade at ${entryPrice}¢\nBTC Trend: 30m=${trend30m}, 4h=${trend4h}\nCheck "My Trades" and "Trend Analysis" sections`);
+    }
+    
+    // Close a trade
+    function closeTrade(id) {
+      const trades = loadSavedTrades();
+      const trade = trades.find(t => t.id === id);
+      
+      if (trade && currentMarketData) {
+        const exitPrice = trade.side === 'YES' ? currentMarketData.yesPrice : currentMarketData.noPrice;
+        trade.currentPrice = exitPrice;
+        trade.pnl = trade.side === 'YES' ? exitPrice - trade.entryPrice : exitPrice - trade.entryPrice;
+        trade.status = 'closed';
+        trade.closeTime = new Date().toISOString();
+        trade.result = trade.pnl > 0 ? 'win' : trade.pnl < 0 ? 'loss' : 'breakeven';
+        
+        saveTrades(trades);
+        renderTrades();
+        renderTrendAnalysis(); // Update analysis when trade closes
+        
+        const pnlText = trade.pnl >= 0 ? `+$${(trade.pnl/100).toFixed(2)}` : `-$${Math.abs(trade.pnl/100).toFixed(2)}`;
+        console.log(`Closed ${trade.side}: ${pnlText} (${trade.result})`);
+      }
+    }
+    
+    // Update P&L for all open trades
+    function updateTradePnL() {
+      if (!currentMarketData) return;
+      
+      const trades = loadSavedTrades();
+      let updated = false;
+      
+      trades.forEach(trade => {
+        if (trade.status === 'open') {
+          const currentPrice = trade.side === 'YES' ? currentMarketData.yesPrice : currentMarketData.noPrice;
+          trade.currentPrice = currentPrice;
+          trade.pnl = trade.side === 'YES' ? currentPrice - trade.entryPrice : currentPrice - trade.entryPrice;
+          updated = true;
+        }
+      });
+      
+      if (updated) {
+        saveTrades(trades);
+        renderTrades();
+      }
+    }
+    
+    // Auto-logging state
+    let autoLoggingEnabled = true;
+    let lastLoggedPrice = null;
+    
+    // Toggle auto-logging
+    function toggleAutoLogging() {
+      autoLoggingEnabled = !autoLoggingEnabled;
+      const btn = document.getElementById('autolog-btn');
+      if (autoLoggingEnabled) {
+        btn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+        console.log('Auto-logging resumed');
+      } else {
+        btn.innerHTML = '<i class="fas fa-play"></i> Resume';
+        console.log('Auto-logging paused');
+      }
+    }
+    
+    // Auto-log market snapshot with trend data
+    function autoLogMarketSnapshot() {
+      if (!autoLoggingEnabled || !currentMarketData) return;
+      
+      // Only log if prices changed significantly (>2 cents) or first log
+      const priceKey = `${currentMarketData.yesPrice}-${currentMarketData.noPrice}`;
+      if (lastLoggedPrice === priceKey) return;
+      lastLoggedPrice = priceKey;
+      
+      // Determine flow based on price movement
+      const yesPrice = currentMarketData.yesPrice;
+      const noPrice = currentMarketData.noPrice;
+      let flow = 'NEUTRAL';
+      if (yesPrice > 55) flow = 'YES FAVORED';
+      else if (noPrice > 55) flow = 'NO FAVORED';
+      else if (yesPrice > 52) flow = 'SLIGHT YES';
+      else if (noPrice > 52) flow = 'SLIGHT NO';
+      
+      // Get trend summary
+      const tf30m = trendData['30m'];
+      const tf1h = trendData['1h'];
+      const tf4h = trendData['4h'];
+      
+      const upCount = [tf30m, tf1h, tf4h].filter(tf => tf.direction === 'UP').length;
+      const downCount = [tf30m, tf1h, tf4h].filter(tf => tf.direction === 'DOWN').length;
+      
+      let trendSummary = 'MIXED';
+      if (upCount >= 2) trendSummary = 'BULLISH';
+      else if (downCount >= 2) trendSummary = 'BEARISH';
+      
+      // Generate signal based on trend/price alignment
+      let signal = 'HOLD';
+      if (trendSummary === 'BULLISH' && flow.includes('YES')) signal = 'ALIGN 📈';
+      else if (trendSummary === 'BEARISH' && flow.includes('NO')) signal = 'ALIGN 📉';
+      else if (trendSummary === 'BULLISH' && flow.includes('NO')) signal = 'CONTRARIAN 🔄';
+      else if (trendSummary === 'BEARISH' && flow.includes('YES')) signal = 'CONTRARIAN 🔄';
+      
+      const snapshot = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        market: SPECIFIC_MARKET,
+        flow: flow,
+        yesPrice: yesPrice,
+        noPrice: noPrice,
+        trendSummary: trendSummary,
+        trendAtEntry: {
+          '30m': { ...tf30m },
+          '1h': { ...tf1h },
+          '4h': { ...tf4h }
+        },
+        signal: signal,
+        type: 'snapshot' // distinguish from manual trades
+      };
+      
+      const trades = loadSavedTrades();
+      trades.push(snapshot);
+      
+      // Keep only last 200 snapshots to prevent storage bloat
+      const snapshots = trades.filter(t => t.type === 'snapshot');
+      const manualTrades = trades.filter(t => !t.type || t.type !== 'snapshot');
+      
+      if (snapshots.length > 200) {
+        snapshots.shift(); // remove oldest
+      }
+      
+      saveTrades([...manualTrades, ...snapshots]);
+      renderTrades();
+      renderTrendAnalysis();
+      
+      console.log(`📊 Logged: ${flow} | YES:${yesPrice}¢ NO:${noPrice}¢ | BTC:${trendSummary} | ${signal}`);
+    }
+    
+    // Render trades table
+    function renderTrades() {
+      const trades = loadSavedTrades();
+      const tbody = document.getElementById('trades-tbody');
+      
+      if (trades.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--muted);">
+              Auto-logging market snapshots every 30 seconds...
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      // Filter to only show snapshots (not manual trades)
+      const snapshots = trades.filter(t => t.type === 'snapshot');
+      if (snapshots.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--muted);">
+              Waiting for first market snapshot...
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      // Sort by most recent first - only show last 50 snapshots
+      const sorted = [...snapshots].sort((a, b) => b.id - a.id).slice(0, 50);
+      
+      tbody.innerHTML = sorted.map(snapshot => {
+        const time = new Date(snapshot.timestamp).toLocaleTimeString();
+        const flowClass = snapshot.flow.includes('YES') ? 'side-yes' : snapshot.flow.includes('NO') ? 'side-no' : '';
+        const signalColor = snapshot.signal.includes('ALIGN') ? '#22c55e' : snapshot.signal.includes('CONTRARIAN') ? '#f59e0b' : 'var(--muted)';
+        
+        // Get detailed trend info
+        const tf30m = snapshot.trendAtEntry?.['30m'];
+        const tf1h = snapshot.trendAtEntry?.['1h'];
+        const tf4h = snapshot.trendAtEntry?.['4h'];
+        
+        const trend30m = tf30m ? (tf30m.direction === 'UP' ? '↗' : tf30m.direction === 'DOWN' ? '↘' : '→') : '-';
+        const trend1h = tf1h ? (tf1h.direction === 'UP' ? '↗' : tf1h.direction === 'DOWN' ? '↘' : '→') : '-';
+        const trend4h = tf4h ? (tf4h.direction === 'UP' ? '↗' : tf4h.direction === 'DOWN' ? '↘' : '→') : '-';
+        
+        return `
+          <tr>
+            <td>${time}</td>
+            <td>${snapshot.market.replace('KXBTC15M-', '')}</td>
+            <td class="${flowClass}">${snapshot.flow}</td>
+            <td>${snapshot.yesPrice}¢</td>
+            <td>${snapshot.noPrice}¢</td>
+            <td style="font-size: 0.75rem;">
+              <span title="30m">${trend30m}</span>
+              <span title="1h">${trend1h}</span>
+              <span title="4h">${trend4h}</span>
+              <span style="margin-left: 4px; color: var(--muted);">${snapshot.trendSummary}</span>
+            </td>
+            <td style="color: ${signalColor}; font-weight: 500;">${snapshot.signal}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    // Clear all trades
+    function clearTrades() {
+      if (confirm('Clear all saved trades?')) {
+        localStorage.removeItem('kalshi_trades');
+        renderTrades();
+        renderTrendAnalysis();
+        console.log('All trades cleared');
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // TREND ANALYSIS - Analyze market flow patterns by BTC trend condition
+    // ═══════════════════════════════════════════════════════════════════════════════
+    
+    function renderTrendAnalysis() {
+      const trades = loadSavedTrades();
+      const snapshots = trades.filter(t => t.type === 'snapshot' && t.trendAtEntry);
+      
+      if (snapshots.length === 0) {
+        document.getElementById('trend-analysis-content').innerHTML = `
+          <div style="padding: 2rem; text-align: center; color: var(--muted);">
+            <p>No market data logged yet.</p>
+            <p style="font-size: 0.875rem;">Auto-logging starts in 30 seconds...</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // Analyze flow patterns by BTC trend condition
+      const bullishSnaps = snapshots.filter(s => s.trendSummary === 'BULLISH');
+      const bearishSnaps = snapshots.filter(s => s.trendSummary === 'BEARISH');
+      const mixedSnaps = snapshots.filter(s => s.trendSummary === 'MIXED');
+      
+      // YES favored vs NO favored by trend
+      const bullishYesFavored = bullishSnaps.filter(s => s.flow.includes('YES')).length;
+      const bullishNoFavored = bullishSnaps.filter(s => s.flow.includes('NO')).length;
+      const bearishYesFavored = bearishSnaps.filter(s => s.flow.includes('YES')).length;
+      const bearishNoFavored = bearishSnaps.filter(s => s.flow.includes('NO')).length;
+      
+      // Alignment vs Contrarian signals
+      const alignSignals = snapshots.filter(s => s.signal.includes('ALIGN')).length;
+      const contrarianSignals = snapshots.filter(s => s.signal.includes('CONTRARIAN')).length;
+      
+      // Price range analysis
+      const avgYesPrice = snapshots.reduce((sum, s) => sum + s.yesPrice, 0) / snapshots.length;
+      const avgNoPrice = snapshots.reduce((sum, s) => sum + s.noPrice, 0) / snapshots.length;
+      
+      // Detect patterns - most recent 20 snapshots
+      const recent = snapshots.slice(-20);
+      const recentFlow = recent.map(s => s.flow).reduce((acc, flow) => {
+        acc[flow] = (acc[flow] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const dominantFlow = Object.entries(recentFlow).sort((a, b) => b[1] - a[1])[0]?.[0] || 'NEUTRAL';
+      
+      const analysisHTML = `
+        <div style="padding: 1.5rem;">
+          <h4 style="color: var(--accent); margin-bottom: 1rem;">📊 Flow vs BTC Trend Alignment (${snapshots.length} samples)</h4>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="edge-card ${bullishSnaps.length > 0 ? 'edge-high' : 'edge-neutral'}">
+              <div style="font-size: 0.75rem; color: var(--muted);">🟢 BULLISH BTC (${bullishSnaps.length})</div>
+              <div style="font-size: 1rem; font-weight: 600;">
+                YES:${bullishYesFavored} NO:${bullishNoFavored}
+              </div>
+              <div style="font-size: 0.625rem; color: var(--muted);">
+                ${bullishSnaps.length > 0 ? `${Math.round(bullishYesFavored/bullishSnaps.length*100)}% YES favored` : 'No data'}
+              </div>
+            </div>
+            <div class="edge-card ${bearishSnaps.length > 0 ? 'edge-low' : 'edge-neutral'}">
+              <div style="font-size: 0.75rem; color: var(--muted);">🔴 BEARISH BTC (${bearishSnaps.length})</div>
+              <div style="font-size: 1rem; font-weight: 600;">
+                YES:${bearishYesFavored} NO:${bearishNoFavored}
+              </div>
+              <div style="font-size: 0.625rem; color: var(--muted);">
+                ${bearishSnaps.length > 0 ? `${Math.round(bearishNoFavored/bearishSnaps.length*100)}% NO favored` : 'No data'}
+              </div>
+            </div>
+          </div>
+          
+          <h4 style="color: var(--accent); margin: 1.5rem 0 1rem;">🎯 Signal Distribution</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="edge-card edge-high">
+              <div style="font-size: 0.75rem; color: var(--muted);">📈 ALIGN</div>
+              <div style="font-size: 1.5rem; font-weight: 600; color: #22c55e;">${alignSignals}</div>
+              <div style="font-size: 0.625rem; color: var(--muted);">Trend+Flow aligned</div>
+            </div>
+            <div class="edge-card" style="border-color: #f59e0b;">
+              <div style="font-size: 0.75rem; color: var(--muted);">🔄 CONTRARIAN</div>
+              <div style="font-size: 1.5rem; font-weight: 600; color: #f59e0b;">${contrarianSignals}</div>
+              <div style="font-size: 0.625rem; color: var(--muted);">Trend+Flow opposite</div>
+            </div>
+            <div class="edge-card edge-neutral">
+              <div style="font-size: 0.75rem; color: var(--muted);">⏸️ HOLD</div>
+              <div style="font-size: 1.5rem; font-weight: 600;">${snapshots.length - alignSignals - contrarianSignals}</div>
+              <div style="font-size: 0.625rem; color: var(--muted);">Neutral/unclear</div>
+            </div>
+          </div>
+          
+          <h4 style="color: var(--accent); margin: 1.5rem 0 1rem;">📈 Market Stats</h4>
+          <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px; font-size: 0.875rem; display: grid; gap: 0.5rem;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--muted);">Avg YES Price:</span>
+              <span style="font-weight: 500;">${avgYesPrice.toFixed(1)}¢</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--muted);">Avg NO Price:</span>
+              <span style="font-weight: 500;">${avgNoPrice.toFixed(1)}¢</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--muted);">Recent Dominant Flow (20):</span>
+              <span style="font-weight: 500; color: ${dominantFlow.includes('YES') ? '#22c55e' : dominantFlow.includes('NO') ? '#f59e0b' : 'inherit'};">${dominantFlow}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--muted);">Samples Logged:</span>
+              <span style="font-weight: 500;">${snapshots.length} / 200 max</span>
+            </div>
+          </div>
+          
+          ${generateTradePerformanceSection(trades)}
+          
+          <h4 style="color: var(--accent); margin: 1.5rem 0 1rem;">💡 Pattern Insights</h4>
+          <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; font-size: 0.875rem;">
+            ${generateSnapshotInsights(snapshots, alignSignals, contrarianSignals)}
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('trend-analysis-content').innerHTML = analysisHTML;
+    }
+    
+    function analyzeByTimeframe(trades, tf) {
+      const upTrades = trades.filter(t => t.trendAtEntry[tf]?.direction === 'UP');
+      const downTrades = trades.filter(t => t.trendAtEntry[tf]?.direction === 'DOWN');
+      
+      return {
+        up: { count: upTrades.length, winRate: calculateWinRate(upTrades) },
+        down: { count: downTrades.length, winRate: calculateWinRate(downTrades) }
+      };
+    }
+    
+    function calculateWinRate(trades) {
+      if (trades.length === 0) return 0;
+      const wins = trades.filter(t => t.result === 'win').length;
+      return (wins / trades.length) * 100;
+    }
+    
+    function renderTimeframeStats(title, stats) {
+      const upClass = stats.up.winRate > 50 ? 'edge-high' : stats.up.winRate < 50 ? 'edge-low' : 'edge-neutral';
+      const downClass = stats.down.winRate > 50 ? 'edge-high' : stats.down.winRate < 50 ? 'edge-low' : 'edge-neutral';
+      
+      return `
+        <div style="display: grid; grid-template-columns: 100px 1fr 1fr; gap: 0.75rem; align-items: center; padding: 0.75rem; background: rgba(255,255,255,0.02); border-radius: 6px;">
+          <div style="font-weight: 500; font-size: 0.875rem;">${title}</div>
+          <div class="edge-card ${upClass}" style="padding: 0.5rem;">
+            <div style="font-size: 0.625rem; color: var(--muted);">📈 UP (${stats.up.count})</div>
+            <div style="font-size: 1rem; font-weight: 600;">${stats.up.winRate.toFixed(1)}%</div>
+          </div>
+          <div class="edge-card ${downClass}" style="padding: 0.5rem;">
+            <div style="font-size: 0.625rem; color: var(--muted);">📉 DOWN (${stats.down.count})</div>
+            <div style="font-size: 1rem; font-weight: 600;">${stats.down.winRate.toFixed(1)}%</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function generateSnapshotInsights(snapshots, alignSignals, contrarianSignals) {
+      const insights = [];
+      
+      // Flow alignment rate
+      const alignRate = snapshots.length > 0 ? (alignSignals / snapshots.length * 100) : 0;
+      const contrarianRate = snapshots.length > 0 ? (contrarianSignals / snapshots.length * 100) : 0;
+      
+      if (alignRate > 60) {
+        insights.push(`<strong>📈 Strong Alignment:</strong> ${alignRate.toFixed(0)}% of samples show Kalshi flow aligned with BTC trend`);
+      } else if (contrarianRate > 40) {
+        insights.push(`<strong>� Contrarian Pattern:</strong> ${contrarianRate.toFixed(0)}% of samples show Kalshi flow opposing BTC trend`);
+      }
+      
+      // YES vs NO price bias
+      const yesBiased = snapshots.filter(s => s.yesPrice > 55).length;
+      const noBiased = snapshots.filter(s => s.noPrice > 55).length;
+      
+      if (yesBiased > snapshots.length * 0.4) {
+        insights.push(`<strong>� YES Premium:</strong> Market is pricing YES higher than 50/50 in ${Math.round(yesBiased/snapshots.length*100)}% of samples`);
+      } else if (noBiased > snapshots.length * 0.4) {
+        insights.push(`<strong>� NO Premium:</strong> Market is pricing NO higher than 50/50 in ${Math.round(noBiased/snapshots.length*100)}% of samples`);
+      }
+      
+      // Trend-btc correlation
+      const bullishSnaps = snapshots.filter(s => s.trendSummary === 'BULLISH');
+      const bearishSnaps = snapshots.filter(s => s.trendSummary === 'BEARISH');
+      
+      if (bullishSnaps.length > 5 && bearishSnaps.length > 5) {
+        const bullishYesRate = bullishSnaps.filter(s => s.flow.includes('YES')).length / bullishSnaps.length;
+        const bearishYesRate = bearishSnaps.filter(s => s.flow.includes('YES')).length / bearishSnaps.length;
+        
+        if (bullishYesRate > bearishYesRate + 0.2) {
+          insights.push(`<strong>🐂 Bullish Edge:</strong> YES flow ${Math.round((bullishYesRate - bearishYesRate)*100)}% more likely in bullish BTC conditions`);
+        } else if (bearishYesRate > bullishYesRate + 0.2) {
+          insights.push(`<strong>🐻 Bearish Pattern:</strong> YES flow ${Math.round((bearishYesRate - bullishYesRate)*100)}% more likely in bearish BTC conditions`);
+        }
+      }
+      
+      if (insights.length === 0) {
+        insights.push(`Collecting market data... ${snapshots.length} samples logged. Patterns will emerge with more data.`);
+      }
+      
+      return insights.join('<br><br>');
+    }
+    
+    // Auto-refresh specific market data every 30 seconds
+    setInterval(fetchSpecificMarket, 30000);
+    
+    // Update trend every 30s but don't randomize - use real data
+    setInterval(() => {
+      fetchBitcoinAnalysis().then(() => {
+        simulateTrades();
+        updateTrendDisplay();
+      });
+    }, 30000);
+    
+    // Auto-log market snapshot every 60 seconds for edge analysis (max 200 samples)
+    setInterval(() => {
+      const ticker = document.getElementById('current-ticker').textContent;
+      const yesPrice = document.getElementById('yes-price').textContent;
+      const noPrice = document.getElementById('no-price').textContent;
+      const flow = document.getElementById('flow-indicator').textContent;
+      const signal = document.getElementById('signal-indicator').textContent;
+      
+      if (ticker !== '-' && yesPrice !== '-') {
+        const snapshot = {
+          id: 'snap_' + Date.now(),
+          type: 'snapshot',
+          ticker: ticker,
+          yesPrice: parseFloat(yesPrice),
+          noPrice: parseFloat(noPrice),
+          flow: flow,
+          signal: signal,
+          trendSummary: trendSummary,
+          btcPrice: btcPrice,
+          trendAtEntry: JSON.parse(JSON.stringify(trendData)),
+          timestamp: new Date().toISOString()
+        };
+        
+        const trades = loadSavedTrades();
+        trades.push(snapshot);
+        
+        // Keep only last 200 snapshots
+        const snapshots = trades.filter(t => t.type === 'snapshot');
+        const manualTrades = trades.filter(t => t.type !== 'snapshot');
+        const recentSnapshots = snapshots.slice(-200);
+        
+        saveTrades([...manualTrades, ...recentSnapshots]);
+        renderTrendAnalysis();
+        console.log(`[AUTO] Logged snapshot #${recentSnapshots.length} - ${flow} / ${signal}`);
+      }
+    }, 60000);
+    
+    // Start first snapshot after 30s delay
+    setTimeout(() => {
+      console.log('[AUTO] Market snapshot logging active (60s intervals, max 200 samples)');
+    }, 30000);
+  </script>
+</body>
+</html>

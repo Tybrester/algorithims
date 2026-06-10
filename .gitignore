@@ -1,0 +1,12 @@
+node_modules/
+.env
+.DS_Store
+Thumbs.db
+
+.vercel
+
+# Large data/cache files
+boof_data/
+boof_cache/
+*.parquet
+*.pkl

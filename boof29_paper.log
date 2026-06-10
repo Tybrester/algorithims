@@ -1,0 +1,7 @@
+2026-06-09 16:34:05,821  ERROR  Alpaca connection failed: unauthorized.
+2026-06-09 16:34:05,821  ERROR  Install: pip install alpaca-trade-api
+2026-06-09 17:35:23,612  ERROR  Alpaca connection failed: unauthorized.
+2026-06-09 17:35:23,612  ERROR  Install: pip install alpaca-trade-api
+2026-06-09 17:39:12,276  INFO  Connected to Alpaca Paper  |  Cash: $5,000.00  Buying power: $20,000.00
+2026-06-09 17:39:15,703  INFO  Boof 29 Paper Bot starting — 2026-06-09 19:39:15 ET
+2026-06-09 17:39:15,838  INFO  Market is not open today. Exiting.

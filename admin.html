@@ -1,0 +1,487 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BoofCapital — Admin</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 80%; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --border: #1f1f1f;
+      --accent: #00e676; --accent-dim: #00c853; --red: #ff1744;
+      --text: #f5f5f5; --muted: #888; --card-bg: #141414;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+    #loading-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #app { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 72px; background: rgba(10,10,10,0.95); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+    .logo { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; color: var(--text); text-decoration: none;   color: var(--text); text-decoration: none;}
+    .logo span { color: var(--accent); }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .user-dropdown { position: relative; }
+    .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
+    .user-dropdown-toggle::after { content: '▾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
+    .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
+    .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--red); cursor: pointer; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
+    .user-dropdown-item:hover { background: rgba(255,255,255,0.05); }
+
+    .layout { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 260px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 0; height: calc(100vh - 72px); position: sticky; top: 72px; overflow-y: auto; }
+    .sidebar-section { padding: 5px 12px; font-size: 0.6rem; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 14px; }
+    .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border: none; border-left: 3px solid transparent; font-size: 0.82rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.15s, color 0.15s; position: relative; background: none; font-family: inherit; width: 100%; text-align: left; cursor: pointer; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .sidebar-item.active { background: rgba(0,230,118,0.08); color: var(--accent); font-weight: 600; border-left-color: var(--accent); }
+
+    main { flex: 1; padding: 28px 36px; overflow-y: auto; }
+    .page-title { font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .page-sub { font-size: 0.88rem; color: var(--muted); margin-bottom: 28px; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 32px; }
+    .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; }
+    .stat-card .label { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+    .stat-card .value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; }
+    .stat-card .value.green { color: var(--accent); }
+
+    .section-title { font-size: 0.72rem; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 14px; }
+
+    .users-table { width: 100%; border-collapse: collapse; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .users-table th { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .users-table td { padding: 13px 16px; font-size: 0.85rem; border-bottom: 1px solid #161616; vertical-align: middle; }
+    .users-table tr:last-child td { border-bottom: none; }
+    .users-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
+    .badge-admin { background: rgba(255,200,0,0.12); color: #ffc107; }
+    .badge-user { background: rgba(255,255,255,0.06); color: #666; }
+
+    .action-btn { background: none; border: 1px solid #2a2a2a; color: var(--muted); font-size: 0.75rem; padding: 4px 12px; border-radius: 5px; cursor: pointer; font-family: inherit; transition: all 0.15s; margin-right: 6px; }
+    .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .action-btn.danger:hover { border-color: var(--red); color: var(--red); }
+    .action-btn.bots-on { border-color: var(--accent); color: var(--accent); }
+    .action-btn.approve { border-color: var(--accent); color: var(--accent); }
+    .action-btn.deny { border-color: var(--red); color: var(--red); }
+    .badge-pending { background: rgba(255,200,0,0.12); color: #ffc107; }
+    .badge-approved { background: rgba(0,230,118,0.12); color: var(--accent); }
+    .badge-denied { background: rgba(255,23,68,0.12); color: var(--red); }
+
+    .search-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+    .search-input { flex: 1; background: var(--card-bg); border: 1px solid var(--border); color: var(--text); font-family: inherit; font-size: 0.88rem; padding: 9px 14px; border-radius: 8px; outline: none; max-width: 360px; }
+    .search-input:focus { border-color: var(--accent); }
+
+    .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 0.9rem; }
+
+    .confirm-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+    .confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 32px; max-width: 400px; width: 90%; text-align: center; }
+    .confirm-box h3 { font-size: 1.1rem; margin-bottom: 10px; }
+    .confirm-box p { font-size: 0.88rem; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+    .confirm-btns { display: flex; gap: 12px; justify-content: center; }
+    .btn-cancel { background: transparent; border: 1px solid #444; color: var(--muted); padding: 9px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
+    .btn-confirm { background: var(--red); color: #fff; border: none; padding: 9px 20px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.85rem; font-weight: 700; }
+    .btn-confirm.green { background: var(--accent); color: #000; }
+  </style>
+</head>
+<body>
+  <div id="loading-screen"><div class="spinner"></div></div>
+
+  <div id="app">
+    <nav>
+      <a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a>
+      <div class="nav-right">
+        <div class="user-dropdown" id="user-dropdown">
+          <button class="user-dropdown-toggle" id="user-email-toggle">
+            <span id="user-email"></span>
+          </button>
+          <div class="user-dropdown-menu">
+            <button class="user-dropdown-item red" onclick="signOut()">
+              <span>🚪</span> Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-section">Menu</div>
+        <a href="dashboard.html" class="sidebar-item">Dashboard</a>
+        <a href="trades.html" class="sidebar-item">Trades</a>
+        <a href="paper-market.html" class="sidebar-item">Paper Market</a>
+        <a href="alerts.html" class="sidebar-item">Systems</a>
+        <a href="accounts.html" class="sidebar-item">Accounts</a>
+        <a href="brokers.html" class="sidebar-item">Brokers</a>
+        <div class="sidebar-section" style="margin-top:24px;">Bots</div>
+        <a href="bots.html" class="sidebar-item">Bots</a>
+        <div class="sidebar-section" style="margin-top:24px;">Help</div>
+        <a href="how-it-works.html" class="sidebar-item">How it Works</a>
+        <div style="margin-top:auto;">
+          <div class="sidebar-section">Admin</div>
+          <a href="admin.html" class="sidebar-item active">Admin Panel</a>
+        </div>
+      </aside>
+
+      <main>
+        <div class="page-title">Admin Panel</div>
+        <div class="page-sub">Site overview and user management</div>
+
+        <div class="stats-row" style="max-width:480px;">
+          <div class="stat-card">
+            <div class="label">Total Users</div>
+            <div class="value green" id="stat-users">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Pending Requests</div>
+            <div class="value" id="stat-requests" style="color:#ffc107;">—</div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:8px;">Access Requests</div>
+        <div id="requests-container" style="margin-bottom:36px;">
+          <div class="empty-state">Loading...</div>
+        </div>
+
+        <div class="section-title">Users</div>
+        <div class="search-bar">
+          <input class="search-input" id="user-search" type="text" placeholder="Search by email..." oninput="filterUsers()" />
+        </div>
+        <div id="users-container">
+          <div class="empty-state">Loading users...</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://isanhutzyctcjygjhzbn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let allUsers = [];
+    let allRequests = [];
+
+    async function init() {
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (!session) { window.location.href = 'signin.html'; return; }
+
+      const user = session.user;
+      if (user.id !== 'd0bb84ba-f968-446c-9792-9bcff8849e37') {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+
+      document.getElementById('user-email').textContent = user.email;
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+
+      document.getElementById('user-email-toggle').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('user-dropdown').classList.toggle('open');
+      });
+      document.addEventListener('click', () => document.getElementById('user-dropdown').classList.remove('open'));
+
+      await Promise.all([loadUsers(), loadRequests()]);
+    }
+
+    async function loadUsers() {
+      const { data: { session } } = await sbClient.auth.getSession();
+      let usersTable = [];
+      try {
+        const { data } = await sbClient.from('users').select('id, email, approved');
+        usersTable = data || [];
+      } catch (e) {
+        usersTable = [];
+      }
+      
+      const [{ data: accounts }, { data: systems }, { data: settings }, emailRes] = await Promise.all([
+        sbClient.from('paper_accounts').select('user_id, updated_at').order('updated_at', { ascending: false }),
+        sbClient.from('systems').select('user_id, id'),
+        sbClient.from('user_settings').select('user_id, bots_enabled'),
+        fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY }
+        }).then(r => r.json()).catch(() => ({ users: [] }))
+      ]);
+
+      const systemCounts = {};
+      (systems || []).forEach(s => { systemCounts[s.user_id] = (systemCounts[s.user_id] || 0) + 1; });
+
+      const emailMap = {};
+      (emailRes.users || []).forEach(u => { emailMap[u.id] = u.email; });
+
+      const botsMap = {};
+      (settings || []).forEach(s => { botsMap[s.user_id] = s.bots_enabled; });
+
+      const accountMap = {};
+      (accounts || []).forEach(a => { accountMap[a.user_id] = a.updated_at; });
+
+      const approvedMap = {};
+      usersTable.forEach(u => { approvedMap[u.id] = u.approved; });
+
+      const authUsers = emailRes.users || [];
+      const seenIds = new Set(authUsers.map(u => u.id));
+      (accounts || []).forEach(a => {
+        if (!seenIds.has(a.user_id)) authUsers.push({ id: a.user_id, email: emailMap[a.user_id] || '' });
+      });
+
+      allUsers = authUsers
+        .map(u => ({
+          user_id: u.id,
+          email: u.email || '',
+          updated_at: accountMap[u.id] || u.created_at || null,
+          systems: systemCounts[u.id] || 0,
+          bots_enabled: botsMap[u.id] || false,
+          approved: approvedMap[u.id] || false,
+        }));
+
+      document.getElementById('stat-users').textContent = allUsers.length;
+      renderUsers(allUsers);
+    }
+
+    function renderUsers(users) {
+      const container = document.getElementById('users-container');
+      if (!users.length) { container.innerHTML = '<div class="empty-state">No users found</div>'; return; }
+
+      container.innerHTML = `<table class="users-table">
+        <thead><tr>
+          <th>Email</th>
+          <th>Systems</th>
+          <th>Last Active</th>
+          <th>Approval</th>
+          <th>Bots Access</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody>
+          ${users.map(u => {
+            const dt = u.updated_at ? new Date(u.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+            const on = u.bots_enabled;
+            const approved = u.approved;
+            return `<tr>
+              <td style="font-size:0.85rem;" title="${u.user_id}">${u.email || u.user_id.slice(0,8) + '…'}</td>
+              <td>${u.systems}</td>
+              <td style="color:#555;">${dt}</td>
+              <td>
+                ${approved 
+                  ? '<span class="badge badge-approved">Approved</span>' 
+                  : `<button class="action-btn approve" onclick="approveUser('${u.user_id}', '${u.email}')">Approve</button>`
+                }
+              </td>
+              <td><button class="action-btn ${on ? 'bots-on' : ''}" onclick="toggleBots('${u.user_id}', ${!on})">${on ? 'Enabled ✓' : 'Enable Bots'}</button></td>
+              <td><button class="action-btn danger" onclick="deleteUser('${u.email}')">Delete</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    }
+
+    async function deleteUser(email) {
+      showConfirm('Delete User', `Permanently delete ${email}? This cannot be undone.`, async () => {
+        const { data: { session } } = await sbClient.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'delete', email })
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert('Delete failed: ' + (json.error || res.status));
+        } else {
+          alert(`User ${email} deleted.`);
+          await loadUsers();
+        }
+      }, false);
+    }
+
+    async function approveUser(userId, email) {
+      showConfirm('Approve User', `Approve access for ${email}? An account will be created with a temporary password.`, async () => {
+        const { data: { session } } = await sbClient.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'approve', email })
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          alert('Approval failed: ' + (json.error || res.status));
+        } else {
+          alert(`User approved! An invite email has been sent to ${email}. They will set their own password via the link.`);
+        }
+      }, false);
+    }
+
+    async function loadRequests() {
+      const { data } = await sbClient
+        .from('access_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      allRequests = data || [];
+      const pending = allRequests.filter(r => r.status === 'pending').length;
+      document.getElementById('stat-requests').textContent = pending;
+      renderRequests(allRequests);
+    }
+
+    function renderRequests(requests) {
+      const container = document.getElementById('requests-container');
+      if (!requests.length) { container.innerHTML = '<div class="empty-state">No access requests yet.</div>'; return; }
+      container.innerHTML = `<table class="users-table">
+        <thead><tr>
+          <th>Name</th><th>Email</th><th>Reason</th><th>Applied</th><th>Status</th><th>Actions</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${requests.map(r => {
+            const dt = new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const badgeClass = r.status === 'approved' ? 'badge-approved' : r.status === 'denied' ? 'badge-denied' : 'badge-pending';
+            const actions = r.status === 'pending'
+              ? `<button class="action-btn approve" onclick="reviewRequest('${r.id}','${r.email}','approved')">Approve</button>
+                 <button class="action-btn danger" onclick="reviewRequest('${r.id}','${r.email}','denied')">Deny</button>`
+              : `<span style="color:#444;font-size:0.8rem;">Reviewed</span>`;
+            return `<tr>
+              <td style="font-size:0.85rem;">${r.name}</td>
+              <td style="font-size:0.85rem;">${r.email}</td>
+              <td style="font-size:0.8rem;color:var(--muted);max-width:200px;">${r.reason || '—'}</td>
+              <td style="color:#555;font-size:0.82rem;">${dt}</td>
+              <td><span class="badge ${badgeClass}">${r.status}</span></td>
+              <td>${actions}</td>
+              <td>
+                <button class="action-btn danger" onclick="deleteRequest('${r.id}')">Delete</button>
+                <button class="action-btn approve" style="margin-left:6px;" onclick="resendInvite('${r.email}')">Resend Email</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    }
+
+    async function deleteRequest(id) {
+      showConfirm('Delete Request', 'Permanently delete this access request?', async () => {
+        await sbClient.from('access_requests').delete().eq('id', id);
+        await loadRequests();
+      }, true);
+    }
+
+    async function resendInvite(email) {
+      showConfirm('Resend Invite', `Resend invite email to ${email}?`, async () => {
+        const { data: { session } } = await sbClient.auth.getSession();
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'approve', email })
+        });
+        const json = await res.json();
+        if (!res.ok) alert('Failed: ' + (json.error || res.status));
+        else alert('User approved. They can now sign in with their account.');
+      }, false);
+    }
+
+    async function reviewRequest(id, email, status) {
+      const label = status === 'approved' ? 'Approve' : 'Deny';
+      const msg = status === 'approved'
+        ? `Approve access for ${email}? They can now sign in to the site.`
+        : `Deny access for ${email}?`;
+      showConfirm(`${label} Request`, msg, async () => {
+        // Optimistically update UI immediately
+        const req = allRequests.find(r => r.id === id);
+        if (req) { req.status = status; req.reviewed_at = new Date().toISOString(); }
+        renderRequests(allRequests);
+        const pending = allRequests.filter(r => r.status === 'pending').length;
+        document.getElementById('stat-requests').textContent = pending;
+
+        // Persist to DB
+        await sbClient.from('access_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
+        if (status === 'approved') {
+          const { data: { session } } = await sbClient.auth.getSession();
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'apikey': SUPABASE_ANON_KEY,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: 'approve', email })
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            alert('Approval failed: ' + (json.error || res.status));
+          } else {
+            alert(`User approved! ${email} can now sign in to the site.`);
+          }
+        }
+      }, status !== 'approved');
+    }
+
+    function filterUsers() {
+      const q = document.getElementById('user-search').value.toLowerCase();
+      renderUsers(allUsers.filter(u => u.email.toLowerCase().includes(q) || u.user_id.toLowerCase().includes(q)));
+    }
+
+    function showConfirm(title, message, onConfirm, danger = true) {
+      const modal = document.createElement('div');
+      modal.className = 'confirm-modal';
+      modal.innerHTML = `<div class="confirm-box">
+        <h3>${title}</h3>
+        <p>${message}</p>
+        <div class="confirm-btns">
+          <button class="btn-cancel">Cancel</button>
+          <button class="btn-confirm ${danger ? '' : 'green'}">${danger ? 'Confirm' : 'OK'}</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('.btn-cancel').addEventListener('click', () => modal.remove());
+      modal.querySelector('.btn-confirm').addEventListener('click', async () => { modal.remove(); await onConfirm(); });
+    }
+
+    async function toggleBots(userId, enable) {
+      const { data: existing } = await sbClient.from('user_settings').select('user_id').eq('user_id', userId).maybeSingle();
+      if (existing) {
+        await sbClient.from('user_settings').update({ bots_enabled: enable, updated_at: new Date().toISOString() }).eq('user_id', userId);
+      } else {
+        await sbClient.from('user_settings').insert({ user_id: userId, bots_enabled: enable });
+      }
+      await loadUsers();
+    }
+
+    async function resetBalance(userId) {
+      confirm('Reset Paper Balance', `Reset this user's paper balance back to $100,000?`, async () => {
+        await sbClient.from('paper_accounts').update({ balance: 100000, updated_at: new Date().toISOString() }).eq('user_id', userId);
+        await loadUsers();
+      });
+    }
+
+    async function deleteUserData(userId) {
+      confirm('Clear User Data', `This will delete all trades for this user and reset their balance to $100,000. This cannot be undone.`, async () => {
+        await sbClient.from('trades').delete().eq('user_id', userId);
+        await sbClient.from('paper_accounts').update({ balance: 100000, updated_at: new Date().toISOString() }).eq('user_id', userId);
+        await loadUsers();
+      });
+    }
+
+    async function signOut() {
+      await sbClient.auth.signOut();
+      window.location.href = 'index.html';
+    }
+
+    init();
+  </script>
+</body>
+</html>

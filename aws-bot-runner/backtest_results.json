@@ -1,0 +1,57 @@
+{
+  "period": "2026-03-05 to 2026-06-05",
+  "symbols": [
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "AMZN",
+    "GOOG",
+    "AVGO",
+    "META",
+    "TSLA",
+    "LLY",
+    "QQQ",
+    "SPY"
+  ],
+  "params": {
+    "entryRules": {
+      "long": "ADX<20, Price<VWAP, DistVWAP<-0.5%",
+      "short": "ADX<20, Price>VWAP, DistVWAP>+0.5%"
+    },
+    "hours": [
+      "8am",
+      "9am",
+      "12pm",
+      "1pm",
+      "2pm"
+    ],
+    "targetPct": 0.05,
+    "stopPct": -0.1
+  },
+  "testResults": {
+    "spyOnly": {
+      "trades": 0,
+      "metrics": {
+        "totalTrades": 0,
+        "winRate": 0,
+        "profitFactor": 0,
+        "avgWinner": 0,
+        "avgLoser": 0,
+        "maxDrawdown": 0,
+        "avgHoldTime": 0
+      }
+    },
+    "noSpy": {
+      "trades": 10,
+      "metrics": {
+        "totalTrades": 10,
+        "winRate": 10,
+        "profitFactor": 0.123461356547677,
+        "avgWinner": 4.233480285734787,
+        "avgLoser": -3.8099913330640214,
+        "maxDrawdown": 30.05644171184141,
+        "avgHoldTime": 5.2
+      }
+    }
+  }
+}

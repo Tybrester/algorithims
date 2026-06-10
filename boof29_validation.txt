@@ -1,0 +1,106 @@
+Loading...
+Loaded 115 symbols
+
+Collecting trades...
+  2024: 69 trades / 38 days
+  2025: 76 trades / 39 days
+  2026: 33 trades / 16 days
+  Train (2024-2025): 145 | Test (2026): 33
+
+==========================================================================================
+  WALK-FORWARD TEST  |  Train: 2024+2025  |  Test: 2026 (out-of-sample)
+==========================================================================================
+  Period                           Trades    WR%     PF   EV/trade    MaxDD     Total  Tag
+------------------------------------------------------------------------------------------
+  TRAIN  2024                          69  63.8%   2.92    +0.432% -  6.54%   +29.81%  PASS  [TRAIN]
+  TRAIN  2025                          76  69.7%   2.47    +0.266% -  3.72%   +20.20%  PASS  [TRAIN]
+  TRAIN  COMBINED                     145  66.9%   2.71    +0.345% -  6.54%   +50.00%  PASS  [TRAIN]
+  TEST   2026 (unseen)                 33  57.6%   1.88    +0.168% -  2.60%    +5.55%  PASS  [OUT-OF-SAMPLE]
+------------------------------------------------------------------------------------------
+
+  PF  decay train->test:  -30.5%  (WARN — >30% decay)
+  WR  decay train->test:  -13.9%  (WARN)
+  EV  decay train->test:  -51.2%  (WARN)
+
+  Walk-Forward Verdict:  PASS -- Edge survives out-of-sample
+==========================================================================================
+==========================================================================================
+  MONTE CARLO SIMULATION  |  1000 runs  |  Randomized trade order
+==========================================================================================
+  Simulations:    1000  |  Trades per sim: 178
+
+  Metric                            5th pct     Median   95th pct
+-----------------------------------------------------------------
+  Final Return (%)                  +55.55%    +55.55%    +55.55%
+  Max Drawdown (%)                   -6.28%     -3.96%     -2.77%
+  Worst Loss Streak                       3          4          7
+
+  % of sims profitable:    100.0%
+  % sims DD worse -15%:    0.0%
+  % sims DD worse -20%:    0.0%
+  % sims DD worse -30%:    0.0%
+
+  Median-sim equity curve:
+----------------------------------------------------------------------
+  Trade    1    +0.40%  |+
+  Trade   10   +11.25%  |++++++
+  Trade   19   +14.44%  |++++++++
+  Trade   28   +14.17%  |++++++++
+  Trade   38   +13.06%  |++++++++
+  Trade   47   +16.93%  |++++++++++
+  Trade   56   +17.48%  |++++++++++
+  Trade   66   +18.41%  |+++++++++++
+  Trade   75   +24.15%  |++++++++++++++
+  Trade   84   +20.60%  |++++++++++++
+  Trade   94   +22.40%  |+++++++++++++
+  Trade  103   +26.66%  |++++++++++++++++
+  Trade  112   +28.85%  |+++++++++++++++++
+  Trade  122   +35.88%  |++++++++++++++++++++++
+  Trade  131   +45.21%  |+++++++++++++++++++++++++++
+  Trade  140   +46.30%  |++++++++++++++++++++++++++++
+  Trade  150   +50.11%  |++++++++++++++++++++++++++++++
+  Trade  159   +53.24%  |++++++++++++++++++++++++++++++++
+  Trade  168   +55.95%  |++++++++++++++++++++++++++++++++++
+  Trade  178   +55.55%  |++++++++++++++++++++++++++++++++++
+==========================================================================================
+==========================================================================================
+  OPTIONS MODELING  |  1DTE ATM Call  |  Realistic Fills
+==========================================================================================
+
+  Assumptions:
+    - Buy 1DTE ATM call at 9:35 open (entry_px = strike price)
+    - IV assumed 40% annualized (typical for momentum names)
+    - Option price modeled via Black-Scholes approximation
+    - Time to expiry at entry:  ~6.5 hrs  (0.27 days)
+    - Time to expiry at exit:   ~4.5 hrs  (0.19 days)  [10:20 exit]
+    - Bid/ask spread:  $0.05 per contract  (realistic for liquid names)
+    - Commission:      $0.65 per contract
+    - Multiplier:      100 shares/contract
+    - Position size:   1 contract per signal
+
+  Total trades modeled:   178
+  Avg premium paid:      $220.77  per contract
+
+  Metric                            Options    Underlying
+------------------------------------------------------------
+  Win Rate                           35.4%        65.2%
+  Profit Factor                        0.70          2.56
+  Avg Winner                   $     76.36      +0.785%
+  Avg Loser                    $    -59.56       0.573%
+  EV per trade                 $     27.03
+  Total P&L (1 contract/trade) $  -2038.35
+  Max Drawdown                 $   2184.53
+
+  Year       Trades     WR%      PF      EV $    Total $  Verdict
+------------------------------------------------------------
+  2024           69   40.6%    0.86    -4.35   -299.83  FAIL
+  2025           76   32.9%    0.61   -10.94   -831.51  FAIL
+  2026           33   30.3%    0.64   -27.49   -907.01  FAIL
+------------------------------------------------------------
+  COMBINED      178   35.4%    0.70   +27.03  -2038.35
+
+  --- Capital Efficiency (1 contract/signal) ---
+  Stock (100 shares):   $21,064  capital per trade
+  Option (1 contract):  $221  capital per trade
+  Leverage ratio:       95x
+==========================================================================================

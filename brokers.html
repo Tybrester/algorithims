@@ -1,0 +1,727 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EazyTrade — Brokers</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 80%; }
+    :root {
+      --bg: #0a0a0a; --surface: #111111; --border: #1f1f1f;
+      --accent: #00e676; --accent-dim: #00c853; --red: #ff1744;
+      --text: #f5f5f5; --muted: #888; --card-bg: #141414;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+    #loading-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #app { display: none; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 72px; background: rgba(10,10,10,0.95); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+    .logo { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; color: var(--text); text-decoration: none;   color: var(--text); text-decoration: none;}
+    .logo span { color: var(--accent); }
+
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    .sidebar { width: 260px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 0; height: calc(100vh - 72px); position: sticky; top: 72px; overflow-y: auto; }
+    .sidebar-section { padding: 5px 12px; font-size: 0.6rem; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 14px; }
+    .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border: none; border-left: 3px solid transparent; font-size: 0.82rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.15s, color 0.15s; position: relative; background: none; font-family: inherit; width: 100%; text-align: left; cursor: pointer; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .sidebar-item.active { background: rgba(0,230,118,0.08); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+    
+    .sidebar-arrow { margin-left: auto; font-size: 0.75rem; color: #444; }
+    .sidebar-bottom { margin-top: auto; padding: 16px 12px; border-top: 1px solid var(--border); }
+
+    main { flex: 1; padding: 28px 36px; overflow-y: auto; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+
+    .brokers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+    .broker-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 14px; transition: border-color 0.2s; }
+    .broker-card:hover { border-color: #333; }
+
+    .broker-logo { font-size: 1.3rem; font-weight: 900; letter-spacing: -0.02em; color: var(--text); }
+    .broker-logo span { color: var(--accent); }
+
+    .broker-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+    .broker-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .broker-tag { padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; background: rgba(255,255,255,0.06); color: #aaa; }
+
+    .broker-connect { display: inline-block; margin-top: 4px; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-size: 0.82rem; font-weight: 700; padding: 8px 20px; border-radius: 7px; cursor: pointer; font-family: inherit; transition: background 0.15s; text-decoration: none; text-align: center; }
+    .broker-connect:hover { background: rgba(0,230,118,0.1); }
+
+    .coming-soon { opacity: 0.4; pointer-events: none; }
+    .coming-soon .broker-connect { border-color: #444; color: #444; }
+
+    .broker-connected { border-color: var(--accent) !important; }
+    .broker-status { font-size: 0.78rem; font-weight: 600; color: var(--accent); margin-top: 2px; }
+    .webhook-url-display { font-size: 0.72rem; font-family: monospace; color: #666; word-break: break-all; margin-top: 4px; background: #0a0a0a; padding: 6px 10px; border-radius: 5px; border: 1px solid #222; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 500; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; width: 100%; max-width: 480px; box-shadow: 0 24px 60px rgba(0,0,0,0.6); animation: modalIn 0.18s ease; }
+    @keyframes modalIn { from { opacity:0; transform:scale(0.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid #2a2a2a; }
+    .modal-title { font-size: 1rem; font-weight: 700; }
+    .modal-close { background: none; border: none; color: #888; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .modal-close:hover { background: rgba(255,255,255,0.07); color: var(--text); }
+    .modal-body { padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+    .field-group label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+    .field-group input { width: 100%; background: #111; border: 1px solid #2a2a2a; color: var(--text); font-size: 0.85rem; padding: 9px 12px; border-radius: 6px; outline: none; font-family: monospace; transition: border-color 0.2s; }
+    .field-group input:focus { border-color: var(--accent); }
+    .field-hint { font-size: 0.75rem; color: #555; line-height: 1.5; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; border-top: 1px solid #2a2a2a; }
+    .btn-cancel { background: transparent; border: 1px solid #333; color: var(--text); font-size: 0.88rem; font-weight: 600; padding: 9px 20px; border-radius: 7px; cursor: pointer; font-family: inherit; }
+    .btn-cancel:hover { background: rgba(255,255,255,0.05); }
+    .btn-save { background: var(--accent); color: #000; font-size: 0.88rem; font-weight: 800; padding: 9px 24px; border-radius: 7px; border: none; cursor: pointer; font-family: inherit; }
+    .btn-save:hover { background: var(--accent-dim); }
+
+    @media (max-width: 900px) { .sidebar { display: none; } .hamburger { display: flex !important; } }
+    .hamburger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 36px; height: 36px; background: none; border: none; cursor: pointer; padding: 4px; }
+    .hamburger span { display: block; width: 22px; height: 2px; background: var(--text); border-radius: 2px; }
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; }
+    .sidebar-overlay.open { display: block; }
+    .sidebar-drawer { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; background: var(--surface); border-right: 1px solid var(--border); z-index: 201; transform: translateX(-100%); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); display: flex; flex-direction: column; padding: 16px 0; overflow-y: auto; }
+    .sidebar-drawer.open { transform: translateX(0); }
+    .sidebar-drawer .drawer-close { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 16px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    .sidebar-drawer .drawer-close .logo { font-size: 1.2rem; font-weight: 900; color: var(--text); text-decoration: none;   color: var(--text); text-decoration: none;}
+    .sidebar-drawer .drawer-close .logo span { color: var(--accent); }
+    .sidebar-drawer .drawer-close button { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 42px !important; }
+    .pw-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #555; font-size: 0.95rem; padding: 0; line-height: 1; }
+    .pw-toggle:hover { color: var(--text); }
+
+    .user-dropdown { position: relative; }
+    .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
+    .user-dropdown-toggle::after { content: '▾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
+    .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
+    .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--text); cursor: pointer; transition: background 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
+    .user-dropdown-item:hover { background: rgba(255,255,255,0.05); }
+    .user-dropdown-item.red { color: var(--red); }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+  </style>
+</head>
+<body>
+
+  <div id="loading-screen"><div class="spinner"></div></div>
+
+  <div id="app">
+    <nav>
+      <button class="hamburger" onclick="toggleDrawer()" aria-label="Menu"><span></span><span></span><span></span></button>
+      <a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a>
+      <div class="nav-right">
+        <div class="user-dropdown" id="user-dropdown">
+          <button class="user-dropdown-toggle" id="user-email-toggle">
+            <span id="user-email"></span>
+          </button>
+          <div class="user-dropdown-menu">
+            <button class="user-dropdown-item red" onclick="signOut()">
+              <span>🚪</span> Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeDrawer()"></div>
+    <div class="sidebar-drawer" id="sidebar-drawer">
+      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">✕</button></div>
+      <div class="sidebar-section">Menu</div>
+      <a href="dashboard.html" class="sidebar-item">Dashboard</a>
+      <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="paper-market.html" class="sidebar-item">Paper Market</a>
+      <a href="alerts.html" class="sidebar-item">Systems</a>
+      <a href="accounts.html" class="sidebar-item">Accounts</a>
+      <a href="brokers.html" class="sidebar-item active">Brokers</a>
+      <div class="sidebar-section" style="margin-top:24px;">Bots</div>
+      <a href="bots.html" class="sidebar-item">Bots</a>
+      <a href="stats.html" class="sidebar-item">Statistics</a>
+      <a href="backtest.html" class="sidebar-item">Backtest</a>
+      <div class="sidebar-section" style="margin-top:24px;">Help</div>
+      <a href="how-it-works.html" class="sidebar-item">How it Works</a>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-section">Menu</div>
+        <a href="dashboard.html" class="sidebar-item">Dashboard</a>
+        <a href="trades.html" class="sidebar-item">Trades</a>
+        <a href="paper-market.html" class="sidebar-item">Paper Market</a>
+        <a href="alerts.html" class="sidebar-item">Systems</a>
+        <a href="accounts.html" class="sidebar-item">Accounts</a>
+        <a href="brokers.html" class="sidebar-item active">Brokers</a>
+        <div id="bots-sidebar-section">
+        <div class="sidebar-section" style="margin-top:24px;">Bots</div>
+        <a href="bots.html" class="sidebar-item">Bots</a>
+        <a href="stats.html" class="sidebar-item">Statistics</a>
+        <a href="backtest.html" class="sidebar-item">Backtest</a>
+        </div>
+        <div class="sidebar-section" style="margin-top:24px;">Help</div>
+        <a href="how-it-works.html" class="sidebar-item">How it Works</a>
+        <div style="margin-top:auto;">
+          <div class="sidebar-section" style="display:none;" id="admin-sidebar-section">Admin</div>
+          <a href="admin.html" class="sidebar-item" id="admin-sidebar-link" style="display:none;">Admin Panel</a>
+        </div>
+      </aside>
+
+      <main>
+        <div class="page-header">
+          <h1>Brokers</h1>
+        </div>
+
+        <div style="margin-bottom:28px;">
+          <div class="broker-card" id="BoofCapital-card" style="border-color:var(--accent);background:rgba(0,230,118,0.04);max-width:100%;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div>
+                <div class="broker-logo" style="font-size:1.5rem;">BoofCapital <span style="color:var(--accent);">paper</span></div>
+                <div class="broker-desc" style="margin-top:6px;">Simulate your strategies risk-free with BoofCapital's built-in paper trading. No real money, no risk — just results.</div>
+              </div>
+            </div>
+            <div class="broker-tags" style="margin-top:4px;">
+              <span class="broker-tag" style="background:rgba(0,230,118,0.1);color:var(--accent);">Paper Trading</span>
+              <span class="broker-tag">Stocks</span>
+              <span class="broker-tag">Options</span>
+              <span class="broker-tag">Futures</span>
+              <span class="broker-tag">Crypto</span>
+            </div>
+            <button class="broker-connect" id="paper-btn" style="background:var(--accent);color:#000;border:none;width:fit-content;" onclick="enablePaperTrading()">Enable Paper Trading</button>
+          </div>
+        </div>
+
+        <div class="brokers-grid">
+
+          <div class="broker-card">
+            <div class="broker-logo">TD Ameritrade</div>
+            <div class="broker-desc">Commission-free trading with powerful tools and API access for automated strategies.</div>
+            <div class="broker-tags">
+              <span class="broker-tag">Stocks</span>
+              <span class="broker-tag">Options</span>
+              <span class="broker-tag">Futures</span>
+              <span class="broker-tag">API</span>
+            </div>
+            <a href="https://www.tdameritrade.com" target="_blank" class="broker-connect">Connect</a>
+          </div>
+
+          <div class="broker-card">
+            <div class="broker-logo">Interactive Brokers</div>
+            <div class="broker-desc">Professional-grade broker with global market access and advanced order routing.</div>
+            <div class="broker-tags">
+              <span class="broker-tag">Stocks</span>
+              <span class="broker-tag">Options</span>
+              <span class="broker-tag">Futures</span>
+              <span class="broker-tag">Crypto</span>
+              <span class="broker-tag">API</span>
+            </div>
+            <a href="https://www.interactivebrokers.com" target="_blank" class="broker-connect">Connect</a>
+          </div>
+
+          <div class="broker-card" id="alpaca-card">
+            <div class="broker-logo">Alpaca</div>
+            <div class="broker-desc">Commission-free stock trading built for developers and algo traders. Connect your API keys to enable live stock bot trading.</div>
+            <div class="broker-tags">
+              <span class="broker-tag">Stocks</span>
+              <span class="broker-tag">Crypto</span>
+              <span class="broker-tag">API</span>
+            </div>
+            <div id="alpaca-status" style="display:none;" class="broker-status">✓ Connected</div>
+            <div id="alpaca-account-display" style="display:none;font-size:0.78rem;color:#555;margin-top:2px;"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="broker-connect" id="alpaca-connect-btn" onclick="openAlpacaModal()">Connect Alpaca</button>
+              <button id="alpaca-disconnect-btn" onclick="disconnectAlpaca()" style="display:none;background:transparent;border:1px solid var(--red);color:var(--red);font-size:0.82rem;font-weight:700;padding:8px 16px;border-radius:7px;cursor:pointer;font-family:inherit;">Disconnect</button>
+            </div>
+          </div>
+
+          <div class="broker-card">
+            <div class="broker-logo">Tradier</div>
+            <div class="broker-desc">Brokerage API platform with real-time data, options chains, and order execution.</div>
+            <div class="broker-tags">
+              <span class="broker-tag">Stocks</span>
+              <span class="broker-tag">Options</span>
+              <span class="broker-tag">API</span>
+            </div>
+            <a href="https://tradier.com" target="_blank" class="broker-connect">Connect</a>
+          </div>
+
+          <div class="broker-card">
+            <div class="broker-logo">Binance</div>
+            <div class="broker-desc">World's largest crypto exchange with spot, futures, and options trading.</div>
+            <div class="broker-tags">
+              <span class="broker-tag">Crypto</span>
+              <span class="broker-tag">Futures</span>
+              <span class="broker-tag">Options</span>
+              <span class="broker-tag">API</span>
+            </div>
+            <a href="https://www.binance.com" target="_blank" class="broker-connect">Connect</a>
+          </div>
+
+          <div class="broker-card">
+            <div class="broker-logo">Coinbase</div>
+            <div class="broker-desc">Leading US crypto exchange with Advanced Trade API for automated strategies.</div>
+            <div class="broker-tags">
+              <span class="broker-tag">Crypto</span>
+              <span class="broker-tag">API</span>
+            </div>
+            <a href="https://www.coinbase.com" target="_blank" class="broker-connect">Connect</a>
+          </div>
+
+          <div class="broker-card" id="tastytrade-card">
+            <div class="broker-logo">tastytrade</div>
+            <div class="broker-desc">Connect your tastytrade account to automate real trades directly via the tastytrade API.</div>
+            <div class="broker-tags">
+              <span class="broker-tag">Stocks</span>
+              <span class="broker-tag">Options</span>
+              <span class="broker-tag">Futures</span>
+              <span class="broker-tag">Direct API</span>
+            </div>
+            <div id="tastytrade-status" style="display:none;" class="broker-status">✓ Connected</div>
+            <div id="tastytrade-account-display" style="display:none;font-size:0.78rem;color:#555;margin-top:2px;"></div>
+            <div style="display:flex;gap:8px;">
+              <button class="broker-connect" id="tastytrade-connect-btn" onclick="connectTastyOAuth()">Connect with tastytrade</button>
+              <button class="broker-connect" id="tastytrade-api-btn" onclick="openTastyModal()" style="margin-top:8px;background:transparent;border:1px solid #444;color:#888;font-size:0.75rem;padding:6px 12px;">Or use API credentials</button>
+              <button id="tastytrade-disconnect-btn" onclick="disconnectTastytrade()" style="display:none;background:transparent;border:1px solid var(--red);color:var(--red);font-size:0.82rem;font-weight:700;padding:8px 16px;border-radius:7px;cursor:pointer;font-family:inherit;">Disconnect</button>
+            </div>
+          </div>
+
+
+        </div>
+        <div style="text-align:center;padding:24px;font-size:0.85rem;color:#666;margin-top:auto;">
+          Contact: <a href="mailto:BoofCapital@gmail.com" style="color:var(--muted);text-decoration:none;">BoofCapital@gmail.com</a>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ALPACA MODAL -->
+  <div class="modal-overlay" id="alpaca-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Connect Alpaca</div>
+        <button class="modal-close" onclick="closeAlpacaModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label>API Key ID</label>
+          <input type="text" id="alpaca-key" placeholder="PKXXXXXXXXXXXXXXXXXX" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label>Secret Key</label>
+          <div class="pw-wrap">
+            <input type="password" id="alpaca-secret" placeholder="Your Alpaca secret key" autocomplete="off" />
+            <button type="button" class="pw-toggle" onclick="togglePw('alpaca-secret',this)" tabindex="-1">👁️</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Environment</label>
+          <select id="alpaca-env" style="width:100%;background:#111;border:1px solid #2a2a2a;color:var(--text);font-size:0.85rem;padding:9px 12px;border-radius:6px;outline:none;font-family:inherit;">
+            <option value="paper">Paper Trading (alpaca paper)</option>
+            <option value="live">Live Trading (real money)</option>
+          </select>
+        </div>
+        <div class="field-hint">Your API keys are stored encrypted. Get your keys at <a href="https://app.alpaca.markets" target="_blank" style="color:var(--accent);">app.alpaca.markets</a> under API Keys.</div>
+        <div id="alpaca-error" style="display:none;color:var(--red);font-size:0.82rem;margin-top:4px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeAlpacaModal()">Cancel</button>
+        <button class="btn-save" id="alpaca-save-btn" onclick="saveAlpacaCredentials()">Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASTYTRADE MODAL -->
+  <div class="modal-overlay" id="tastytrade-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Connect tastytrade</div>
+        <button class="modal-close" onclick="closeTastyModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label>Refresh Token</label>
+          <input type="text" id="tasty-refresh-token" placeholder="From my.tastytrade.com > API > OAuth Applications > Create Grant" autocomplete="off" />
+        </div>
+        <div class="field-group">
+          <label>Client Secret</label>
+          <div class="pw-wrap">
+            <input type="password" id="tasty-client-secret" placeholder="From OAuth Application settings" autocomplete="off" />
+            <button type="button" class="pw-toggle" onclick="togglePw('tasty-client-secret',this)" tabindex="-1">👁️</button>
+          </div>
+        </div>
+        <div class="field-hint" style="color:#555;">
+          1. Go to <a href="https://my.tastytrade.com" target="_blank" style="color:var(--accent);">my.tastytrade.com</a> > Manage > My Profile > API > OAuth Applications<br>
+          2. Create an OAuth app if you haven't already<br>
+          3. Click "Create Grant" to get your refresh token<br>
+          4. Copy your Client Secret from the app settings
+        </div>
+        <div id="tasty-error" style="display:none;color:var(--red);font-size:0.82rem;margin-top:4px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeTastyModal()">Cancel</button>
+        <button class="btn-save" id="tasty-save-btn" onclick="saveTastyCredentials()">Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://isanhutzyctcjygjhzbn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+
+    let currentUser = null;
+    let tastyMfaPending = false;
+
+    async function enablePaperTrading() {
+      localStorage.setItem('paper_trading_enabled', 'true');
+      localStorage.setItem('paper_balance', localStorage.getItem('paper_balance') || '100000');
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (session) {
+        await sbClient.auth.updateUser({ data: { paper_trading_enabled: true, paper_balance: parseFloat(localStorage.getItem('paper_balance')) } });
+      }
+      window.location.href = 'accounts.html';
+    }
+
+    async function connectTastyOAuth() {
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (!session) { alert('Please sign in first'); return; }
+      
+      const btn = document.getElementById('tastytrade-connect-btn');
+      btn.textContent = 'Redirecting...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/tasty-oauth?action=login&user_id=${session.user.id}`, {
+          headers: { 
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+        const json = await res.json();
+        
+        if (json.login_url) {
+          window.location.href = json.login_url;
+        } else if (json.error?.includes('TASTY_CLIENT_ID not configured')) {
+          alert('OAuth not configured. Using credentials instead...');
+          openTastyModal();
+        } else {
+          throw new Error(json.error || 'Failed to get login URL');
+        }
+      } catch (err) {
+        alert('Using credentials instead: ' + err.message);
+        openTastyModal();
+      } finally {
+        btn.textContent = 'Connect with tastytrade';
+        btn.disabled = false;
+      }
+    }
+
+    function openTastyModal() {
+      document.getElementById('tasty-refresh-token').value = '';
+      document.getElementById('tasty-client-secret').value = '';
+      document.getElementById('tasty-error').style.display = 'none';
+      document.getElementById('tastytrade-modal').classList.add('open');
+    }
+
+    function closeTastyModal() {
+      document.getElementById('tastytrade-modal').classList.remove('open');
+    }
+
+    async function saveTastyCredentials() {
+      const errEl = document.getElementById('tasty-error');
+      const btn = document.getElementById('tasty-save-btn');
+      errEl.style.display = 'none';
+
+      const refreshToken = document.getElementById('tasty-refresh-token').value.trim();
+      const clientSecret = document.getElementById('tasty-client-secret').value.trim();
+
+      if (!refreshToken || !clientSecret) {
+        errEl.textContent = 'Refresh token and client secret are required.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      btn.textContent = 'Connecting...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/tasty-oauth?action=connect`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            user_id: currentUser.id,
+            refresh_token: refreshToken,
+            client_secret: clientSecret
+          })
+        });
+        const json = await res.json();
+
+        if (!res.ok || json.error) {
+          throw new Error(json.error || 'Failed to connect');
+        }
+
+        localStorage.setItem('webhook_tastytrade', 'true');
+        applyTastyUI(true, json.account || 'Connected');
+        closeTastyModal();
+      } catch (e) {
+        errEl.textContent = e.message || 'Could not connect. Check your tokens.';
+        errEl.style.display = 'block';
+      } finally {
+        btn.textContent = 'Connect';
+        btn.disabled = false;
+      }
+    }
+
+    async function disconnectTastytrade() {
+      await sbClient.from('broker_credentials').delete().eq('user_id', currentUser.id).eq('broker', 'tastytrade');
+      localStorage.removeItem('webhook_tastytrade');
+      applyTastyUI(false);
+    }
+
+    function applyTastyUI(connected, username = '') {
+      const card    = document.getElementById('tastytrade-card');
+      const status  = document.getElementById('tastytrade-status');
+      const acctEl  = document.getElementById('tastytrade-account-display');
+      const connBtn = document.getElementById('tastytrade-connect-btn');
+      const apiBtn  = document.getElementById('tastytrade-api-btn');
+      const discBtn = document.getElementById('tastytrade-disconnect-btn');
+      if (connected) {
+        card.classList.add('broker-connected');
+        status.style.display = 'flex';
+        status.style.alignItems = 'center';
+        status.style.gap = '6px';
+        status.innerHTML = '<span style="color:var(--accent);font-size:1rem;">●</span> Live Trading Connected';
+        acctEl.style.display = 'none';
+        connBtn.style.display = 'none';
+        apiBtn.style.display = 'none';
+        discBtn.style.display = 'block';
+      } else {
+        card.classList.remove('broker-connected');
+        status.style.display = 'none';
+        acctEl.style.display = 'none';
+        connBtn.style.display = 'block';
+        connBtn.textContent = 'Connect with tastytrade';
+        apiBtn.style.display = 'block';
+        discBtn.style.display = 'none';
+      }
+    }
+
+    function openAlpacaModal() {
+      document.getElementById('alpaca-key').value = '';
+      document.getElementById('alpaca-secret').value = '';
+      document.getElementById('alpaca-error').style.display = 'none';
+      document.getElementById('alpaca-modal').classList.add('open');
+    }
+
+    function closeAlpacaModal() {
+      document.getElementById('alpaca-modal').classList.remove('open');
+    }
+
+    async function saveAlpacaCredentials() {
+      const errEl = document.getElementById('alpaca-error');
+      const btn   = document.getElementById('alpaca-save-btn');
+      errEl.style.display = 'none';
+      const apiKey = document.getElementById('alpaca-key').value.trim();
+      const secret = document.getElementById('alpaca-secret').value.trim();
+      const env    = document.getElementById('alpaca-env').value;
+      if (!apiKey || !secret) { errEl.textContent = 'Both API Key and Secret are required.'; errEl.style.display = 'block'; return; }
+
+      btn.textContent = 'Saving...'; btn.disabled = true;
+      try {
+        await sbClient.from('broker_credentials').upsert({
+          user_id: currentUser.id,
+          broker: 'alpaca',
+          credentials: { api_key: apiKey, secret_key: secret, env }
+        }, { onConflict: 'user_id,broker' });
+
+        applyAlpacaUI(true, apiKey, env);
+        closeAlpacaModal();
+      } catch(e) {
+        errEl.textContent = e.message || 'Could not save credentials.';
+        errEl.style.display = 'block';
+      } finally {
+        btn.textContent = 'Connect'; btn.disabled = false;
+      }
+    }
+
+    async function disconnectAlpaca() {
+      await sbClient.from('broker_credentials').delete().eq('user_id', currentUser.id).eq('broker', 'alpaca');
+      applyAlpacaUI(false);
+    }
+
+    function applyAlpacaUI(connected, apiKey = '', env = 'paper') {
+      const card    = document.getElementById('alpaca-card');
+      const status  = document.getElementById('alpaca-status');
+      const acctEl  = document.getElementById('alpaca-account-display');
+      const connBtn = document.getElementById('alpaca-connect-btn');
+      const discBtn = document.getElementById('alpaca-disconnect-btn');
+      if (connected) {
+        card.classList.add('broker-connected');
+        status.style.display = 'block';
+        acctEl.style.display = 'block';
+        acctEl.textContent = apiKey.substring(0, 8) + '...' + (env === 'live' ? ' · Live' : ' · Paper');
+        connBtn.textContent = 'Edit Keys';
+        discBtn.style.display = 'block';
+      } else {
+        card.classList.remove('broker-connected');
+        status.style.display = 'none';
+        acctEl.style.display = 'none';
+        connBtn.textContent = 'Connect Alpaca';
+        discBtn.style.display = 'none';
+      }
+    }
+
+    async function init() {
+      // Debug: check localStorage
+      const storageKey = 'sb-' + SUPABASE_URL.replace('https://', '').replace('.supabase.co', '') + '-auth-token';
+      console.log('[Brokers] Looking for key:', storageKey);
+      const storedSession = localStorage.getItem(storageKey);
+      console.log('[Brokers] Stored session exists:', !!storedSession);
+      
+      if (!storedSession) {
+        console.log('[Brokers] No stored session, redirecting');
+        window.location.href = 'signin.html';
+        return;
+      }
+      
+      try {
+        // Manually set the session from localStorage
+        const sessionData = JSON.parse(storedSession);
+        const { data, error } = await sbClient.auth.setSession({
+          access_token: sessionData.access_token,
+          refresh_token: sessionData.refresh_token
+        });
+        console.log('[Brokers] setSession result:', data?.session?.user?.id, 'Error:', error);
+        
+        if (data?.session?.user) {
+          currentUser = data.session.user;
+        } else {
+          // Fallback: use stored user directly
+          currentUser = sessionData.user;
+        }
+      } catch (e) {
+        console.log('[Brokers] Failed to restore session:', e);
+        window.location.href = 'signin.html';
+        return;
+      }
+      
+      console.log('[Brokers] Current user:', currentUser?.id);
+      document.getElementById('loading-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+
+      // Check if tastytrade already connected (localStorage fallback for RLS issues)
+      const tastyConnected = localStorage.getItem('webhook_tastytrade') === 'true';
+      console.log('[Brokers] Tastytrade localStorage status:', tastyConnected);
+      if (tastyConnected) {
+        applyTastyUI(true, 'Connected');
+        // Fetch and display balance
+        try {
+          const balRes = await fetch(`${SUPABASE_URL}/functions/v1/tasty-oauth?action=balance&user_id=${currentUser.id}`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          });
+          const balJson = await balRes.json();
+          if (balJson.account_value) {
+            const statusEl = document.getElementById('tastytrade-status');
+            statusEl.innerHTML = `<span style="color:var(--accent);font-size:1rem;">●</span> Live Trading • $${Number(balJson.account_value).toLocaleString()}`;
+          }
+        } catch (e) {
+          console.log('[Brokers] Balance fetch failed:', e);
+        }
+      }
+
+      // Check if Alpaca already connected
+      const { data: alpacaCreds } = await sbClient.from('broker_credentials').select('credentials').eq('user_id', currentUser.id).eq('broker', 'alpaca').maybeSingle();
+      if (alpacaCreds) applyAlpacaUI(true, alpacaCreds.credentials.api_key, alpacaCreds.credentials.env);
+
+      // Check if paper trading already enabled
+      const paperEnabled = localStorage.getItem('paper_trading_enabled') === 'true';
+      if (paperEnabled) {
+        const paperBtn = document.getElementById('paper-btn');
+        if (paperBtn) {
+          paperBtn.textContent = 'Enabled ✓';
+          paperBtn.style.background = 'transparent';
+          paperBtn.style.border = '1px solid var(--accent)';
+          paperBtn.style.color = 'var(--accent)';
+          paperBtn.disabled = true;
+        }
+      }
+
+      // User email in dropdown
+      document.getElementById('user-email').textContent = currentUser.email;
+      // Show admin link if admin
+      if (currentUser.id === 'd0bb84ba-f968-446c-9792-9bcff8849e37') {
+        const el = document.getElementById('admin-sidebar-link');
+        const sec = document.getElementById('admin-sidebar-section');
+        if (el) el.style.display = '';
+        if (sec) sec.style.display = '';
+      }
+      // Show Bots sidebar if enabled (or admin)
+      (async () => {
+        if (!currentUser) return;
+        const isAdmin = currentUser.id === 'd0bb84ba-f968-446c-9792-9bcff8849e37';
+        if (isAdmin) {
+          const bsec = document.getElementById('bots-sidebar-section');
+          if (bsec) bsec.style.display = '';
+        } else {
+          const { data: us } = await sbClient.from('user_settings').select('bots_enabled').eq('user_id', currentUser.id).maybeSingle();
+          if (us?.bots_enabled) {
+            const bsec = document.getElementById('bots-sidebar-section');
+            if (bsec) bsec.style.display = '';
+          }
+        }
+      })();
+
+      // User dropdown toggle
+      const dropdown = document.getElementById('user-dropdown');
+      const toggle = document.getElementById('user-email-toggle');
+      
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('open');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target)) {
+          dropdown.classList.remove('open');
+        }
+      });
+    }
+
+    function toggleDrawer() { document.getElementById('sidebar-drawer').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('open'); }
+    function closeDrawer() { document.getElementById('sidebar-drawer').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('open'); }
+    function togglePw(id, btn) {
+      const inp = document.getElementById(id);
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      btn.textContent = show ? '🙈' : '👁️';
+    }
+    async function signOut() {
+      await sbClient.auth.signOut();
+      window.location.href = 'index.html';
+    }
+
+    init();
+  </script>
+</body>
+</html>

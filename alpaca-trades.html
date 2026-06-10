@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BoofCapital — Alpaca Trades</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 80%; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #1f1f1f;
+      --accent: #00e676;
+      --accent-dim: #00c853;
+      --red: #ff1744;
+      --red-dim: #d50000;
+      --text: #f5f5f5;
+      --muted: #888;
+      --card-bg: #141414;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 0;
+      height: calc(100vh - 72px);
+      position: sticky;
+      top: 72px;
+      overflow-y: auto;
+    }
+
+    .sidebar-section {
+      padding: 5px 12px;
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: #444;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 14px;
+    }
+
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 0;
+      transition: background 0.15s, color 0.15s;
+      position: relative;
+      border: none;
+      border-left: 3px solid transparent;
+      background: none;
+      font-family: inherit;
+      width: 100%;
+      text-align: left;
+    }
+
+    .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .sidebar-item.active { background: rgba(0,230,118,0.08); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+    .sidebar-icon { display: none; }
+
+    /* NAV */
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 0 24px;
+      height: 72px;
+      background: rgba(10,10,10,0.95);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .logo { font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; color: white; text-decoration: none; display:inline-flex; align-items:center; }
+    .logo span { color: var(--accent); }
+    .hamburger { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 8px; }
+    .hamburger span { display: block; width: 24px; height: 2px; background: var(--text); }
+
+    /* MAIN CONTENT */
+    .main {
+      flex: 1;
+      padding: 28px;
+      overflow-y: auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+
+    .refresh-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: opacity 0.2s;
+    }
+
+    .refresh-btn:hover { opacity: 0.9; }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* STATS CARDS */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .stat-value.positive { color: var(--accent); }
+    .stat-value.negative { color: var(--red); }
+
+    /* TRADES TABLE */
+    .trades-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .trades-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .trades-header h2 { font-size: 1rem; font-weight: 600; }
+
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+    }
+
+    .filter-tab {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-tab:hover { border-color: var(--accent); color: var(--text); }
+    .filter-tab.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+
+    .trades-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .trades-table th {
+      text-align: left;
+      padding: 12px 16px;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .trades-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .trades-table tr:last-child td { border-bottom: none; }
+    .trades-table tr:hover { background: rgba(255,255,255,0.02); }
+
+    .symbol { font-weight: 600; }
+    .side-buy { color: var(--accent); font-weight: 600; }
+    .side-sell { color: var(--red); font-weight: 600; }
+
+    .pnl-positive { color: var(--accent); font-weight: 600; }
+    .pnl-negative { color: var(--red); font-weight: 600; }
+
+    .status-filled { 
+      background: rgba(0,230,118,0.15); 
+      color: var(--accent); 
+      padding: 4px 10px; 
+      border-radius: 4px; 
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-partial { 
+      background: rgba(255,193,7,0.15); 
+      color: #ffc107; 
+      padding: 4px 10px; 
+      border-radius: 4px; 
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .status-pending { 
+      background: rgba(136,136,136,0.15); 
+      color: var(--muted); 
+      padding: 4px 10px; 
+      border-radius: 4px; 
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* LOADING & EMPTY STATES */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px;
+      color: var(--muted);
+    }
+
+    .empty-state i { font-size: 2rem; margin-bottom: 16px; opacity: 0.5; }
+
+    .error-message {
+      background: rgba(255,23,68,0.1);
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    /* Mobile sidebar overlay + drawer */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+    }
+    .sidebar-overlay.open { display: block; }
+
+    .sidebar-drawer {
+      position: fixed;
+      top: 0; left: 0;
+      width: 260px;
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      z-index: 201;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+    .sidebar-drawer.open { transform: translateX(0); }
+    .sidebar-drawer .drawer-close {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .sidebar-drawer .drawer-close .logo { font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; color: white; text-decoration: none; display:inline-flex; align-items:center; }
+    .sidebar-drawer .drawer-close .logo span { color: var(--accent); }
+    .sidebar-drawer .drawer-close button { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .hamburger { display: flex; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .trades-table { font-size: 0.75rem; }
+      .trades-table th, .trades-table td { padding: 10px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <nav>
+      <button class="hamburger" onclick="toggleDrawer()" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a>
+      <div style="margin-left:auto;"></div>
+    </nav>
+
+    <!-- Mobile sidebar overlay + drawer -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeDrawer()"></div>
+    <div class="sidebar-drawer" id="sidebar-drawer">
+      <div class="drawer-close">
+        <a href="dashboard.html" class="logo">Boof<span>Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a>
+        <button onclick="closeDrawer()">✕</button>
+      </div>
+      <div class="sidebar-section">Menu</div>
+      <a href="dashboard.html" class="sidebar-item">Dashboard</a>
+      <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="paper-market.html" class="sidebar-item">Paper Market</a>
+      <a href="alerts.html" class="sidebar-item">Systems</a>
+      <a href="accounts.html" class="sidebar-item">Accounts</a>
+      <a href="brokers.html" class="sidebar-item">Brokers</a>
+      <a href="kalshi.html" class="sidebar-item">Kalshi</a>
+      <a href="alpaca-trades.html" class="sidebar-item active">Alpaca Trades</a>
+      <div class="sidebar-section" style="margin-top:24px;">Help</div>
+      <a href="how-it-works.html" class="sidebar-item">How it Works</a>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-section">Menu</div>
+        <a href="dashboard.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> Dashboard
+        </a>
+        <a href="trades.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> Trades
+        </a>
+        <a href="paper-market.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> Paper Market
+        </a>
+        <a href="alerts.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> Systems
+        </a>
+        <a href="accounts.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> Accounts
+        </a>
+        <a href="brokers.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> Brokers
+        </a>
+        <a href="kalshi.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> Kalshi
+        </a>
+        <a href="alpaca-trades.html" class="sidebar-item active">
+          <span class="sidebar-icon"></span> Alpaca Trades
+        </a>
+        <div class="sidebar-section" style="margin-top:24px;">Help</div>
+        <a href="how-it-works.html" class="sidebar-item">
+          <span class="sidebar-icon"></span> How it Works
+        </a>
+      </aside>
+
+      <main class="main">
+        <div class="header">
+          <h1><i class="fas fa-chart-line" style="margin-right:10px;color:var(--accent);"></i>Alpaca Trades</h1>
+          <button class="refresh-btn" id="refreshBtn" onclick="loadTrades()">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+
+        <div id="errorContainer"></div>
+
+        <div class="stats-grid" id="statsContainer">
+          <div class="stat-card">
+            <div class="stat-label">Total P&L</div>
+            <div class="stat-value" id="totalPnl">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-value" id="winRate">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Trades</div>
+            <div class="stat-value" id="totalTrades">--</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Avg Return %</div>
+            <div class="stat-value" id="avgReturn">--</div>
+          </div>
+        </div>
+
+        <div class="trades-card">
+          <div class="trades-header">
+            <h2><i class="fas fa-list" style="margin-right:8px;color:var(--accent);"></i>Trade History</h2>
+            <div class="filter-tabs">
+              <button class="filter-tab active" onclick="setFilter('all')">All</button>
+              <button class="filter-tab" onclick="setFilter('filled')">Filled</button>
+              <button class="filter-tab" onclick="setFilter('today')">Today</button>
+            </div>
+          </div>
+          <div id="tradesContainer">
+            <div class="loading">
+              <div class="spinner"></div>
+              <span style="color:var(--muted);">Loading trades...</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // Supabase setup
+    const SUPABASE_URL = 'https://isanhutzyctcjygjhzbn.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
+    
+    // Initialize Supabase client
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    let currentFilter = 'all';
+    let allTrades = [];
+    let alpacaCreds = null;
+    let currentUser = null;
+
+    function toggleDrawer() {
+      document.getElementById('sidebar-overlay').classList.toggle('open');
+      document.getElementById('sidebar-drawer').classList.toggle('open');
+    }
+
+    function closeDrawer() {
+      document.getElementById('sidebar-overlay').classList.remove('open');
+      document.getElementById('sidebar-drawer').classList.remove('open');
+    }
+
+    async function getAlpacaCredentials() {
+      try {
+        // Get current user session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || !session.user) {
+          console.error('No user session found');
+          return null;
+        }
+        currentUser = session.user;
+        
+        const resp = await fetch(
+          `${SUPABASE_URL}/rest/v1/broker_credentials?select=credentials&broker=eq.alpaca&user_id=eq.${currentUser.id}&limit=1`,
+          {
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${session.access_token}`
+            }
+          }
+        );
+        const rows = await resp.json();
+        if (rows && rows.length > 0 && rows[0].credentials) {
+          return rows[0].credentials;
+        }
+        return null;
+      } catch (e) {
+        console.error('Failed to get Alpaca credentials:', e);
+        return null;
+      }
+    }
+
+    async function fetchAlpacaOrders(apiKey, secretKey, env) {
+      const baseUrl = (env === 'live') ? 'https://api.alpaca.markets' : 'https://paper-api.alpaca.markets';
+      const url = `${baseUrl}/v2/orders?status=all&limit=100`;
+      
+      try {
+        const resp = await fetch(url, {
+          headers: {
+            'APCA-API-KEY-ID': apiKey,
+            'APCA-API-SECRET-KEY': secretKey
+          }
+        });
+        
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+        }
+        
+        return await resp.json();
+      } catch (e) {
+        console.error('Failed to fetch orders:', e);
+        throw e;
+      }
+    }
+
+    async function fetchAlpacaPositions(apiKey, secretKey, env) {
+      const baseUrl = (env === 'live') ? 'https://api.alpaca.markets' : 'https://paper-api.alpaca.markets';
+      const url = `${baseUrl}/v2/positions`;
+      
+      try {
+        const resp = await fetch(url, {
+          headers: {
+            'APCA-API-KEY-ID': apiKey,
+            'APCA-API-SECRET-KEY': secretKey
+          }
+        });
+        
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+        }
+        
+        return await resp.json();
+      } catch (e) {
+        console.error('Failed to fetch positions:', e);
+        return [];
+      }
+    }
+
+    function formatCurrency(value) {
+      if (value === null || value === undefined || isNaN(value)) return '--';
+      const num = parseFloat(value);
+      const prefix = num >= 0 ? '+' : '';
+      return `${prefix}$${Math.abs(num).toFixed(2)}`;
+    }
+
+    function formatPercent(value) {
+      if (value === null || value === undefined || isNaN(value)) return '--';
+      const num = parseFloat(value);
+      const prefix = num >= 0 ? '+' : '';
+      return `${prefix}${num.toFixed(2)}%`;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '--';
+      const d = new Date(dateStr);
+      return d.toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit'
+      });
+    }
+
+    function calculateStats(trades) {
+      if (!trades || trades.length === 0) {
+        return { totalPnl: 0, winRate: 0, totalTrades: 0, avgReturn: 0 };
+      }
+
+      const filledTrades = trades.filter(t => t.status === 'filled');
+      const totalTrades = filledTrades.length;
+      
+      // Calculate P&L based on filled trades
+      let totalPnl = 0;
+      let wins = 0;
+      let totalReturn = 0;
+
+      filledTrades.forEach(trade => {
+        // For filled orders, estimate P&L from position data if available
+        // or calculate based on price difference if we have that data
+        const pnl = parseFloat(trade.unrealized_pl || trade.realized_pl || 0);
+        totalPnl += pnl;
+        
+        if (pnl > 0) wins++;
+        
+        // Calculate return % if we have cost basis
+        const costBasis = parseFloat(trade.cost_basis || 0);
+        if (costBasis > 0) {
+          const ret = (pnl / costBasis) * 100;
+          totalReturn += ret;
+        }
+      });
+
+      const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+      const avgReturn = totalTrades > 0 ? totalReturn / totalTrades : 0;
+
+      return { totalPnl, winRate, totalTrades, avgReturn };
+    }
+
+    function renderTrades(trades) {
+      const container = document.getElementById('tradesContainer');
+      
+      if (!trades || trades.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-inbox"></i>
+            <p>No trades found</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Filter trades
+      let filteredTrades = trades;
+      if (currentFilter === 'filled') {
+        filteredTrades = trades.filter(t => t.status === 'filled');
+      } else if (currentFilter === 'today') {
+        const today = new Date().toISOString().split('T')[0];
+        filteredTrades = trades.filter(t => t.created_at && t.created_at.startsWith(today));
+      }
+
+      if (filteredTrades.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-filter"></i>
+            <p>No trades match the current filter</p>
+          </div>
+        `;
+        return;
+      }
+
+      // Build table
+      let html = `
+        <table class="trades-table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>P&L</th>
+              <th>Return %</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      filteredTrades.forEach(trade => {
+        const symbol = trade.symbol || '--';
+        const side = trade.side || '--';
+        const qty = trade.qty || trade.filled_qty || '--';
+        const price = trade.filled_avg_price || trade.limit_price || '--';
+        const pnl = parseFloat(trade.unrealized_pl || trade.realized_pl || 0);
+        const costBasis = parseFloat(trade.cost_basis || 0);
+        const returnPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+        const status = trade.status || 'unknown';
+        const time = formatDate(trade.created_at || trade.filled_at);
+        
+        const sideClass = side === 'buy' ? 'side-buy' : 'side-sell';
+        const pnlClass = pnl >= 0 ? 'pnl-positive' : 'pnl-negative';
+        const statusClass = status === 'filled' ? 'status-filled' : 
+                           status === 'partially_filled' ? 'status-partial' : 'status-pending';
+
+        html += `
+          <tr>
+            <td class="symbol">${symbol}</td>
+            <td class="${sideClass}">${side.toUpperCase()}</td>
+            <td>${qty}</td>
+            <td>$${parseFloat(price).toFixed(2)}</td>
+            <td class="${pnlClass}">${formatCurrency(pnl)}</td>
+            <td class="${pnlClass}">${formatPercent(returnPct)}</td>
+            <td><span class="${statusClass}">${status.toUpperCase()}</span></td>
+            <td>${time}</td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function updateStats(stats) {
+      const totalPnlEl = document.getElementById('totalPnl');
+      const winRateEl = document.getElementById('winRate');
+      const totalTradesEl = document.getElementById('totalTrades');
+      const avgReturnEl = document.getElementById('avgReturn');
+
+      totalPnlEl.textContent = formatCurrency(stats.totalPnl);
+      totalPnlEl.className = `stat-value ${stats.totalPnl >= 0 ? 'positive' : 'negative'}`;
+      
+      winRateEl.textContent = `${stats.winRate.toFixed(1)}%`;
+      winRateEl.className = `stat-value ${stats.winRate >= 50 ? 'positive' : 'negative'}`;
+      
+      totalTradesEl.textContent = stats.totalTrades;
+      totalTradesEl.className = 'stat-value';
+      
+      avgReturnEl.textContent = formatPercent(stats.avgReturn);
+      avgReturnEl.className = `stat-value ${stats.avgReturn >= 0 ? 'positive' : 'negative'}`;
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      
+      // Update tab styles
+      document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      renderTrades(allTrades);
+    }
+
+    async function loadTrades() {
+      const refreshBtn = document.getElementById('refreshBtn');
+      const container = document.getElementById('tradesContainer');
+      const errorContainer = document.getElementById('errorContainer');
+      
+      refreshBtn.disabled = true;
+      errorContainer.innerHTML = '';
+      container.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <span style="color:var(--muted);">Loading trades...</span>
+        </div>
+      `;
+
+      try {
+        // Get Alpaca credentials
+        if (!alpacaCreds) {
+          alpacaCreds = await getAlpacaCredentials();
+        }
+        
+        if (!alpacaCreds) {
+          throw new Error('No Alpaca credentials found. Please configure your Alpaca API keys in the Brokers section.');
+        }
+
+        // First, load cached trades from database
+        const cachedTrades = await loadTradesFromDatabase();
+
+        // Fetch fresh orders and positions from Alpaca
+        const [orders, positions] = await Promise.all([
+          fetchAlpacaOrders(alpacaCreds.api_key, alpacaCreds.secret_key, alpacaCreds.env),
+          fetchAlpacaPositions(alpacaCreds.api_key, alpacaCreds.secret_key, alpacaCreds.env)
+        ]);
+
+        // Merge orders with position data for P&L
+        const freshTrades = orders.map(order => {
+          const position = positions.find(p => p.symbol === order.symbol);
+          if (position && order.side === 'buy') {
+            return {
+              ...order,
+              unrealized_pl: position.unrealized_pl,
+              cost_basis: position.cost_basis
+            };
+          }
+          return order;
+        });
+
+        // Merge fresh trades with cached trades (fresh takes priority)
+        const freshIds = new Set(freshTrades.map(t => t.id));
+        const mergedTrades = [
+          ...freshTrades,
+          ...cachedTrades.filter(t => !freshIds.has(t.id))
+        ];
+
+        // Sort by created_at descending
+        mergedTrades.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        allTrades = mergedTrades;
+
+        // Save fresh trades to database
+        await saveTradesToDatabase(freshTrades);
+
+        // Calculate and display stats
+        const stats = calculateStats(allTrades);
+        updateStats(stats);
+        
+        // Render trades
+        renderTrades(allTrades);
+        
+      } catch (error) {
+        console.error('Error loading trades from Alpaca:', error);
+        
+        // Try to load cached trades from database as fallback
+        const cachedTrades = await loadTradesFromDatabase();
+        if (cachedTrades.length > 0) {
+          console.log(`Loaded ${cachedTrades.length} cached trades from database`);
+          allTrades = cachedTrades;
+          const stats = calculateStats(allTrades);
+          updateStats(stats);
+          renderTrades(allTrades);
+          
+          errorContainer.innerHTML = `
+            <div class="error-message" style="background: #2d2a1e; border: 1px solid #5c4d26;">
+              <i class="fas fa-info-circle" style="margin-right:8px;"></i>
+              Alpaca API error: ${error.message}. Showing cached data from database.
+            </div>
+          `;
+        } else {
+          errorContainer.innerHTML = `
+            <div class="error-message">
+              <i class="fas fa-exclamation-triangle" style="margin-right:8px;"></i>
+              ${error.message}
+            </div>
+          `;
+          container.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-exclamation-circle"></i>
+              <p>Failed to load trades</p>
+            </div>
+          `;
+        }
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    // Save trades to Supabase database
+    async function saveTradesToDatabase(trades) {
+      if (!currentUser || trades.length === 0) return;
+      
+      try {
+        // Transform Alpaca orders to our schema
+        const tradesToUpsert = trades.map(order => ({
+          user_id: currentUser.id,
+          alpaca_order_id: order.id,
+          symbol: order.symbol,
+          side: order.side,
+          qty: parseFloat(order.qty || 0),
+          filled_qty: parseFloat(order.filled_qty || 0),
+          filled_avg_price: parseFloat(order.filled_avg_price || 0),
+          order_type: order.type,
+          status: order.status,
+          created_at: order.created_at,
+          submitted_at: order.submitted_at,
+          filled_at: order.filled_at,
+          unrealized_pl: parseFloat(order.unrealized_pl || 0),
+          realized_pl: parseFloat(order.realized_pl || 0),
+          cost_basis: parseFloat(order.cost_basis || 0),
+          raw_data: order
+        }));
+
+        // Upsert trades (insert or update)
+        const { error } = await supabase
+          .from('alpaca_trades')
+          .upsert(tradesToUpsert, {
+            onConflict: 'user_id,alpaca_order_id',
+            ignoreDuplicates: false
+          });
+
+        if (error) {
+          console.error('Error saving trades:', error);
+        } else {
+          console.log(`Saved ${tradesToUpsert.length} trades to database`);
+        }
+      } catch (e) {
+        console.error('Failed to save trades:', e);
+      }
+    }
+
+    // Load trades from Supabase database
+    async function loadTradesFromDatabase() {
+      if (!currentUser) return [];
+      
+      try {
+        const { data, error } = await supabase
+          .from('alpaca_trades')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (error) {
+          console.error('Error loading trades from DB:', error);
+          return [];
+        }
+
+        // Transform DB rows back to the format expected by renderTrades
+        return data.map(row => ({
+          id: row.alpaca_order_id,
+          symbol: row.symbol,
+          side: row.side,
+          qty: row.qty,
+          filled_qty: row.filled_qty,
+          filled_avg_price: row.filled_avg_price,
+          type: row.order_type,
+          status: row.status,
+          created_at: row.created_at,
+          submitted_at: row.submitted_at,
+          filled_at: row.filled_at,
+          unrealized_pl: row.unrealized_pl,
+          realized_pl: row.realized_pl,
+          cost_basis: row.cost_basis,
+          ...row.raw_data
+        }));
+      } catch (e) {
+        console.error('Failed to load trades from DB:', e);
+        return [];
+      }
+    }
+
+    // Load trades on page load
+    document.addEventListener('DOMContentLoaded', loadTrades);
+  </script>
+</body>
+</html>
