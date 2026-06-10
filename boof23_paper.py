@@ -240,6 +240,11 @@ def scan_signals():
             if not trades:
                 continue
             last = trades[-1]
+            sig_time = last.get('signal_time')
+            if sig_time is not None:
+                age_secs = (now_et - sig_time).total_seconds()
+                if age_secs > 600:  # signal older than 10 min — stale
+                    continue
             signals.append((sym, last['direction'], df1.iloc[-1]['close'], last))
         except Exception as e:
             log.warning(f"  {sym} signal error: {e}")

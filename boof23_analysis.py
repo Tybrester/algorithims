@@ -615,6 +615,7 @@ def run_boof23_strict_5sig_1exec(df_1min, symbol, tp_pct=TP_PCT, sl_pct=SL_PCT, 
             'pnl_pct': pnl, 'hold_bars': hold,
             'tier': 'core' if entry_slack >= 1.4 else 'expanded',
             'same_bar_conflict': same_bar_conflict,
+            'signal_time': signal_time,
         })
 
         # Rules 2+3: lockout past 1-min exit + cooldown (cooldown in 5-min bars)
