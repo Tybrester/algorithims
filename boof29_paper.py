@@ -29,6 +29,7 @@ BASE_URL     = "https://paper-api.alpaca.markets"
 SUPABASE_URL = "https://isanhutzyctcjygjhzbn.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0"
 SUPABASE_USER_ID = "d0bb84ba-f968-446c-9792-9bcff8849e37"
+BOT_ID           = "0c1827dd-b57f-4640-81ed-120dabef1ef2"
 BOT_NAME     = "Boof 29 Paper"   # shows on trades page
 
 MOVE_LO      = 0.50    # % lower bound
@@ -99,6 +100,7 @@ def sb_insert_trade(symbol, entry_px, shares, order_id):
         r = _requests.post(_EDGE_URL, headers=_EDGE_HEADERS, timeout=10, json={
             "action":   "open",
             "user_id":  SUPABASE_USER_ID,
+            "bot_id":   BOT_ID,
             "symbol":   symbol,
             "entry_px": entry_px,
             "shares":   shares,
