@@ -165,7 +165,7 @@ def get_5min_bars(symbols):
     et    = pytz.timezone("America/New_York")
     today = datetime.datetime.now(et).strftime("%Y-%m-%d")
     start = datetime.datetime.fromisoformat(f"{today}T09:30:00").replace(tzinfo=et)
-    end   = datetime.datetime.fromisoformat(f"{today}T09:35:00").replace(tzinfo=et)
+    end   = datetime.datetime.fromisoformat(f"{today}T09:36:00").replace(tzinfo=et)
     out   = {}
     for i in range(0, len(symbols), 50):
         chunk = symbols[i:i+50]
