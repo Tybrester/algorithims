@@ -428,7 +428,7 @@ def run_day():
     while True:
         now_et     = datetime.datetime.now(ET)
         eod_cutoff = now_et.replace(hour=15, minute=45, second=0, microsecond=0)
-        hard_close = now_et.replace(hour=15, minute=55, second=0, microsecond=0)
+        hard_close = now_et.replace(hour=15, minute=59, second=0, microsecond=0)
 
         if now_et >= hard_close:
             break
