@@ -198,7 +198,11 @@ def get_latest_price(symbol):
         return None
 
 def calc_shares(price, tier='expanded'):
-    dollars = 600 if tier == 'core' else 200
+    if price < 15 or price > 1000:
+        equity = get_account_equity()
+        dollars = equity * RISK_PCT
+    else:
+        dollars = 600 if tier == 'core' else 200
     return max(1, int(dollars / price))
 
 # ── STATE ─────────────────────────────────────────────────────────────
@@ -267,9 +271,6 @@ def scan_signals():
     for sym, direction, price, trade_info in signals[:available]:
         price = get_latest_price(sym) or price
         if price <= 0:
-            continue
-        if price < 20:
-            log.info(f"  {sym}: skipped (price ${price:.2f} too low, SL too tight)")
             continue
         tier = trade_info.get('tier', 'expanded')
         shares = calc_shares(price, tier)
