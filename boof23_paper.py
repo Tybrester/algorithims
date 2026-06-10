@@ -128,7 +128,7 @@ def log_trade(date, sym, direction, entry_px, exit_px, shares, exit_type="tp/sl"
 # ── ALPACA CLIENT ─────────────────────────────────────────────────────
 try:
     from alpaca.trading.client import TradingClient
-    from alpaca.trading.requests import MarketOrderRequest
+    from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
     from alpaca.trading.enums import OrderSide, TimeInForce
     from alpaca.data.historical import StockHistoricalDataClient
     from alpaca.data.requests import StockBarsRequest, StockLatestTradeRequest
@@ -198,11 +198,7 @@ def get_latest_price(symbol):
         return None
 
 def calc_shares(price, tier='expanded'):
-    if price < 15 or price > 1000:
-        equity = get_account_equity()
-        dollars = equity * RISK_PCT
-    else:
-        dollars = 600 if tier == 'core' else 200
+    dollars = 600 if tier == 'core' else 200
     return max(1, int(dollars / price))
 
 # ── STATE ─────────────────────────────────────────────────────────────
@@ -284,8 +280,13 @@ def scan_signals():
 
         open_positions[sym] = {"reserved": True}  # reserve slot before order
         try:
-            req   = MarketOrderRequest(symbol=sym, qty=shares,
-                                       side=side, time_in_force=TimeInForce.DAY)
+            if price < 15 or price > 1000:
+                limit_px = round(price * (1 - 0.0005) if direction == 'long' else price * (1 + 0.0005), 2)
+                req = LimitOrderRequest(symbol=sym, qty=shares, side=side,
+                                        time_in_force=TimeInForce.DAY, limit_price=limit_px)
+            else:
+                req = MarketOrderRequest(symbol=sym, qty=shares,
+                                         side=side, time_in_force=TimeInForce.DAY)
             order = trade_client.submit_order(req)
             sb_id = sb_insert_trade(sym, price, shares, str(order.id), direction)
             open_positions[sym] = {
