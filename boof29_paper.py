@@ -357,7 +357,15 @@ def wait_until_et(hour, minute, label):
         return False
     wait_secs = (target - now_et).total_seconds()
     log.info(f"Waiting {wait_secs/60:.1f} min until {label} ({target.strftime('%H:%M')} ET)...")
-    time.sleep(wait_secs)
+    last_heartbeat_min = -1
+    while True:
+        now_et = datetime.datetime.now(et)
+        if now_et >= target:
+            break
+        if now_et.minute != last_heartbeat_min:
+            log.info(f"[Heartbeat] Boof 29 Alive — {now_et.strftime('%Y-%m-%d %H:%M')} ET")
+            last_heartbeat_min = now_et.minute
+        time.sleep(30)
     return True
 
 def wait_for_market_open():

@@ -138,7 +138,8 @@ try:
     account = trade_client.get_account()
     log.info(f"Connected — Boof 23 Paper  |  "
              f"Cash: ${float(account.cash):,.2f}  "
-             f"Equity: ${float(account.equity):,.2f}")
+             f"Equity: ${float(account.equity):,.2f}  "
+             f"Buying power: ${float(account.buying_power):,.2f}")
 except Exception as e:
     log.error(f"Alpaca connection failed: {e}")
     log.error("Install: pip install alpaca-py")
@@ -408,6 +409,7 @@ def run_day():
     wait_until_et(9, 30, "MARKET OPEN")
 
     log.info("Active trading loop (9:35 -> 3:45 ET)...")
+    last_heartbeat_min = -1
     while True:
         now_et     = datetime.datetime.now(ET)
         eod_cutoff = now_et.replace(hour=15, minute=45, second=0, microsecond=0)
@@ -415,6 +417,10 @@ def run_day():
 
         if now_et >= hard_close:
             break
+
+        if now_et.minute != last_heartbeat_min:
+            log.info(f"[Heartbeat] Boof 23 Alive — {now_et.strftime('%Y-%m-%d %H:%M')} ET")
+            last_heartbeat_min = now_et.minute
 
         if now_et < eod_cutoff:
             check_exits()
