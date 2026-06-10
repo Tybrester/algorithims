@@ -170,7 +170,6 @@ def get_bars(symbols, timeframe_str, bars=200):
                                     start=start, end=now)
             resp = data_client.get_stock_bars(req).df
             if resp.empty: continue
-            log.info(f"  [debug] raw index type: {type(resp.index).__name__}, shape: {resp.shape}, cols: {list(resp.columns[:5])}")
             resp = resp.reset_index()
             if "symbol" in resp.columns:
                 for sym in chunk:
