@@ -161,7 +161,7 @@ def get_bars(symbols, timeframe_str, bars=200):
     }
     tf = tf_map.get(timeframe_str, TimeFrame(5, TimeFrameUnit.Minute))
     now   = datetime.datetime.now(ET)
-    start = now - datetime.timedelta(days=5)
+    start = now - datetime.timedelta(days=2)
     out   = {}
     for i in range(0, len(symbols), 50):
         chunk = symbols[i:i+50]
@@ -243,10 +243,11 @@ def scan_signals():
             sig_time = last.get('signal_time')
             if sig_time is not None:
                 age_secs = (now_et - sig_time).total_seconds()
-                if age_secs > 600:  # signal older than 10 min — stale
-                    log.info(f"  {sym}: stale signal ({age_secs/60:.1f} min old)")
+                log.info(f"  {sym}: {last['direction'].upper()} signal ({age_secs/60:.1f} min old)")
+                if age_secs > 600:
                     continue
-            log.info(f"  {sym}: FRESH {last['direction'].upper()} signal!")
+            else:
+                log.info(f"  {sym}: {last['direction'].upper()} signal (no time)")
             signals.append((sym, last['direction'], df1.iloc[-1]['close'], last))
         except Exception as e:
             log.warning(f"  {sym} signal error: {e}")
