@@ -4364,8 +4364,8 @@ Deno.serve(async (req) => {
                   const entryInterval = settings.entryInterval || '1m';
                   const isMultiTf = signalInterval !== entryInterval;
                   
-                  const b23TpPct = Number(bot.take_profit_pct ?? 35) / 100;
-                  const b23SlPct = Math.abs(Number(bot.stop_loss_pct ?? 15)) / 100;
+                  const b23TpPct = Number(bot.take_profit_pct ?? 0.45) / 100;
+                  const b23SlPct = Math.abs(Number(bot.stop_loss_pct ?? 0.18)) / 100;
                   const boof23Result = getBoof23Signal(candles, sym, b23TpPct, b23SlPct);
                   
                   // MULTI-TIMEFRAME: If signal fires, fetch entry_interval for execution price
@@ -4779,7 +4779,12 @@ Deno.serve(async (req) => {
               // Core (slack >= 0.8): 2x | Expanded: 1x | Reduced (risk off): 0.5x
               const tieredSignal = botSignal === 'boof21' || botSignal === 'boof22' || botSignal === 'boof23';
               const signalSlack = (sigResult as any).slack ?? 0;
-              const baseAmount = bot.bot_dollar_amount || 200;
+              // Boof 23: risk 1% of account equity per trade
+              const accountEquity = (bot as any).account_equity ?? 0;
+              const boof23RiskAmount = botSignal === 'boof23' && accountEquity > 0
+                ? Math.round(accountEquity * 0.01)
+                : 0;
+              const baseAmount = boof23RiskAmount > 0 ? boof23RiskAmount : (bot.bot_dollar_amount || 200);
 
               // Calculate daily P&L for risk overlay
               const dailyTrades = bot.trades?.filter((t: any) => {

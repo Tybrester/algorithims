@@ -1,0 +1,1165 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backtest - BoofTrade</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --surface:#111; --border:#1e1e1e; --accent:#00e676; --muted:#666; --text:#e0e0e0; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+    .layout { display: flex; flex: 1; overflow: hidden; }
+    .sidebar { width: 260px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 16px 0; height: calc(100vh - 64px); position: sticky; top: 0; overflow-y: auto; }
+    .sidebar-section { padding: 5px 12px; font-size: 0.6rem; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 14px; }
+    .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border: none; border-left: 3px solid transparent; font-size: 0.82rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.15s, color 0.15s; }
+    .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .sidebar-item.active { background: rgba(0,230,118,0.08); color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+    main { flex: 1; overflow-y: auto; }
+    @media (max-width: 900px) { .sidebar { display: none; } }
+    .header { background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%); padding: 20px 30px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 1.5rem; background: linear-gradient(90deg, #00d4ff, #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-links a { color: #888; text-decoration: none; margin-left: 20px; font-size: 0.9rem; transition: color 0.2s; }
+    .nav-links a:hover { color: #fff; }
+    .controls { background: #111; border: 1px solid #222; border-radius: 14px; padding: 24px; margin-bottom: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: end; }
+    .control-group label { display: block; font-size: 0.7rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+    .control-group input, .control-group select { width: 100%; background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 8px; color: #e0e0e0; padding: 9px 12px; font-size: 0.85rem; font-family: inherit; }
+    .control-group input:focus, .control-group select:focus { outline: none; border-color: #00e676; }
+    .run-btn { background: #00e676; color: #000; border: none; border-radius: 8px; padding: 10px 28px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .run-btn:hover { background: #00ff88; }
+    .run-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; margin-bottom: 28px; }
+    .system-card { background: #111; border: 1px solid #222; border-radius: 14px; overflow: hidden; }
+    .system-card-header { padding: 16px 20px; border-bottom: 1px solid #1a1a1a; display: flex; align-items: center; gap: 10px; }
+    .system-name { font-weight: 800; font-size: 1rem; }
+    .system-badge { font-size: 0.65rem; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+    .badge-st  { background: rgba(100,149,237,0.15); color: #6495ed; }
+    .badge-b20 { background: rgba(0,230,118,0.12); color: #00e676; }
+    .badge-b30 { background: rgba(255,193,7,0.12); color: #ffc107; }
+    .badge-b50 { background: rgba(0,212,255,0.12); color: #00d4ff; }
+    .badge-b60 { background: rgba(233,30,99,0.12); color: #e91e63; }
+    .badge-b90 { background: rgba(255,87,34,0.12); color: #ff5722; }
+    .badge-rsm { background: rgba(255,112,67,0.15); color: #ff7043; }
+    .system-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #1a1a1a; }
+    .stat-box { background: #111; padding: 14px 16px; }
+    .stat-label { font-size: 0.62rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+    .stat-value { font-size: 1.1rem; font-weight: 800; }
+    .stat-value.pos { color: #00e676; }
+    .stat-value.neg { color: #ff5252; }
+    .stat-value.neu { color: #e0e0e0; }
+    .trades-table-wrap { overflow-x: auto; }
+    .trades-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .trades-table th { font-size: 0.62rem; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.07em; padding: 10px 12px; text-align: left; border-bottom: 1px solid #1a1a1a; background: #0d0d0d; white-space: nowrap; }
+    .trades-table td { padding: 9px 12px; border-bottom: 1px solid #111; }
+    .trades-table tr:last-child td { border-bottom: none; }
+    .trades-table tr.win td { background: rgba(0,230,118,0.03); }
+    .trades-table tr.loss td { background: rgba(255,82,82,0.03); }
+    .pnl-pos { color: #00e676; font-weight: 700; }
+    .pnl-neg { color: #ff5252; font-weight: 700; }
+    .badge-buy  { background: rgba(0,230,118,0.12); color: #00e676; font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+    .badge-sell { background: rgba(255,82,82,0.12); color: #ff5252; font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+    .empty-state { padding: 40px; text-align: center; color: #444; font-size: 0.9rem; }
+    .loading { padding: 40px; text-align: center; color: #555; }
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #333; border-top-color: #00e676; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.2); border-radius: 8px; padding: 12px 16px; color: #ff5252; font-size: 0.85rem; margin-bottom: 20px; }
+    .equity-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+    .no-trades { padding: 20px; color: #444; text-align: center; font-size: 0.85rem; }
+    .section-label { font-size: 0.7rem; font-weight: 700; color: #444; text-transform: uppercase; letter-spacing: 0.1em; padding: 12px 16px 6px; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <h1>⚡ Backtest Engine</h1>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">Menu</div>
+    <a href="dashboard.html" class="sidebar-item">Dashboard</a>
+    <a href="trades.html" class="sidebar-item">Trades</a>
+    <a href="paper-market.html" class="sidebar-item">Paper Market</a>
+    <a href="alerts.html" class="sidebar-item">Systems</a>
+    <a href="accounts.html" class="sidebar-item">Accounts</a>
+    <div class="sidebar-section" style="margin-top:24px;">Bots</div>
+    <a href="bots.html" class="sidebar-item">Bots</a>
+    <div class="sidebar-section" style="margin-top:24px;">Help</div>
+    <a href="how-it-works.html" class="sidebar-item">How it Works</a>
+  </aside>
+
+  <main>
+  <div class="container" style="max-width:1200px;margin:0 auto;padding:24px;">
+
+  <div class="controls">
+    <div class="control-group">
+      <label>Symbol</label>
+      <input type="text" id="bt-symbol" value="ES=F" placeholder="ES=F, NQ=F, AAPL, BTC-USD…" style="text-transform:uppercase">
+    </div>
+    <div class="control-group">
+      <label>Interval</label>
+      <select id="bt-interval">
+        <option value="1m">1 min</option>
+        <option value="5m" selected>5 min</option>
+        <option value="15m">15 min</option>
+        <option value="30m">30 min</option>
+        <option value="1h">1 hour</option>
+        <option value="1d">Daily</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Candles</label>
+      <select id="bt-candles">
+        <option value="100">100</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+        <option value="1000" selected>1000</option>
+        <option value="2000">2000</option>
+        <option value="5000">5000</option>
+        <option value="8000">8000</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Systems</label>
+      <select id="bt-systems">
+        <option value="all" selected>All 4</option>
+        <option value="boof14">Boof 14.0 (Simplified EV-Based Entry)</option>
+        <option value="boof15">Boof 15.0 (EV-Based Entry — Session Aware)</option>
+        <option value="boof16">Boof 16.0 (Quant-Enhanced — Kelly + Costs + WFA)</option>
+        <option value="boof18">Boof 18.0 (ORB + Compression + Regime Filter)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Direction</label>
+      <select id="bt-direction">
+        <option value="both" selected>Both</option>
+        <option value="long">Long Only</option>
+        <option value="short">Short Only</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>Take Profit %</label>
+      <input type="number" id="bt-tp" value="" placeholder="e.g. 0.5" min="0" step="0.1" style="width:90px">
+    </div>
+    <div class="control-group">
+      <label>Stop Loss %</label>
+      <input type="number" id="bt-sl" value="" placeholder="e.g. -0.3" step="0.1" style="width:90px">
+    </div>
+    <div class="control-group">
+      <label>&nbsp;</label>
+      <button class="run-btn" id="run-btn" onclick="runBacktest()">▶ Run Backtest</button>
+    </div>
+  </div>
+
+  <div id="error-container"></div>
+  <div id="results-container"><div class="empty-state">Configure your backtest above and click Run.</div></div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// MATH HELPERS (ported from options-bot/index.ts)
+// ─────────────────────────────────────────────
+
+function calcEMA(data, period) {
+  const k = 2 / (period + 1);
+  const ema = new Array(data.length).fill(0);
+  ema[0] = data[0];
+  for (let i = 1; i < data.length; i++) ema[i] = data[i] * k + ema[i-1] * (1-k);
+  return ema;
+}
+
+function calcATR(highs, lows, closes, period) {
+  const tr = highs.map((h, i) => i === 0 ? h - lows[i] : Math.max(h - lows[i], Math.abs(h - closes[i-1]), Math.abs(lows[i] - closes[i-1])));
+  const atr = new Array(tr.length).fill(0);
+  atr[period-1] = tr.slice(0, period).reduce((a,b) => a+b) / period;
+  for (let i = period; i < tr.length; i++) atr[i] = (atr[i-1] * (period-1) + tr[i]) / period;
+  return atr;
+}
+
+function calcSuperTrend(highs, lows, closes, atrLen, mult) {
+  const atr = calcATR(highs, lows, closes, atrLen);
+  const n = closes.length;
+  const trend = new Array(n).fill(1);
+  const upperBand = new Array(n).fill(0);
+  const lowerBand = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    const hl2 = (highs[i] + lows[i]) / 2;
+    upperBand[i] = hl2 + mult * atr[i];
+    lowerBand[i] = hl2 - mult * atr[i];
+    if (i > 0) {
+      lowerBand[i] = lowerBand[i] > lowerBand[i-1] || closes[i-1] < lowerBand[i-1] ? lowerBand[i] : lowerBand[i-1];
+      upperBand[i] = upperBand[i] < upperBand[i-1] || closes[i-1] > upperBand[i-1] ? upperBand[i] : upperBand[i-1];
+      if (trend[i-1] === -1 && closes[i] > upperBand[i-1]) trend[i] = 1;
+      else if (trend[i-1] === 1 && closes[i] < lowerBand[i-1]) trend[i] = -1;
+      else trend[i] = trend[i-1];
+    }
+  }
+  return { trend, upperBand, lowerBand };
+}
+
+function calcRSI(closes, period) {
+  const rsi = new Array(closes.length).fill(NaN);
+  if (closes.length < period + 1) return rsi;
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = closes[i] - closes[i-1];
+    if (diff > 0) gains += diff; else losses -= diff;
+  }
+  let avgGain = gains / period, avgLoss = losses / period;
+  rsi[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  for (let i = period + 1; i < closes.length; i++) {
+    const diff = closes[i] - closes[i-1];
+    const g = diff > 0 ? diff : 0, l = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period-1) + g) / period;
+    avgLoss = (avgLoss * (period-1) + l) / period;
+    rsi[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  }
+  return rsi;
+}
+
+function calcChoppinessIndex(highs, lows, closes, period = 14) {
+  const n = closes.length;
+  const ci = new Array(n).fill(50);
+  if (n < period + 1) return ci;
+  for (let i = period; i < n; i++) {
+    let atrSum = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      atrSum += Math.max(highs[j] - lows[j], Math.abs(highs[j] - closes[j - 1]), Math.abs(lows[j] - closes[j - 1]));
+    }
+    const hh = Math.max(...highs.slice(i - period + 1, i + 1));
+    const ll = Math.min(...lows.slice(i - period + 1, i + 1));
+    const range = hh - ll;
+    if (range === 0) ci[i] = 50;
+    else ci[i] = Math.max(0, Math.min(100, 100 * Math.log10(atrSum / range) / Math.log10(period)));
+  }
+  return ci;
+}
+
+function b50Mean(data) {
+  return data.length > 0 ? data.reduce((a, b) => a + b, 0) / data.length : 0;
+}
+
+function b50SMA(data, period) {
+  const result = [];
+  for (let i = period - 1; i < data.length; i++) {
+    const slice = data.slice(i - period + 1, i + 1);
+    result.push(slice.reduce((a, b) => a + b, 0) / period);
+  }
+  return result;
+}
+
+function b50StdDev(data, period) {
+  if (data.length < period) return 0;
+  const slice = data.slice(-period);
+  const mean = slice.reduce((a, b) => a + b, 0) / period;
+  const variance = slice.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / period;
+  return Math.sqrt(variance);
+}
+
+function b50ADX(highs, lows, closes, period) {
+  const n = closes.length;
+  if (n < period * 2) return 25;
+  const dmPlus = [];
+  const dmMinus = [];
+  const trValues = [];
+  for (let i = 1; i < n; i++) {
+    const upMove = highs[i] - highs[i - 1];
+    const downMove = lows[i - 1] - lows[i];
+    dmPlus.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    dmMinus.push(downMove > upMove && downMove > 0 ? downMove : 0);
+    const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i - 1]), Math.abs(lows[i] - closes[i - 1]));
+    trValues.push(tr);
+  }
+  const diPlus = 100 * b50Mean(dmPlus.slice(-period)) / b50Mean(trValues.slice(-period));
+  const diMinus = 100 * b50Mean(dmMinus.slice(-period)) / b50Mean(trValues.slice(-period));
+  const dx = (diPlus + diMinus) > 0 ? 100 * Math.abs(diPlus - diMinus) / (diPlus + diMinus) : 0;
+  return dx;
+}
+
+function calcMACD(closes, fast, slow, signal) {
+  const emaFast = calcEMA(closes, fast);
+  const emaSlow = calcEMA(closes, slow);
+  const macdLine = closes.map((_, i) => emaFast[i] - emaSlow[i]);
+  const validStart = macdLine.findIndex(v => !isNaN(v));
+  const signalLine = new Array(closes.length).fill(NaN);
+  if (validStart >= 0) {
+    const emaSignal = calcEMA(macdLine.slice(validStart), signal);
+    for (let i = 0; i < emaSignal.length; i++) signalLine[validStart + i] = emaSignal[i];
+  }
+  const hist = macdLine.map((v, i) => (isNaN(v) || isNaN(signalLine[i])) ? NaN : v - signalLine[i]);
+  return { macdLine, signalLine, hist };
+}
+
+// ─────────────────────────────────────────────
+// SIGNAL GENERATORS
+// ─────────────────────────────────────────────
+
+function computeBoof10Signals(candles) {
+  const highs  = candles.map(c => c.high);
+  const lows   = candles.map(c => c.low);
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  const { trend } = calcSuperTrend(highs, lows, closes, 7, 2.0);
+  // Return the trend direction every bar so engine holds through the trend
+  // and exits+re-enters cleanly on each flip
+  const out = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) out[i] = trend[i] === 1 ? 1 : -1;
+  return out;
+}
+
+function generateSignalSuperTrend(candles, settings = {}) {
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  const sigs = computeBoof10Signals(candles);
+  const ci = n - 2;
+  const s = sigs[ci];
+  const signal = s === 1 ? 'buy' : s === -1 ? 'sell' : 'none';
+  return { signal, price: closes[ci] };
+}
+
+function calcDMI(highs, lows, closes, period) {
+  const n = highs.length;
+  const plusDM  = new Array(n).fill(0);
+  const minusDM = new Array(n).fill(0);
+  for (let i = 1; i < n; i++) {
+    const up = highs[i] - highs[i-1], down = lows[i-1] - lows[i];
+    if (up > down && up > 0) plusDM[i] = up;
+    if (down > up && down > 0) minusDM[i] = down;
+  }
+  const atr = calcATR(highs, lows, closes, period);
+  const smoothP = calcEMA(plusDM, period), smoothM = calcEMA(minusDM, period);
+  const plusDI  = smoothP.map((v,i) => atr[i] ? (v/atr[i])*100 : 0);
+  const minusDI = smoothM.map((v,i) => atr[i] ? (v/atr[i])*100 : 0);
+  const dx = plusDI.map((v,i) => (v+minusDI[i]) ? Math.abs(v-minusDI[i])/(v+minusDI[i])*100 : 0);
+  const adx = new Array(n).fill(0);
+  const start2 = period * 2 - 1;
+  if (start2 < n) {
+    adx[start2] = dx.slice(period-1, start2).reduce((a,b)=>a+b,0) / period;
+    for (let i = start2+1; i < n; i++) adx[i] = (adx[i-1]*(period-1)+dx[i])/period;
+  }
+  return { plusDI, minusDI, adx };
+}
+
+function generateSignalBoof20(candles, direction = 'both', thresholdBuy = 0.005, thresholdSell = -0.005) {
+  const highs  = candles.map(c => c.high);
+  const lows   = candles.map(c => c.low);
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  if (n < 25) return { signal: 'none', price: closes[n-1] };
+  const length = 14, maFast = 5, maSlow = 20;
+  const pastReturn = new Array(n).fill(0);
+  for (let i = length; i < n; i++) pastReturn[i] = (closes[i] - closes[i-length]) / closes[i-length];
+  const maFastVals = new Array(n).fill(NaN), maSlowVals = new Array(n).fill(NaN);
+  for (let i = maFast-1; i < n; i++) maFastVals[i] = closes.slice(i-maFast+1,i+1).reduce((a,b)=>a+b,0)/maFast;
+  for (let i = maSlow-1; i < n; i++) maSlowVals[i] = closes.slice(i-maSlow+1,i+1).reduce((a,b)=>a+b,0)/maSlow;
+  const rsi = calcRSI(closes, length);
+  const i = n - 2, iPrev = i - 1;
+  const calcPredicted = (idx) => {
+    const rP = pastReturn[idx] || 0;
+    const rM = (maFastVals[idx] - maSlowVals[idx]) / closes[idx] || 0;
+    const rR = (rsi[idx] - 50) / 50 || 0;
+    const atrSlice = highs.slice(idx-13, idx+1).map((h,j) => h - lows[idx-13+j]);
+    const rA = Math.max(...atrSlice) / closes[idx] || 0;
+    return 0.4*rP + 0.3*rM + 0.2*rR - 0.1*rA;
+  };
+  const predictedReturn = calcPredicted(i);
+  const prevPredicted  = iPrev >= 13 ? calcPredicted(iPrev) : 0;
+  const curState  = predictedReturn > thresholdBuy ? 1 : predictedReturn < thresholdSell ? -1 : 0;
+  const prevState = prevPredicted  > thresholdBuy ? 1 : prevPredicted  < thresholdSell ? -1 : 0;
+  const justFlipped = curState !== prevState;
+  let signal = 'none';
+  if (curState === 1 && justFlipped) signal = 'buy';
+  else if (curState === -1 && justFlipped) signal = 'sell';
+  if (direction === 'long'  && signal === 'sell') signal = 'none';
+  if (direction === 'short' && signal === 'buy')  signal = 'none';
+  return { signal, price: closes[i] };
+}
+
+function generateSignalRSIMACD(candles, direction = 'both') {
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  const i = n - 2;
+  const rsi   = calcRSI(closes, 14);
+  const ema50 = calcEMA(closes, 50);
+  const { hist } = calcMACD(closes, 12, 26, 9);
+  let inLong = false, inShort = false;
+  for (let j = 50; j < i; j++) {
+    const r = rsi[j], h = hist[j], e = ema50[j], c = closes[j];
+    if (isNaN(r)||isNaN(h)||isNaN(e)) continue;
+    const buyCond  = (r < 30 || h > 0) && c > e;
+    const sellCond = (r > 70 || h < 0) && c < e;
+    if (!inLong && !inShort && buyCond) inLong = true;
+    else if (!inLong && !inShort && sellCond) inShort = true;
+    else if (inLong  && sellCond) { inLong = false; inShort = true; }
+    else if (inShort && buyCond)  { inShort = false; inLong = true; }
+  }
+  const curRSI = rsi[i], curEma = ema50[i], curHist = hist[i], curClose = closes[i];
+  const buyCond  = (curRSI < 30 || curHist > 0) && curClose > curEma;
+  const sellCond = (curRSI > 70 || curHist < 0) && curClose < curEma;
+  let signal = 'none';
+  if (buyCond  && (inShort || !inLong))  signal = 'buy';
+  if (sellCond && (inLong  || (!inShort && direction !== 'long'))) signal = 'sell';
+  if (direction === 'long'  && signal === 'sell') signal = 'none';
+  if (direction === 'short' && signal === 'buy')  signal = 'none';
+  return { signal, price: curClose };
+}
+
+// Boof 3.0: rolling k-means — only uses past data at each bar (no look-ahead bias)
+function kMeans3(features, dims, maxIter=30) {
+  const k=3, n=features.length;
+  if (n < k) return new Array(n).fill(0);
+  const centroids = features.slice(0,k).map(f=>[...f]);
+  let clusters = new Array(n).fill(0);
+  for (let iter=0;iter<maxIter;iter++) {
+    let changed=false;
+    for (let i=0;i<n;i++) {
+      let best=0,bestDist=Infinity;
+      for (let j=0;j<k;j++) { let d=0; for(let d2=0;d2<dims;d2++) d+=(features[i][d2]-centroids[j][d2])**2; if(d<bestDist){bestDist=d;best=j;} }
+      if(clusters[i]!==best){clusters[i]=best;changed=true;}
+    }
+    if(!changed) break;
+    const nc=Array(k).fill(null).map(()=>Array(dims).fill(0)),counts=Array(k).fill(0);
+    for(let i=0;i<n;i++){counts[clusters[i]]++;for(let d2=0;d2<dims;d2++)nc[clusters[i]][d2]+=features[i][d2];}
+    for(let j=0;j<k;j++){if(counts[j]>0)for(let d2=0;d2<dims;d2++)centroids[j][d2]=nc[j][d2]/counts[j];}
+  }
+  return clusters;
+}
+
+function computeBoof20Signals(candles, direction='both', thresholdBuy=0.005, thresholdSell=-0.005) {
+  const highs  = candles.map(c => c.high);
+  const lows   = candles.map(c => c.low);
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  const out = new Array(n).fill(0);
+  if (n < 25) return out;
+  const length=14, maFast=5, maSlow=20;
+  const pastReturn=new Array(n).fill(0);
+  for(let i=length;i<n;i++) pastReturn[i]=(closes[i]-closes[i-length])/closes[i-length];
+  const maFastV=new Array(n).fill(NaN),maSlowV=new Array(n).fill(NaN);
+  for(let i=maFast-1;i<n;i++) maFastV[i]=closes.slice(i-maFast+1,i+1).reduce((a,b)=>a+b,0)/maFast;
+  for(let i=maSlow-1;i<n;i++) maSlowV[i]=closes.slice(i-maSlow+1,i+1).reduce((a,b)=>a+b,0)/maSlow;
+  const rsi=calcRSI(closes,length);
+  // Return state (1/-1/0) every bar, not just crossover bars
+  for(let i=length+1;i<n;i++) {
+    const rP=pastReturn[i]||0;
+    const rM=(maFastV[i]-maSlowV[i])/closes[i]||0;
+    const rR=(rsi[i]-50)/50||0;
+    const atrSlice=highs.slice(i-13,i+1).map((h,j)=>h-lows[i-13+j]);
+    const rA=Math.max(...atrSlice)/closes[i]||0;
+    const pred=0.4*rP+0.3*rM+0.2*rR-0.1*rA;
+    out[i] = pred>thresholdBuy ? 1 : pred<thresholdSell ? -1 : 0;
+  }
+  return out;
+}
+
+function computeBoof30Signals(candles) {
+  const closes  = candles.map(c => c.close);
+  const highs   = candles.map(c => c.high);
+  const lows    = candles.map(c => c.low);
+  const volumes = candles.map(c => c.volume || 1000000);
+  const n = closes.length;
+  const out = new Array(n).fill(0);
+  if (n < 50) return out;
+
+  const lookback = 14;
+  const WINDOW = 100; // only use past 100 bars for clustering — no look-ahead
+
+  const returns = new Array(n).fill(0);
+  for (let i=1;i<n;i++) returns[i]=(closes[i]-closes[i-1])/closes[i-1];
+
+  const returnStd = new Array(n).fill(0);
+  for (let i=lookback;i<n;i++) {
+    const sl=returns.slice(i-lookback+1,i+1),mean=sl.reduce((a,b)=>a+b,0)/lookback;
+    returnStd[i]=Math.sqrt(sl.reduce((a,b)=>a+(b-mean)**2,0)/lookback);
+  }
+  const maFast=new Array(n).fill(NaN),maSlow=new Array(n).fill(NaN);
+  for(let i=4;i<n;i++) maFast[i]=closes.slice(i-4,i+1).reduce((a,b)=>a+b,0)/5;
+  for(let i=19;i<n;i++) maSlow[i]=closes.slice(i-19,i+1).reduce((a,b)=>a+b,0)/20;
+  const maSlope=maFast.map((f,i)=>!isNaN(f)&&!isNaN(maSlow[i])?f-maSlow[i]:0);
+  const rsi=calcRSI(closes,lookback);
+  const volumeStd=new Array(n).fill(0);
+  for(let i=lookback;i<n;i++) {
+    const sl=volumes.slice(i-lookback+1,i+1),mean=sl.reduce((a,b)=>a+b,0)/lookback;
+    volumeStd[i]=Math.sqrt(sl.reduce((a,b)=>a+(b-mean)**2,0)/lookback);
+  }
+
+  const validStart = Math.max(lookback, 20);
+
+  // At each bar, cluster only the past WINDOW bars (rolling — no future data)
+  for (let ci = validStart + WINDOW; ci < n; ci++) {
+    const winStart = ci - WINDOW;
+    const winIndices = [];
+    const winFeatures = [];
+    for (let j = winStart; j <= ci; j++) {
+      if (!isNaN(rsi[j])) { winFeatures.push([returnStd[j]*100, maSlope[j], rsi[j], volumeStd[j]/1000000]); winIndices.push(j); }
+    }
+    if (winFeatures.length < 10) continue;
+
+    const clusters = kMeans3(winFeatures, 3); // 3 clusters: Range, HighVol, Trend
+
+    // Map clusters to regimes by avg MA slope (low=Range, mid=HighVol, high=Trend)
+    const cs = [0,1,2].map(c => {
+      const idxs = winIndices.filter((_,i) => clusters[i]===c);
+      return { cluster:c, avgSlope: idxs.reduce((a,i)=>a+maSlope[i],0)/(idxs.length||1) };
+    }).sort((a,b) => a.avgSlope - b.avgSlope);
+    const rm = { [cs[0].cluster]:'Range', [cs[1].cluster]:'HighVol', [cs[2].cluster]:'Trend' };
+
+    // Assign state to current bar
+    const localIdx = winIndices.indexOf(ci);
+    if (localIdx < 0) continue;
+    const regime = rm[clusters[localIdx]];
+    if (!regime) continue;
+
+    // Distance from high/low filter: prevent buying at exact top / selling at exact bottom
+    const curPrice = closes[ci];
+    const recentHighs = highs.slice(ci-5, ci+1);
+    const recentLows = lows.slice(ci-5, ci+1);
+    const maxRecentHigh = Math.max(...recentHighs);
+    const minRecentLow = Math.min(...recentLows);
+    const nearHigh = (maxRecentHigh - curPrice) / maxRecentHigh * 100 < 0.5;
+    const nearLow = (curPrice - minRecentLow) / minRecentLow * 100 < 0.5;
+
+    // Pullback requirement: wait for 1 candle of retracement
+    const prevPrice = closes[ci-1];
+    const prev2Price = closes[ci-2];
+    const isPullbackUp = curPrice < prevPrice && prevPrice > prev2Price;
+    const isPullbackDown = curPrice > prevPrice && prevPrice < prev2Price;
+
+    // State every bar — use RSI + slope direction for signal + pullback + high/low filter
+    if (regime==='Trend')   {
+      if (maSlope[ci]>0 && isPullbackUp && !nearHigh) out[ci] = 1;
+      else if (maSlope[ci]<0 && isPullbackDown && !nearLow) out[ci] = -1;
+    }
+    if (regime==='Range')   {
+      if (rsi[ci]<45 && isPullbackUp && !nearLow) out[ci] = 1;
+      else if (rsi[ci]>55 && isPullbackDown && !nearHigh) out[ci] = -1;
+      else out[ci] = 0;
+    }
+    if (regime==='HighVol') {
+      if (maSlope[ci]>0 && isPullbackUp && !nearHigh) out[ci] = 1;
+      else if (maSlope[ci]<0 && isPullbackDown && !nearLow) out[ci] = -1;
+    }
+  }
+  return out;
+}
+
+function generateSignalBoof30(candles, direction = 'both') {
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  if (n < 35) return { signal: 'none', price: closes[n-1] };
+  const sigs = computeBoof30Signals(candles);
+  const ci = n - 2;
+  const cur = sigs[ci] ?? 0, prev = sigs[ci-1] ?? 0;
+  let signal = 'none';
+  if (cur !== prev) { if (cur===1) signal='buy'; else if (cur===-1) signal='sell'; }
+  if (direction==='long'  && signal==='sell') signal='none';
+  if (direction==='short' && signal==='buy')  signal='none';
+  return { signal, price: closes[ci] };
+}
+
+// ─────────────────────────────────────────────
+// BOOF 5.0 - SIX-FACTOR QUANT MODEL (BACKTEST)
+// Momentum, Mean Reversion, Volatility, Trend, Volume, Microstructure
+// ─────────────────────────────────────────────
+
+function computeBoof50Signals(candles) {
+  const closes = candles.map(c => c.close);
+  const opens = candles.map(c => c.open);
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  const volumes = candles.map(c => c.volume || 1000000);
+  const n = closes.length;
+  const out = new Array(n).fill(0);
+  if (n < 50) return out;
+
+  // Helper: EMA
+  function ema(data, period) {
+    const k = 2 / (period + 1);
+    const result = [data[0]];
+    for (let i = 1; i < data.length; i++) {
+      result.push(data[i] * k + result[i-1] * (1 - k));
+    }
+    return result;
+  }
+
+  // Helper: SMA
+  function sma(data, period) {
+    const result = [];
+    for (let i = period - 1; i < data.length; i++) {
+      result.push(data.slice(i - period + 1, i + 1).reduce((a,b) => a+b, 0) / period);
+    }
+    return result;
+  }
+
+  // Helper: StdDev
+  function stddev(data, period) {
+    const result = [];
+    for (let i = period - 1; i < data.length; i++) {
+      const slice = data.slice(i - period + 1, i + 1);
+      const mean = slice.reduce((a,b) => a+b, 0) / period;
+      const variance = slice.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / period;
+      result.push(Math.sqrt(variance));
+    }
+    return result;
+  }
+
+  // Helper: ATR
+  function calcATR(highs, lows, closes, period) {
+    const tr = [];
+    for (let i = 1; i < closes.length; i++) {
+      tr.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i-1]), Math.abs(lows[i] - closes[i-1])));
+    }
+    const result = [tr[0]];
+    for (let i = 1; i < tr.length; i++) {
+      result.push((result[i-1] * (period - 1) + tr[i]) / period);
+    }
+    return result;
+  }
+
+  // EMAs for trend
+  const ema20 = ema(closes, 20);
+  const ema50 = ema(closes, 50);
+  const ema200 = ema(closes, 200);
+
+  // Returns and volatility
+  const returns = [];
+  for (let i = 1; i < n; i++) returns.push((closes[i] - closes[i-1]) / closes[i-1]);
+  const vol20 = stddev(returns.slice(-50), 20);
+  const vol50 = sma(returns.map(r => Math.abs(r)), 50);
+
+  // ATR
+  const atr = calcATR(highs, lows, closes, 14);
+
+  // Volume SMA
+  const volSMA20 = sma(volumes, 20);
+
+  // Compute signals starting at bar 50
+  for (let i = 50; i < n; i++) {
+    // ── FACTOR 1: MOMENTUM ──
+    const momentum = ((closes[i] - closes[i-10]) / closes[i-10]) * 100;
+    const momentumPrev = ((closes[i-1] - closes[i-11]) / closes[i-11]) * 100;
+    const momAccel = momentum - momentumPrev;
+
+    let momScore = 0;
+    if (momentum > 1.5 && momAccel > 0) momScore = 2;
+    else if (momentum > 0.5) momScore = 1;
+    else if (momentum < -1.5 && momAccel < 0) momScore = -2;
+    else if (momentum < -0.5) momScore = -1;
+
+    // ── FACTOR 2: MEAN REVERSION ──
+    const sma20val = sma(closes.slice(0, i+1), 20).pop();
+    const std20val = stddev(closes.slice(0, i+1), 20).pop();
+    const zScore = std20val > 0 ? (closes[i] - sma20val) / std20val : 0;
+
+    let mrScore = 0;
+    if (zScore < -1.5) mrScore = 1;
+    else if (zScore > 1.5) mrScore = -1;
+
+    // ── FACTOR 3: VOLATILITY ──
+    const currentVol = vol20[vol20.length - 1] || 0;
+    const volMean = vol50[vol50.length - 1] || 0;
+    const volPercentile = volMean > 0 ? Math.min(1, currentVol / (volMean * 2)) : 0.5;
+    const highVol = volPercentile > 0.8;
+
+    // ── FACTOR 4: TREND STRENGTH ──
+    const aboveEMA20 = closes[i] > ema20[i];
+    const aboveEMA50 = closes[i] > ema50[i];
+    const aboveEMA200 = closes[i] > ema200[i];
+
+    let trendScore = 0;
+    if (aboveEMA20 && aboveEMA50 && aboveEMA200) trendScore = 2;
+    else if (aboveEMA20 && aboveEMA50) trendScore = 1;
+    else if (!aboveEMA20 && !aboveEMA50 && !aboveEMA200) trendScore = -2;
+    else if (!aboveEMA20 && !aboveEMA50) trendScore = -1;
+
+    // ── FACTOR 5: VOLUME ──
+    const relVol = volumes[i] / (volSMA20[volSMA20.length - 1] || volumes[i]);
+    const volScore = relVol > 1.2 ? 1 : 0;
+
+    // ── FACTOR 6: MICROSTRUCTURE ──
+    const body = Math.abs(closes[i] - opens[i]);
+    const wick = highs[i] - lows[i];
+    const upperWick = highs[i] - Math.max(opens[i], closes[i]);
+    const lowerWick = Math.min(opens[i], closes[i]) - lows[i];
+    const upperRej = wick > 0 && upperWick / wick > 0.6;
+    const lowerRej = wick > 0 && lowerWick / wick > 0.6;
+
+    let microScore = 0;
+    if (lowerRej && body / wick > 0.3) microScore = 1;
+    else if (upperRej && body / wick > 0.3) microScore = -1;
+
+    // ── COMPOSITE ──
+    let composite = momScore + trendScore + mrScore + volScore + microScore;
+
+    // Regime adjustments
+    if (trendScore === 0) {
+      composite = -composite * 0.5; // Mean reversion in range
+    } else if (highVol && Math.abs(trendScore) < 2) {
+      composite = composite * 0.3; // Reduce in choppy high vol
+    }
+
+    // Threshold for signals (lower = more trades)
+    const threshold = 1.5; // Was 2.5, now 1.5 for 10-15 trades/day
+    if (composite > threshold && !highVol) {
+      out[i] = 1; // Long
+    } else if (composite < -threshold && !highVol) {
+      out[i] = -1; // Short
+    }
+  }
+
+  return out;
+}
+
+function generateSignalBoof50(candles, direction = 'both') {
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  if (n < 50) return { signal: 'none', price: closes[n-1] };
+  const sigs = computeBoof50Signals(candles);
+  const ci = n - 2;
+  const cur = sigs[ci] ?? 0, prev = sigs[ci-1] ?? 0;
+  let signal = 'none';
+  if (cur !== prev && cur !== 0) { 
+    if (cur === 1) signal = 'buy'; 
+    else if (cur === -1) signal = 'sell'; 
+  }
+  if (direction === 'long' && signal === 'sell') signal = 'none';
+  if (direction === 'short' && signal === 'buy') signal = 'none';
+  return { signal, price: closes[ci] };
+}
+
+// ─────────────────────────────────────────────
+// BOOF 6.0 - MULTI-TIMEFRAME SCALPING (BACKTEST)
+// Simplified single-TF version for backtesting
+// ─────────────────────────────────────────────
+
+function computeBoof60Signals(candles) {
+  const closes = candles.map(c => c.close);
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  const volumes = candles.map(c => c.volume || 1000000);
+  const n = closes.length;
+  const out = new Array(n).fill(0);
+  if (n < 50) return out;
+
+  // Detect interval from candle spacing
+  const avgSpacingMin = n > 10 ? (candles[n-1].time - candles[n-10].time) / (9 * 60000) : 5;
+  const is1m = avgSpacingMin < 2;
+  const adxMin = is1m ? 14 : 18;
+
+  // Pre-calc indicators
+  const ema20 = calcEMA(closes, 20);
+  const ema50 = calcEMA(closes, 50);
+  const { adx } = calcDMI(highs, lows, closes, 14);
+  const macdParams = is1m ? { fast: 5, slow: 13, sig: 4 } : { fast: 12, slow: 26, sig: 9 };
+  const { hist } = calcMACD(closes, macdParams.fast, macdParams.slow, macdParams.sig);
+  const avgVol = new Array(n).fill(0);
+  for (let i = 20; i < n; i++) {
+    avgVol[i] = volumes.slice(i-19, i+1).reduce((a,b)=>a+b,0) / 20;
+  }
+
+  for (let i = 35; i < n; i++) {
+    // Trend: EMA20/50 alignment
+    const trendUp = closes[i] > ema20[i] && ema20[i] > ema50[i];
+    const trendDown = closes[i] < ema20[i] && ema20[i] < ema50[i];
+    if (!trendUp && !trendDown) continue;
+
+    // ADX filter
+    if ((adx[i] || 0) < adxMin) continue;
+
+    // MACD histogram confirmation
+    const histNow = hist[i] || 0;
+    const histPrev = hist[i-1] || 0;
+    const macdBull = histNow > 0 && histNow > histPrev;
+    const macdBear = histNow < 0 && histNow < histPrev;
+
+    // Volume
+    const volOK = volumes[i] >= avgVol[i] * 0.8;
+    if (!volOK) continue;
+
+    // Momentum - simplified for backtest
+    const momLookback = is1m ? 5 : 3;
+    const priceChange = (closes[i] - closes[i-momLookback]) / closes[i-momLookback];
+    const momUp = priceChange > 0.001;
+    const momDown = priceChange < -0.001;
+
+    // Distance from high/low filter: prevent buying at exact top / selling at exact bottom
+    const curPrice = closes[i];
+    const recentHighs = highs.slice(i-5, i+1);
+    const recentLows = lows.slice(i-5, i+1);
+    const maxRecentHigh = Math.max(...recentHighs);
+    const minRecentLow = Math.min(...recentLows);
+    const nearHigh = (maxRecentHigh - curPrice) / maxRecentHigh * 100 < 0.5;
+    const nearLow = (curPrice - minRecentLow) / minRecentLow * 100 < 0.5;
+
+    // Pullback requirement: wait for 1 candle of retracement
+    const prevPrice = closes[i-1];
+    const prev2Price = closes[i-2];
+    const isPullbackUp = curPrice < prevPrice && prevPrice > prev2Price;
+    const isPullbackDown = curPrice > prevPrice && prevPrice < prev2Price;
+
+    // Generate signal
+    if (trendUp && macdBull && momUp && isPullbackUp && !nearHigh) out[i] = 1;
+    else if (trendDown && macdBear && momDown && isPullbackDown && !nearLow) out[i] = -1;
+  }
+  return out;
+}
+
+function generateSignalBoof60(candles, direction = 'both') {
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  if (n < 50) return { signal: 'none', price: closes[n-1] };
+  const sigs = computeBoof60Signals(candles);
+  const ci = n - 2;
+  const cur = sigs[ci] ?? 0, prev = sigs[ci-1] ?? 0;
+  let signal = 'none';
+  if (cur !== prev && cur !== 0) {
+    if (cur === 1) signal = 'buy';
+    else if (cur === -1) signal = 'sell';
+  }
+  if (direction === 'long' && signal === 'sell') signal = 'none';
+  if (direction === 'short' && signal === 'buy') signal = 'none';
+  return { signal, price: closes[ci] };
+}
+
+// BOOF 9.0 - PRECISION SNIPER (BACKTEST)
+// Relaxed version for backtesting (live version is much stricter)
+function computeBoof90Signals(candles) {
+  const closes  = candles.map(c => c.close);
+  const highs   = candles.map(c => c.high);
+  const lows    = candles.map(c => c.low);
+  const volumes = candles.map(c => c.volume || 1000000);
+  const n = closes.length;
+  const out = new Array(n).fill(0);
+  if (n < 100) return out;
+
+  const ema50 = calcEMA(closes, 50);
+  const ema200 = calcEMA(closes, 200);
+  const rsi = calcRSI(closes, 14);
+  const ci = calcChoppinessIndex(highs, lows, closes, 14);
+
+  // Generate signals starting at bar 100
+  for (let i = 100; i < n; i++) {
+    const curClose = closes[i];
+    const curEMA50 = ema50[i];
+    const curEMA200 = ema200[i];
+    const curRSI = rsi[i];
+    const curCI = ci[i];
+
+    // Daily trend: price above both EMAs and EMAs in bullish alignment
+    const bullish = curClose > curEMA50 && curClose > curEMA200 && curEMA50 > curEMA200;
+    const bearish = curClose < curEMA50 && curClose < curEMA200 && curEMA50 < curEMA200;
+
+    if (!bullish && !bearish) continue;
+
+    // Strong ADX (simplified - use volatility as proxy)
+    const atrVals = [];
+    for (let j = i - 14 + 1; j <= i; j++) {
+      atrVals.push(Math.max(highs[j] - lows[j], Math.abs(highs[j] - closes[j - 1]), Math.abs(lows[j] - closes[j - 1])));
+    }
+    const atr = b50Mean(atrVals);
+    const atrPct = atr / curClose * 100;
+    if (atrPct < 0.3) continue; // Relaxed from 0.5%
+
+    // Low Choppiness Index (relaxed)
+    if (curCI > 45) continue; // Relaxed from 38%
+
+    // RSI in sweet spot (relaxed)
+    const rsiOK = bullish ? (curRSI > 35 && curRSI < 75) : (curRSI > 25 && curRSI < 65);
+    if (!rsiOK) continue;
+
+    // MACD histogram confirmation (relaxed)
+    const { hist } = calcMACD(closes, 12, 26, 9);
+    const histLast = hist[i] || 0;
+    const histPrev = hist[i - 1] || 0;
+    const macdOK = bullish ? (histLast > 0) : (histLast < 0); // Removed histogram flip requirement
+    if (!macdOK) continue;
+
+    // Volume spike confirmation (relaxed)
+    const avgVol = volumes.slice(i - 20, i).reduce((a, b) => a + b, 0) / 20;
+    const curVol = volumes[i];
+    if (curVol < avgVol * 1.2) continue; // Relaxed from 1.5x
+
+    // Pullback from swing high/low (relaxed)
+    const recentHighs = highs.slice(i - 20, i + 1);
+    const recentLows = lows.slice(i - 20, i + 1);
+    const swingHigh = Math.max(...recentHighs);
+    const swingLow = Math.min(...recentLows);
+    const prevClose = closes[i - 1];
+    const prev2Close = closes[i - 2];
+    const isPullbackUp = curClose < prevClose && prevClose > prev2Close;
+    const isPullbackDown = curClose > prevClose && prevClose < prev2Close;
+
+    // Removed pullback requirement for backtest - too strict for single timeframe
+
+    // Not near recent extremes (relaxed)
+    const nearHigh = (swingHigh - curClose) / swingHigh * 100 < 0.5; // Relaxed from 0.3%
+    const nearLow = (curClose - swingLow) / swingLow * 100 < 0.5;
+    if (bullish && nearHigh) continue;
+    if (bearish && nearLow) continue;
+
+    // Removed time of day filter for backtest
+
+    // All filters passed
+    out[i] = bullish ? 1 : -1;
+  }
+  return out;
+}
+
+function generateSignalBoof90(candles, direction = 'both') {
+  const closes = candles.map(c => c.close);
+  const n = closes.length;
+  if (n < 100) return { signal: 'none', price: closes[n - 1] };
+  const sigs = computeBoof90Signals(candles);
+  const ci = n - 2;
+  const cur = sigs[ci] ?? 0, prev = sigs[ci - 1] ?? 0;
+  let signal = 'none';
+  if (cur !== prev) { if (cur === 1) signal = 'buy'; else if (cur === -1) signal = 'sell'; }
+  if (direction === 'long' && signal === 'sell') signal = 'none';
+  if (direction === 'short' && signal === 'buy') signal = 'none';
+  return { signal, price: closes[ci] };
+}
+
+// ─────────────────────────────────────────────
+// BACKTEST ENGINE
+// Accepts a pre-computed state array (1=long, -1=short, 0=neutral) for each bar.
+// Enters on the first bar the state flips to a tradeable direction.
+// Exits on the first bar the state flips away from the current position.
+// ─────────────────────────────────────────────
+
+function runBacktestEngine(candles, stateArr, direction, tpPct = 0, slPct = 0) {
+  const trades = [];
+  let open = null; // { action, entry, entryIdx, entryTime }
+  const n = candles.length;
+
+  for (let i = 1; i < n - 1; i++) {
+    const state = stateArr[i]   ?? 0;
+    const prev  = stateArr[i-1] ?? 0;
+    const high  = candles[i].high;
+    const low   = candles[i].low;
+    const price = candles[i].close;
+    const time  = candles[i].time;
+    const stateFlipped = state !== prev;
+
+    // ── CHECK TP/SL on open position first (uses this bar's high/low) ──
+    if (open) {
+      let exitPrice = null, exitReason = null;
+      if (open.action === 'buy') {
+        if (tpPct > 0 && high >= open.entry * (1 + tpPct / 100)) { exitPrice = open.entry * (1 + tpPct / 100); exitReason = 'tp'; }
+        else if (slPct > 0 && low  <= open.entry * (1 - slPct / 100)) { exitPrice = open.entry * (1 - slPct / 100); exitReason = 'sl'; }
+      } else {
+        if (tpPct > 0 && low  <= open.entry * (1 - tpPct / 100)) { exitPrice = open.entry * (1 - tpPct / 100); exitReason = 'tp'; }
+        else if (slPct > 0 && high >= open.entry * (1 + slPct / 100)) { exitPrice = open.entry * (1 + slPct / 100); exitReason = 'sl'; }
+      }
+      if (exitPrice !== null) {
+        const pnl = open.action === 'buy' ? exitPrice - open.entry : open.entry - exitPrice;
+        trades.push({ action: open.action, entry: open.entry, entryIdx: open.entryIdx, entryTime: open.entryTime,
+          exit: exitPrice, exitIdx: i, exitTime: time, pnl, pct: (pnl / open.entry) * 100, win: pnl > 0, exitReason });
+        open = null;
+      }
+    }
+
+    // ── EXIT on signal flip (if not already closed by TP/SL) ──
+    if (open) {
+      const shouldExit = (open.action === 'buy'  && state !== 1)
+                      || (open.action === 'sell' && state !== -1);
+      if (shouldExit) {
+        const pnl = open.action === 'buy' ? price - open.entry : open.entry - price;
+        trades.push({ action: open.action, entry: open.entry, entryIdx: open.entryIdx, entryTime: open.entryTime,
+          exit: price, exitIdx: i, exitTime: time, pnl, pct: (pnl / open.entry) * 100, win: pnl > 0, exitReason: 'signal' });
+        open = null;
+      }
+    }
+
+    // ── ENTER new position on state flip ──
+    if (!open && stateFlipped) {
+      if (state === 1  && direction !== 'short') open = { action: 'buy',  entry: price, entryIdx: i, entryTime: time };
+      if (state === -1 && direction !== 'long')  open = { action: 'sell', entry: price, entryIdx: i, entryTime: time };
+    }
+  }
+
+  const wins   = trades.filter(t => t.win);
+  const losses = trades.filter(t => !t.win);
+  const totalPnl = trades.reduce((s, t) => s + t.pnl, 0);
+  const winRate  = trades.length ? (wins.length / trades.length) * 100 : 0;
+  const avgWin   = wins.length   ? wins.reduce((s,t)=>s+t.pnl,0)   / wins.length   : 0;
+  const avgLoss  = losses.length ? losses.reduce((s,t)=>s+t.pnl,0) / losses.length : 0;
+  const grossWin  = wins.reduce((s,t)=>s+t.pnl,0);
+  const grossLoss = Math.abs(losses.reduce((s,t)=>s+t.pnl,0));
+  const profitFactor = grossLoss > 0 ? grossWin / grossLoss : wins.length ? Infinity : 0;
+
+  return { trades, wins: wins.length, losses: losses.length, totalPnl, winRate, avgWin, avgLoss, profitFactor };
+}
+
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+
+const SUPABASE_URL      = 'https://isanhutzyctcjygjhzbn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
+
+// ─────────────────────────────────────────────
+// FETCH CANDLES (via get-candles edge function)
+// ─────────────────────────────────────────────
+
+async function fetchCandles(symbol, interval, count) {
+  const url = `${SUPABASE_URL}/functions/v1/get-candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&count=${count}`;
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' }
+  });
+  if (!res.ok) throw new Error(`get-candles returned ${res.status}`);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  if (!json.candles || json.candles.length === 0) throw new Error('No candle data returned for ' + symbol);
+  return json.candles;
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+
+function fmtTime(ts) {
+  return new Date(ts * 1000).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
+}
+
+function fmtPct(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+function fmtPrice(v) { return '$' + v.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:4 }); }
+
+function renderSystemCard(name, badgeClass, result, symbol) {
+  const { trades, wins, losses, totalPnl, avgWin, avgLoss, winRate, profitFactor } = result;
+  const pnlClass  = totalPnl >= 0 ? 'pos' : 'neg';
+  const winClass  = winRate  >= 50 ? 'pos' : 'neg';
+  const pfClass   = profitFactor >= 1 ? 'pos' : 'neg';
+
+  const tradeRows = trades.length === 0
+    ? '<tr><td colspan="7" class="no-trades">No completed trades found in this data range.</td></tr>'
+    : trades.map(t => {
+        const sellHigher = t.action === 'buy' ? t.exit > t.entry : t.entry > t.exit;
+        const exitLabel = t.exitReason === 'tp' ? '<span style="color:#00e676;">TP</span>'
+                        : t.exitReason === 'sl' ? '<span style="color:#ff5252;">SL</span>'
+                        : '<span style="color:#aaa;">Signal</span>';
+        return `<tr class="${t.win ? 'win' : 'loss'}">
+          <td><span class="badge-${t.action}">${t.action.toUpperCase()}</span></td>
+          <td>${fmtTime(t.entryTime)}</td>
+          <td>${fmtPrice(t.entry)}</td>
+          <td>${fmtTime(t.exitTime)}</td>
+          <td>${fmtPrice(t.exit)}</td>
+          <td class="${t.win ? 'pnl-pos' : 'pnl-neg'}">${fmtPct(t.pct)}</td>
+          <td style="font-size:0.75rem;">${exitLabel}</td>
+          <td style="font-size:0.75rem;">${sellHigher ? '<span style="color:#00e676;">✓ Yes</span>' : '<span style="color:#ff5252;">✗ No</span>'}</td>
+        </tr>`;
+      }).join('');
+
+  const aboveCount = trades.filter(t => t.action === 'buy' ? t.exit > t.entry : t.entry > t.exit).length;
+  const abovePct   = trades.length ? ((aboveCount / trades.length) * 100).toFixed(0) : 0;
+
+  return `<div class="system-card">
+    <div class="system-card-header">
+      <span class="system-name">${name}</span>
+      <span class="system-badge ${badgeClass}">${symbol.toUpperCase()}</span>
+      <span class="system-badge" style="background:rgba(255,255,255,0.06);color:#666;margin-left:auto;">${trades.length} trades</span>
+    </div>
+    <div class="system-stats">
+      <div class="stat-box">
+        <div class="stat-label">Win Rate</div>
+        <div class="stat-value ${winClass}">${winRate.toFixed(0)}%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Exit Higher %</div>
+        <div class="stat-value ${aboveCount/Math.max(trades.length,1) >= 0.5 ? 'pos':'neg'}">${abovePct}%</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Profit Factor</div>
+        <div class="stat-value ${pfClass}">${isFinite(profitFactor) ? profitFactor.toFixed(2) : '∞'}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Total P&L (pts)</div>
+        <div class="stat-value ${pnlClass}">${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Avg Win</div>
+        <div class="stat-value pos">+${avgWin.toFixed(2)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Avg Loss</div>
+        <div class="stat-value neg">${avgLoss.toFixed(2)}</div>
+      </div>
+    </div>
+    <div class="section-label">Trade Log</div>
+    <div class="trades-table-wrap">
+      <table class="trades-table">
+        <thead><tr>
+          <th>Side</th><th>Entry Time</th><th>Entry</th><th>Exit Time</th><th>Exit</th><th>P&L %</th><th>Exit</th><th>Exit Higher?</th>
+        </tr></thead>
+        <tbody>${tradeRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+async function runBacktest() {
+  const symbol    = document.getElementById('bt-symbol').value.trim().toUpperCase();
+  const interval  = document.getElementById('bt-interval').value;
+  const count     = parseInt(document.getElementById('bt-candles').value);
+  const systems   = document.getElementById('bt-systems').value;
+  const direction = document.getElementById('bt-direction').value;
+  const tpPct     = parseFloat(document.getElementById('bt-tp').value) || 0;
+  const slRaw     = parseFloat(document.getElementById('bt-sl').value) || 0;
+  const slPct     = Math.abs(slRaw); // accept -0.3 or 0.3, treat as magnitude
+
+  if (!symbol) { alert('Enter a symbol'); return; }
+
+  const btn = document.getElementById('run-btn');
+  const errEl = document.getElementById('error-container');
+  const resEl = document.getElementById('results-container');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+  errEl.innerHTML = '';
+  resEl.innerHTML = `<div class="loading"><span class="spinner"></span>Fetching ${count} candles for ${symbol} (${interval})…</div>`;
+
+  try {
+    const candles = await fetchCandles(symbol, interval, count);
+    if (candles.length < 30) throw new Error(`Only ${candles.length} candles returned — try a longer range or different interval.`);
+
+    resEl.innerHTML = `<div class="loading"><span class="spinner"></span>Running signal backtests on ${candles.length} candles…</div>`;
+
+    // Pre-compute all signal arrays once — no look-ahead bias, no re-computation per slice
+    // Note: Boof 14, 15, 16, 18 are implemented in TypeScript (Supabase functions)
+    // Browser backtest currently only supports legacy versions
+    const systemDefs = [];
+
+    const toRun = systems === 'all' ? systemDefs : systemDefs.filter(s => s.key === systems);
+
+    if (toRun.length === 0) {
+      resEl.innerHTML = `<div class="empty-state">Boof 14, 15, 16, 18 are implemented in TypeScript (Supabase functions). Use the Python backtest files or run live trading to test these strategies.</div>`;
+      return;
+    }
+
+    await new Promise(r => setTimeout(r, 50));
+
+    const cards = toRun.map(sys => {
+      const states = Array.isArray(sys.states) ? sys.states : new Array(candles.length).fill(0);
+      const result = runBacktestEngine(candles, states, direction, tpPct, slPct);
+      return renderSystemCard(sys.name, sys.badge, result, symbol);
+    });
+
+    resEl.innerHTML = `
+      <div style="margin-bottom:12px;font-size:0.8rem;color:#555;">
+        ${candles.length} candles · ${symbol} · ${interval} · ${direction === 'both' ? 'Long & Short' : direction === 'long' ? 'Long Only' : 'Short Only'}
+        · from ${fmtTime(candles[0].time)} to ${fmtTime(candles[candles.length-1].time)}
+      </div>
+      <div class="results-grid">${cards.join('')}</div>`;
+
+  } catch (err) {
+    errEl.innerHTML = `<div class="error-msg">⚠ ${err.message}</div>`;
+    resEl.innerHTML = '<div class="empty-state">Backtest failed. Check the symbol and try again.</div>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '▶ Run Backtest';
+  }
+}
+</script>
+  </div><!-- /container -->
+  </main>
+</div><!-- /layout -->
+</body>
+</html>

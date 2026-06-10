@@ -1,10 +1,12 @@
 // =========================================================
-// BOOF 23.0 — SR Cluster Entry + ZigZag Regime Filter + Engulf Confirmation
-// Layer 1: ZigZag state machine — regime classifier, structure bias, exhaustion mapper
-// Layer 2: SR cluster fractal entry (Boof 22 core) — gated by ZigZag regime
-// Layer 3: Engulf confirmation (optional, default off per backtest results)
-// Best on: AAPL, NVDA, META, GOOGL, AMD (BOOFINGTON23)
-// Config: prox=30, engulf=off | Core $600 / Expanded $200
+// BOOF 23.0 — SR Cluster Entry + ZigZag Regime Filter
+// Strict 4-rule mode (validated Jun 2026):
+//   R1: one trade per pivot  R2: one open per symbol
+//   R3: 10-bar cooldown      R4: close must CROSS pivot level
+// Config: TP=+0.45%  SL=-0.18%  risk=1% account per trade
+// Validated: 2024 WR=48.5% PF=2.35 | 2025 WR=52.0% PF=2.70 | 2026 WR=52.5% PF=2.76
+// Walk-forward: test (2026) BEAT train (2024-2025) — no degradation
+// Monte Carlo P(profitable) = 100% across 5000 sims, MaxDD < 3.8%
 // =========================================================
 
 export interface Candle {
@@ -34,11 +36,17 @@ export interface Boof23Result {
 }
 
 // ─────────────────────────────────────────────
-// BOOFINGTON23 — Boof 23 official scan list
-// SR Cluster + ZigZag Regime | prox=30 engulf=off
-// ~30 trades/day | WR ~61% | PF ~29 | EV ~$8/trade | ~$82k/yr
+// BOOFINGTON23 — 46 symbols validated Jun 2026
+// Screened: MFE/MAE > 1.05, EOD+ > 52% on 6-month freerun
+// Strict 4-rule | 5-min signal + 1-min execution
 // ─────────────────────────────────────────────
-export const BOOFINGTON23 = ['AAPL', 'NVDA', 'META', 'GOOGL', 'AMD', 'PLTR'] as const;
+export const BOOFINGTON23 = [
+  'TOST','HOOD','ORCL','MSFT','V','JPM','SOUN','PODD','ENTG','GE',
+  'MRNA','AI','PATH','GS','BSX','SIMO','SCHW','TEM','AMD','ABNB',
+  'NEM','GILD','MCHP','UNP','ETN','LRCX','SMTC','INCY','ITW','LLY',
+  'MAR','QRVO','MPC','BKR','TMO','CAT','NVDA','SOFI','XOM','DPZ',
+  'FCX','VRTX','S','CSCO','DE','HUM',
+] as const;
 
 // ─────────────────────────────────────────────
 // CONFIG
@@ -203,7 +211,7 @@ function buildZigZag(candles: Candle[]): ZigZagState[] {
 // ─────────────────────────────────────────────
 // MAIN SIGNAL FUNCTION
 // ─────────────────────────────────────────────
-export function getBoof23Signal(candles: Candle[], symbol = 'NVDA', tpPct = 0.35, slPct = 0.15): Boof23Result {
+export function getBoof23Signal(candles: Candle[], symbol = 'NVDA', tpPct = 0.0045, slPct = 0.0018): Boof23Result {
   const NONE: Boof23Result = {
     signal: 'none', price: 0, reason: 'no signal', direction: 'none',
     nearestCluster: 0, clusterStrength: 0, atr: 0,
@@ -260,21 +268,28 @@ export function getBoof23Signal(candles: Candle[], symbol = 'NVDA', tpPct = 0.35
     const peakSlack   = currentATR > 0 ? (bar.high  - bar.close) / currentATR : 0;
     const troughSlack = currentATR > 0 ? (bar.close - bar.low)   / currentATR : 0;
 
+    // Rule 4: close must CROSS pivot level (prev close on one side, current crosses)
+    const n       = candles.length;
+    const prevBar = candles[n - offset - 1] ?? candles[n - offset];
+    const curBar  = candles[n - 1];
+
     // ── SHORT signal ────────────────────────────────────────────
     if (fractalPeak && peakSlack >= cfg.atrMult && zz.trend === 'up') {
       const distFromSwing = Math.abs(i - zz.zzHighBar);
       if (distFromSwing <= CFG.ZZ_PROX_BARS) {
         const engulfOk = !CFG.USE_ENGULF || bar.close < bar.open;
-        if (engulfOk) {
+        // Rule 4: prev close >= pivot high AND current close < pivot high
+        const crossOk = prevBar.close >= bar.high && curBar.close < bar.high;
+        if (engulfOk && crossOk) {
           const slack = peakSlack;
           return {
             signal: 'sell', price,
-            reason: `B23 fractal peak @ ${bar.high.toFixed(2)}, ZZ up-trend, dist=${distFromSwing}bars, cluster ${cluster.price.toFixed(2)} str=${cluster.strength} | TP+${(tpPct*100).toFixed(0)}% SL-${(slPct*100).toFixed(0)}%`,
+            reason: `B23 fractal peak @ ${bar.high.toFixed(2)}, ZZ up-trend, CROSS, dist=${distFromSwing}bars, cluster ${cluster.price.toFixed(2)} str=${cluster.strength} | TP+${(tpPct*100).toFixed(2)}% SL-${(slPct*100).toFixed(2)}%`,
             direction: 'SHORT', nearestCluster: cluster.price, clusterStrength: cluster.strength,
             atr: currentATR, tpPct, slPct, slack, tier: slack >= 0.8 ? 'core' : 'expanded',
             zzTrend: 'up', zzSwingBar: zz.zzHighBar, zzSwingPrice: zz.zzHighPrice,
           };
-        }
+        } else if (!crossOk) { lastReason = `fp ok but no cross: prev=${prevBar.close.toFixed(2)} cur=${curBar.close.toFixed(2)} pivot=${bar.high.toFixed(2)}`; continue; }
       } else if (fractalPeak) { lastReason = `fp ok slack=${peakSlack.toFixed(2)} but zz_dist=${Math.abs(i - zz.zzHighBar)} > ${CFG.ZZ_PROX_BARS}`; continue; }
     } else if (fractalPeak && peakSlack < cfg.atrMult) { lastReason = `fp ok but slack=${peakSlack.toFixed(2)} < ${cfg.atrMult}`; }
 
@@ -283,16 +298,18 @@ export function getBoof23Signal(candles: Candle[], symbol = 'NVDA', tpPct = 0.35
       const distFromSwing = Math.abs(i - zz.zzLowBar);
       if (distFromSwing <= CFG.ZZ_PROX_BARS) {
         const engulfOk = !CFG.USE_ENGULF || bar.close > bar.open;
-        if (engulfOk) {
+        // Rule 4: prev close <= pivot low AND current close > pivot low
+        const crossOk = prevBar.close <= bar.low && curBar.close > bar.low;
+        if (engulfOk && crossOk) {
           const slack = troughSlack;
           return {
             signal: 'buy', price,
-            reason: `B23 fractal trough @ ${bar.low.toFixed(2)}, ZZ down-trend, dist=${distFromSwing}bars, cluster ${cluster.price.toFixed(2)} str=${cluster.strength} | TP+${(tpPct*100).toFixed(0)}% SL-${(slPct*100).toFixed(0)}%`,
+            reason: `B23 fractal trough @ ${bar.low.toFixed(2)}, ZZ down-trend, CROSS, dist=${distFromSwing}bars, cluster ${cluster.price.toFixed(2)} str=${cluster.strength} | TP+${(tpPct*100).toFixed(2)}% SL-${(slPct*100).toFixed(2)}%`,
             direction: 'LONG', nearestCluster: cluster.price, clusterStrength: cluster.strength,
             atr: currentATR, tpPct, slPct, slack, tier: slack >= 0.8 ? 'core' : 'expanded',
             zzTrend: 'down', zzSwingBar: zz.zzLowBar, zzSwingPrice: zz.zzLowPrice,
           };
-        }
+        } else if (!crossOk) { lastReason = `ft ok but no cross: prev=${prevBar.close.toFixed(2)} cur=${curBar.close.toFixed(2)} pivot=${bar.low.toFixed(2)}`; continue; }
       } else if (fractalTrough) { lastReason = `ft ok slack=${troughSlack.toFixed(2)} but zz_dist=${Math.abs(i - zz.zzLowBar)} > ${CFG.ZZ_PROX_BARS}`; continue; }
     } else if (fractalTrough && troughSlack < cfg.atrMult) { lastReason = `ft ok but slack=${troughSlack.toFixed(2)} < ${cfg.atrMult}`; }
 

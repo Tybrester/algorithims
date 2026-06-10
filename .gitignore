@@ -10,3 +10,36 @@ boof_data/
 boof_cache/
 *.parquet
 *.pkl
+
+# Backtest / research scripts
+boof*_backtest*.py
+boof*_validation*.py
+boof*_options*.py
+boof*_explainer*.py
+boof*_core*.py
+boof*_4sector*.py
+crossref_*.py
+futures_cross*.py
+*_test*.py
+download_*.py
+fetch_*.py
+
+# Output / log files
+*.txt
+*.log
+*.csv
+boof29_paper_log.csv
+boof29_today_entries.csv
+
+# NinjaTrader
+ninjatrader/
+
+# Misc research
+debug_*.py
+view_*.py
+quick_*.py
+test_*.py
+analyze_*.py
+query_*.py
+daily_*.py
+early_move*.py
