@@ -131,7 +131,7 @@ try:
     from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
     from alpaca.trading.enums import OrderSide, TimeInForce
     from alpaca.data.historical import StockHistoricalDataClient
-    from alpaca.data.requests import StockBarsRequest, StockLatestTradeRequest
+    from alpaca.data.requests import StockBarsRequest, StockLatestTradeRequest, StockLatestQuoteRequest
     from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
     trade_client = TradingClient(PAPER_KEY, PAPER_SECRET, paper=True)
     data_client  = StockHistoricalDataClient(PAPER_KEY, PAPER_SECRET)
@@ -196,6 +196,22 @@ def get_latest_price(symbol):
         return float(trade[symbol].price)
     except:
         return None
+
+
+def get_spread_pct(symbol):
+    """Get bid-ask spread as percentage of mid price."""
+    try:
+        req = StockLatestQuoteRequest(symbol_or_symbols=symbol)
+        quote = data_client.get_stock_latest_quote(req)
+        bid = float(quote[symbol].bid_price)
+        ask = float(quote[symbol].ask_price)
+        if bid <= 0 or ask <= 0:
+            return 0
+        mid = (bid + ask) / 2
+        spread = (ask - bid) / mid
+        return spread
+    except:
+        return 0
 
 def calc_shares(price, tier='expanded'):
     dollars = 600 if tier == 'core' else 200
@@ -278,15 +294,16 @@ def scan_signals():
         tp   = price * (1 + TP_PCT) if direction == "long" else price * (1 - TP_PCT)
         sl   = price * (1 - SL_PCT) if direction == "long" else price * (1 + SL_PCT)
 
+        # Check spread - skip if too wide (slippage will eat the edge)
+        spread_pct = get_spread_pct(sym)
+        if spread_pct > 0.0005:  # 0.05%
+            log.info(f"  {sym}: skipped (spread {spread_pct*100:.3f}% > 0.05%)")
+            continue
+
         open_positions[sym] = {"reserved": True}  # reserve slot before order
         try:
-            if price < 15 or price > 1000:
-                limit_px = round(price * (1 - 0.0005) if direction == 'long' else price * (1 + 0.0005), 2)
-                req = LimitOrderRequest(symbol=sym, qty=shares, side=side,
-                                        time_in_force=TimeInForce.DAY, limit_price=limit_px)
-            else:
-                req = MarketOrderRequest(symbol=sym, qty=shares,
-                                         side=side, time_in_force=TimeInForce.DAY)
+            req = MarketOrderRequest(symbol=sym, qty=shares,
+                                     side=side, time_in_force=TimeInForce.DAY)
             order = trade_client.submit_order(req)
             sb_id = sb_insert_trade(sym, price, shares, str(order.id), direction)
             open_positions[sym] = {
