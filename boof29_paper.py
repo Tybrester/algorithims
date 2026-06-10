@@ -358,28 +358,45 @@ def wait_until_et(hour, minute, label):
     time.sleep(wait_secs)
     return True
 
-def run_today():
+def wait_for_market_open():
+    """Sleep until next market open, polling every 60s."""
+    import pytz
+    et = pytz.timezone("America/New_York")
+    while True:
+        try:
+            clock = trade_client.get_clock()
+            if clock.is_open:
+                return
+            next_open = clock.next_open.astimezone(et)
+            now_et    = datetime.datetime.now(et)
+            secs      = max(0, (next_open - now_et).total_seconds())
+            if secs > 120:
+                log.info(f"Market closed. Next open: {next_open.strftime('%Y-%m-%d %H:%M')} ET  "
+                         f"(sleeping {secs/3600:.1f}h)")
+                time.sleep(min(secs - 60, 3600))
+            else:
+                time.sleep(30)
+        except Exception as e:
+            log.warning(f"Clock check error: {e}")
+            time.sleep(60)
+
+
+def run_day():
+    """Trade one full day: scan at 9:35, exit at 10:20."""
     import pytz
     et = pytz.timezone("America/New_York")
     now_et = datetime.datetime.now(et)
-    log.info(f"Boof 29 Paper Bot starting — {now_et.strftime('%Y-%m-%d %H:%M:%S')} ET")
+    log.info(f"=== NEW DAY {now_et.strftime('%Y-%m-%d')} === Boof 29 Paper")
 
-    # Check market is open
-    if not is_market_open():
-        log.info("Market is not open today. Exiting.")
-        return
-
-    # Wait for 9:35 scan
     wait_until_et(9, 35, "SCAN")
     scan_and_enter()
 
-    # Wait for 10:20 exit
     wait_until_et(10, 20, "EXIT")
     exit_all()
 
-    # Summary
     print_summary()
-    log.info("Done for today.")
+    log.info("Day complete.")
+
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────
 if __name__ == "__main__":
@@ -391,4 +408,16 @@ if __name__ == "__main__":
     elif len(sys.argv) > 1 and sys.argv[1] == "summary":
         print_summary()
     else:
-        run_today()
+        log.info("Boof 29 Paper Bot — 24/7 mode started")
+        while True:
+            try:
+                wait_for_market_open()
+                run_day()
+                time.sleep(300)  # 5 min after close before next open check
+            except KeyboardInterrupt:
+                log.info("Stopped by user.")
+                exit_all()
+                break
+            except Exception as e:
+                log.error(f"Day loop error: {e} — restarting in 60s")
+                time.sleep(60)
