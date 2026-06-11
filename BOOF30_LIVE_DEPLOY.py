@@ -318,15 +318,22 @@ class Boof30Trader:
             
             # Check market hours (9:30 - 16:00)
             if hour < 9 or (hour == 9 and minute < 30) or hour > 15:
-                if hour == 16 and minute == 0:
-                    print('Market closed. Saving trade log...')
-                    if self.trade_log:
-                        log_df = pd.DataFrame(self.trade_log)
-                        log_df.to_csv(f'boof30_trades_{now.strftime("%Y%m%d")}.csv', index=False)
-                        print(f'Saved {len(log_df)} trades')
-                    break
+                # Market closed - sleep with heartbeat
+                next_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+                if hour >= 16:
+                    next_open += timedelta(days=1)
+                sleep_seconds = (next_open - now).total_seconds()
+                sleep_hours = sleep_seconds / 3600
                 
-                time.sleep(60)
+                print(f'[{now.strftime("%H:%M:%S")}] Market closed. Next open: {next_open.strftime("%Y-%m-%d %H:%M")} (sleeping {sleep_hours:.1f}h)')
+                
+                # Heartbeat every minute while sleeping
+                while datetime.now() < next_open:
+                    hb_now = datetime.now()
+                    print(f'[{hb_now.strftime("%H:%M:%S")}] [Heartbeat] Boof 30 Alive — {hb_now.strftime("%Y-%m-%d %H:%M")} ET')
+                    time.sleep(60)
+                
+                print(f'[{datetime.now().strftime("%H:%M:%S")}] Market open! Starting trading...')
                 continue
             
             # Check exits every minute
