@@ -29,21 +29,25 @@ data_client = StockHistoricalDataClient(API_KEY, API_SECRET)
 
 # UNIVERSES
 CORE_UNIVERSE = [
-    'UPST', 'AFRM', 'RKLB', 'MRNA', 'RIOT', 'CHPT', 'ARM', 'HIMS', 
-    'TEM', 'ASTS', 'LUNR', 'CLSK', 'APP', 'SMCI', 'RDW', 'IREN', 'MSTR'
+    # FinTech / SaaS
+    'UPST', 'AFRM', 'PLTR', 'RBLX', 'LMND', 'ROOT', 'SOFI', 'HOOD', 'DASH',
+    'SNOW', 'NET', 'DDOG', 'CRWD', 'CFLT', 'SHOP',
+    # Semis / Hardware
+    'NVDA', 'AMD', 'AVGO', 'ARM', 'SMCI', 'MU', 'TSM', 'MRVL', 'ANET',
+    # Crypto
+    'COIN', 'MSTR', 'RIOT', 'MARA', 'HUT', 'CLSK', 'BTBT', 'BITF', 'IREN',
+    # Space
+    'RKLB', 'LUNR', 'ASTS', 'RDW', 'SPIR',
+    # EVs
+    'TSLA', 'RIVN', 'LCID', 'NIO', 'XPEV'
 ]
 
 EXTENDED_UNIVERSE = [
-    # Growth
-    'PLTR', 'SOFI', 'HOOD', 'RBLX', 'DASH', 'SNOW', 'NET', 'DDOG', 'CRWD', 'CFLT', 'SHOP',
-    # AI / High Beta Tech
-    'NVDA', 'AMD', 'AVGO', 'MU', 'MRVL', 'ANET', 'TSM',
-    # Crypto
-    'COIN', 'MARA', 'HUT', 'BITF', 'BTBT',
-    # Speculative Growth
     'IONQ', 'SOUN', 'SERV', 'CVNA', 'DUOL', 'CAVA', 'HIMS',
-    # Space / New Tech
-    'SPIR', 'BKSY', 'INTA'
+    'BKSY', 'INTA', 'ACHR', 'SPCE', 'PL', 'VORB',
+    'INTC', 'QCOM', 'LRCX', 'TXN', 'ASML',
+    'COMP', 'DNUT', 'U', 'S', 'ZS', 'PANW', 'FTNT',
+    'LI', 'PSNY', 'FSR', 'GOEV'
 ]
 
 # PARAMETERS
@@ -227,14 +231,19 @@ class Boof30Trader:
         except Exception as e:
             print(f"  Error exiting {symbol}: {e}")
     
+    def __init__(self):
+        self.positions = {}
+        self.trade_log = []
+        self.last_signal_time = {}  # Track last signal per symbol to avoid duplicates
+        
     def scan_for_signals(self, symbols, score_thresh, is_core=True):
-        """Scan for 2-bar ignition patterns"""
+        """Scan for 2-bar ignition patterns - with fresh signal detection"""
         signals = []
         
         try:
-            # Get recent bars
+            # Get 30 minutes of data for accurate VWAP/RVOL calculation
             now = datetime.now()
-            start = now - timedelta(minutes=5)
+            start = now - timedelta(minutes=30)
             
             request = StockBarsRequest(
                 symbol_or_symbols=symbols,
@@ -251,24 +260,31 @@ class Boof30Trader:
                 if symbol in self.positions:
                     continue
                 
-                sym_data = df[df['symbol'] == symbol].sort_values('timestamp').tail(30)
+                sym_data = df[df['symbol'] == symbol].sort_values('timestamp')
                 
-                if len(sym_data) < 10:
+                if len(sym_data) < 25:  # Need at least 25 bars for proper VWAP
                     continue
                 
                 # Calculate metrics
                 sym_data['vwap'] = ((sym_data['high'] + sym_data['low'] + sym_data['close']) / 3 * sym_data['volume']).cumsum() / sym_data['volume'].cumsum()
-                sym_data['avg_vol'] = sym_data['volume'].rolling(20, min_periods=1).mean()
+                sym_data['avg_vol'] = sym_data['volume'].rolling(20, min_periods=20).mean()
                 sym_data['rvol'] = sym_data['volume'] / sym_data['avg_vol']
                 sym_data['body'] = abs(sym_data['close'] - sym_data['open']) / sym_data['open']
                 sym_data['vwap_slope'] = sym_data['vwap'].diff(10) / sym_data['vwap'].shift(10) * 100
                 
-                # Check last 2 bars
-                if len(sym_data) >= 2:
-                    b1 = sym_data.iloc[-2]
-                    b2 = sym_data.iloc[-1]
+                # Get last 2 complete bars (skip current in-progress bar)
+                if len(sym_data) >= 3:
+                    b1 = sym_data.iloc[-3]  # 2 bars ago
+                    b2 = sym_data.iloc[-2]  # 1 bar ago (most recent complete bar)
+                    b2_timestamp = b2['timestamp']
                     
-                    # 2-bar long ignition
+                    # Skip if we already traded this signal (1 min cooldown)
+                    if symbol in self.last_signal_time:
+                        last_time = self.last_signal_time[symbol]
+                        if abs((b2_timestamp - last_time).total_seconds()) < 60:  # 1 min cooldown
+                            continue
+                    
+                    # 2-bar long ignition pattern
                     if (b1['body'] >= 0.004 and b1['rvol'] >= 2.0 and b2['rvol'] >= 1.5 and 
                         b1['close'] > b1['vwap'] and b2['close'] > b2['vwap'] and b2['close'] > b1['high']):
                         
@@ -280,6 +296,9 @@ class Boof30Trader:
                         if b2['body'] * 100 > PARAMS['bar2_body']: score += 1
                         
                         if score >= score_thresh:
+                            # Record this signal time
+                            self.last_signal_time[symbol] = b2_timestamp
+                            
                             signals.append({
                                 'symbol': symbol,
                                 'score': score,
@@ -287,11 +306,13 @@ class Boof30Trader:
                                 'rvol': b1['rvol'],
                                 'body': b1['body'],
                                 'vwap_slope': b1['vwap_slope'],
-                                'is_core': is_core
+                                'is_core': is_core,
+                                'signal_time': b2_timestamp
                             })
+                            logging.info(f'SIGNAL: {symbol} Score={score} @ {b2_timestamp.strftime("%H:%M:%S")}')
             
         except Exception as e:
-            print(f"  Scan error: {e}")
+            logging.warning(f'Scan error: {e}')
         
         return signals
     
