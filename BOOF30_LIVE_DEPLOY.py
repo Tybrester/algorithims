@@ -9,7 +9,15 @@ from alpaca.data.timeframe import TimeFrame
 from datetime import datetime, timedelta
 import time
 import warnings
+import logging
 warnings.filterwarnings('ignore')
+
+# Setup logging to match Boof 23/29 format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s  %(levelname)-5s  %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 # PAPER TRADING KEYS
 API_KEY = 'PK2O2N4OQ4PEATNTDN57MNSIB7'
@@ -325,15 +333,15 @@ class Boof30Trader:
                 sleep_seconds = (next_open - now).total_seconds()
                 sleep_hours = sleep_seconds / 3600
                 
-                print(f'[{now.strftime("%H:%M:%S")}] Market closed. Next open: {next_open.strftime("%Y-%m-%d %H:%M")} (sleeping {sleep_hours:.1f}h)')
+                logging.info(f'Market closed. Next open: {next_open.strftime("%Y-%m-%d %H:%M")} ET (sleeping {sleep_hours:.1f}h)')
                 
                 # Heartbeat every minute while sleeping
                 while datetime.now() < next_open:
                     hb_now = datetime.now()
-                    print(f'[{hb_now.strftime("%H:%M:%S")}] [Heartbeat] Boof 30 Alive — {hb_now.strftime("%Y-%m-%d %H:%M")} ET')
+                    logging.info(f'[Heartbeat] Boof 30 Alive — {hb_now.strftime("%Y-%m-%d %H:%M")} ET')
                     time.sleep(60)
                 
-                print(f'[{datetime.now().strftime("%H:%M:%S")}] Market open! Starting trading...')
+                logging.info('Market open! Starting trading...')
                 continue
             
             # Check exits every minute
