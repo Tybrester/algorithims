@@ -514,7 +514,7 @@ def manage_positions():
             if exit1_triggered:
                 trail_stop = entry_info.get("trail_stop", entry_price * (1 + SL_OPTIMIZED))
                 
-                # Update trailing stop if price moved favorably
+                # Update trailing stop if price moved favorably (for shorts, lower is better)
                 new_trail_stop = current_price * (1 + SL_OPTIMIZED)
                 if new_trail_stop < trail_stop:
                     trail_stop = new_trail_stop
@@ -522,7 +522,7 @@ def manage_positions():
                         entry_data[symbol]["trail_stop"] = trail_stop
                         pd.DataFrame(entry_data.values()).to_csv("boof31_today_entries.csv", index=False)
 
-                # Check trailing stop
+                # Check trailing stop (for shorts, if price goes UP to trail stop)
                 if current_price >= trail_stop:
                     positions_to_close.append(symbol)
                     log.info(f"  TRAILING STOP {symbol}: {symbol} @ ${current_price:.2f}")
@@ -667,7 +667,7 @@ def run_continuous():
             # Check if market is open
             if not is_market_open():
                 log.info(f"Market closed ({now_et.strftime('%H:%M:%S')} ET)")
-                time.sleep(60)  # Check every minute
+                time.sleep(30)  # Check every 30 seconds when closed
                 continue
             
             # Log new day
@@ -681,8 +681,8 @@ def run_continuous():
             # Manage existing positions
             manage_positions()
             
-            # Wait before next iteration
-            time.sleep(60)  # Check every minute
+            # Wait before next iteration - REAL-TIME SCANNING
+            time.sleep(5)  # Check every 5 seconds when market is open
             
         except KeyboardInterrupt:
             log.info("Stopped by user.")
