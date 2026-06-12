@@ -66,6 +66,8 @@ EXTENDED_UNIVERSE = [
     "XOM", "CVX", "COP", "SLB", "HAL", "OXY", "EOG", "MPC",
     # Telecom/Media
     "TMUS", "ROKU", "SPOT", "PINS", "SNAP", "RDDT", "COIN",
+    # Crypto Mining
+    "HUT", "MARA", "RIOT", "CLSK",
     # Semiconductor/Hardware
     "MSTR", "HOOD", "APP", "SMCI", "ARM", "MU", "QCOM", "MRVL", "TSM", "ASML",
     # Semicap Equipment
