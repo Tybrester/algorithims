@@ -255,7 +255,7 @@ def calculate_boof_score(symbol):
     """Calculate BOOF score for a symbol using recent data"""
     try:
         import pytz
-        et = pytz.timezone("America/New_York")
+        et = pytz.timezone("US/Eastern")  # EST timezone
         end = datetime.datetime.now(et)
         start = end - datetime.timedelta(hours=2)
         
@@ -314,7 +314,7 @@ def check_sweep_condition(symbol):
     """Check if sweep condition is met (price spike above resistance)"""
     try:
         import pytz
-        et = pytz.timezone("America/New_York")
+        et = pytz.timezone("US/Eastern")  # EST timezone
         end = datetime.datetime.now(et)
         start = end - datetime.timedelta(minutes=10)
         
@@ -516,11 +516,12 @@ def is_market_open():
 def run_options_continuous():
     """Run BOOF 31 v2 options bot continuously during market hours."""
     import pytz
-    et = pytz.timezone("America/New_York")
+    et = pytz.timezone("US/Eastern")  # EST timezone for proper market hours
     
     log.info("BOOF 31 v2 OPTIONS Bot — 24/7 Continuous mode started")
     log.info(f"Parameters: TP={OPTIONS_TP:.0%}, SL={OPTIONS_SL:.0%}, Timeout={TIMEOUT_MINUTES}min, UNLIMITED daily trades")
     log.info("24/7 monitoring: Active during market hours, standby when closed")
+    log.info(f"Timezone: EST (US/Eastern) - Trading starts at 9:30 AM EST")
     
     while True:
         try:
