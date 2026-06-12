@@ -30,7 +30,7 @@ OPTIONS_TP = 0.40      # +40% take profit
 OPTIONS_SL = 0.15      # -15% stop loss
 TIMEOUT_MINUTES = 20   # 20 minute timeout
 POSITION_SIZE_USD = 500  # $500 per options position
-MAX_POSITIONS = 3       # Max concurrent options positions
+MAX_POSITIONS = 999     # Effectively unlimited concurrent options positions
 COOLDOWN_MINUTES = 30   # 30-minute cooldown per symbol
 
 # BOOF 31 v2 PARAMETERS
@@ -519,7 +519,7 @@ def run_options_continuous():
     et = pytz.timezone("America/New_York")
     
     log.info("BOOF 31 v2 OPTIONS Bot — Continuous mode started")
-    log.info(f"Parameters: TP={OPTIONS_TP:.0%}, SL={OPTIONS_SL:.0%}, Timeout={TIMEOUT_MINUTES}min")
+    log.info(f"Parameters: TP={OPTIONS_TP:.0%}, SL={OPTIONS_SL:.0%}, Timeout={TIMEOUT_MINUTES}min, UNLIMITED daily trades")
     
     while True:
         try:
