@@ -1,19 +1,19 @@
 """
-BOOF 29 — Paper Trading Bot (Alpaca Paper)
-Runs every morning at 9:30 ET, scans for signals at 9:35, exits at 10:20.
+BOOF 31 v2 — Paper Trading Bot (Alpaca Paper)
+Optimized resistance sweep short strategy with Exit C
 
 Setup:
   1. Get paper API keys from: https://app.alpaca.markets  (toggle Paper in top-left)
-  2. pip install alpaca-trade-api schedule
+  2. pip install alpaca-trade-api schedule pandas numpy
   3. Set ALPACA_PAPER_KEY and ALPACA_PAPER_SECRET below (or env vars)
   4. Run: python boof29_paper.py
 
 The bot will:
   - Connect to Alpaca paper environment
-  - Every trading day at 9:30 ET: fetch QQQ 5-min open data
-  - At 9:35 ET: scan all symbols for 0.50-0.60% move + QQQ filter
-  - Enter market buy on all qualifying symbols
-  - At 10:20 ET: close all Boof 29 positions
+  - Scan for BOOF 31 v2 resistance sweep setups during market hours
+  - Enter short positions on qualifying symbols (Score >= 6, Sweep >= 0.20%)
+  - Use Exit C strategy: 50% at 0.50% + 0.25% trailing stop
+  - Apply 30-minute cooldown per symbol
   - Log all trades to boof29_paper_log.csv
 """
 
@@ -30,36 +30,48 @@ SUPABASE_URL = "https://isanhutzyctcjygjhzbn.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0"
 SUPABASE_USER_ID = "d0bb84ba-f968-446c-9792-9bcff8849e37"
 BOT_ID           = "0c1827dd-b57f-4640-81ed-120dabef1ef2"
-BOT_NAME     = "Boof 29 Paper"   # shows on trades page
+BOT_NAME     = "BOOF 31 v2 Paper"   # shows on trades page
 
-MOVE_LO      = 0.50    # % lower bound
-MOVE_HI      = 0.60    # % upper bound
-QQQ_MIN_MOVE = 0.10    # % QQQ 5-min move floor
-POSITION_PCT = 0.10    # use 10% of buying power per signal (spread across concurrent)
-MAX_POSITIONS= 5       # max concurrent open positions
-ACCOUNT_SIZE = 5000    # set your actual paper account size
-PDT_GUARD    = True    # if True, block trades if you'd hit 4 day trades in 5 days
+# BOOF 31 v2 OPTIMIZED PARAMETERS
+SWEEP_OPTIMIZED = 0.0020    # 0.20% sweep requirement
+TP1 = 0.0050                # 0.50% first target
+SL_OPTIMIZED = 0.0025        # 0.25% stop loss
+COOLDOWN_MINUTES = 30        # 30-minute cooldown per symbol
+MIN_SCORE = 6                # Minimum BOOF score
+SLIPPAGE = 0.0005            # 0.05% slippage
+
+# POSITION SIZING
+POSITION_SIZE_USD = 1000     # Fixed $1000 per position
+MAX_POSITIONS = 8             # Max concurrent positions
+MAX_DAILY_LOSS = 0.02         # 2% max daily loss
+RISK_PER_TRADE = 0.01         # 1% risk per trade
+PDT_GUARD = True              # Block trades if near PDT limit
 
 WATCHLIST = [
-    # Semiconductors
-    "NVDA","AVGO","TSM","ASML","MU","AMAT","KLAC","LRCX",
-    "ADI","QCOM","NXPI","ON","MPWR","MRVL","INTC","ARM",
-    "TER","SWKS","QRVO","GFS","WOLF","COHR","LSCC","AEHR",
-    "ACLS","FORM","CRUS","SYNA","SMTC","AMKR","RMBS","UCTT",
-    "ENTG","CEVA","ICHR","VECO","ONTO","SIMO","HIMX",
-    "PI","IPGP","DIOD","POWI","MTSI","AOSL",
-    # Fintech
-    "HOOD","COIN","SOFI","AFRM","UPST","SQ","FI","PYPL",
-    "NU","BILL","TOST","PAYO","MA","V","AXP","SCHW",
-    "MS","GS","JPM","BAC","WFC","BX","BLK",
-    "SPGI","MCO","CME","ICE","AJG","PGR","TRV","MMC",
-    "AMP","RJF","STT","NTRS",
-    # Industrials
-    "CAT","PH","TT","URI","DE","ROP","PWR",
-    "AME","HUBB","XYL","DOV","GWW","FAST","ODFL",
-    "UNP","NSC","CSX","PCAR","ROK","JCI","IR",
-    "CARR","GE","RTX","LMT","NOC","GD","TDG",
-    "HEI","EXPD","CHRW","ITW","EMR","HON",
+    # Tech Giants
+    "AAPL","MSFT","NVDA","AMZN","META","GOOGL","TSLA","AVGO","AMD","NFLX",
+    # Cloud/SaaS
+    "CRM","NOW","SNOW","PLTR","DDOG","MDB","CRWD","ZS","NET","SHOP",
+    # Software
+    "ADBE","INTU","PANW","TEAM","HUBS","UBER","ABNB","BKNG","RBLX","DASH",
+    # Latin America/E-commerce
+    "MELI","ETSY",
+    # Financials
+    "JPM","GS","MS","BAC","WFC","AXP","COF","SCHW","BLK","SPGI",
+    # Healthcare/Biotech
+    "LLY","NVO","UNH","ISRG","VRTX","REGN","MRNA","BIIB","GILD","BMY",
+    # Industrial/Defense
+    "GE","RTX","LMT","BA","CAT","DE","ETN","PH","TT",
+    # Energy
+    "XOM","CVX","COP","SLB","HAL","OXY","EOG","MPC","VLO","DVN",
+    # Telecom/Media
+    "TMUS","CMCSA","ROKU","SPOT","PINS","SNAP","RDDT","COIN",
+    # Semiconductor/Hardware
+    "MSTR","HOOD","SMCI","ARM","MU","QCOM","MRVL","TSM","ASML",
+    # Semicap Equipment
+    "AMAT","LRCX","KLAC","MCHP","ON","NXPI",
+    # ETFs
+    "SPY","QQQ","IWM","SMH"
 ]
 
 # ── LOGGING ───────────────────────────────────────────────────────────
@@ -226,107 +238,352 @@ def get_open_boof29_positions():
         log.warning(f"Position fetch error: {e}")
         return {}
 
-# ── SCAN (9:35 ET) ────────────────────────────────────────────────────
+# ── BOOF 31 v2 STRATEGY FUNCTIONS ───────────────────────────────────────
+def calculate_boof_score(symbol):
+    """Calculate BOOF score for a symbol using recent data"""
+    try:
+        import pytz
+        et = pytz.timezone("America/New_York")
+        end = datetime.datetime.now(et)
+        start = end - datetime.timedelta(hours=2)
+        
+        req = StockBarsRequest(symbol_or_symbols=symbol, timeframe=TimeFrame.Minute,
+                              start=start, end=end, limit=120)
+        bars = data_client.get_stock_bars(req).df
+        
+        if isinstance(bars.index, pd.MultiIndex):
+            bars = bars.xs(symbol, level="symbol")
+        
+        if len(bars) < 50:
+            return 0
+        
+        # Calculate technical indicators
+        bars['sma_20'] = bars['close'].rolling(window=20).mean()
+        bars['sma_50'] = bars['close'].rolling(window=50).mean()
+        bars['volume_sma_20'] = bars['volume'].rolling(window=20).mean()
+        bars['resistance_10'] = bars['high'].rolling(window=10).max()
+        bars['price_change_5'] = bars['close'].pct_change(5)
+        bars['volatility_10'] = bars['close'].pct_change().rolling(window=10).std()
+        
+        # Get latest values
+        latest = bars.iloc[-1]
+        
+        score = 0
+        
+        # Volume expansion (score +2)
+        if latest['volume'] > latest['volume_sma_20'] * 1.2:
+            score += 2
+        
+        # Price above moving averages (score +2)
+        if latest['close'] > latest['sma_20']:
+            score += 1
+        if latest['close'] > latest['sma_50']:
+            score += 1
+        
+        # Near resistance (score +2)
+        if latest['close'] > latest['resistance_10'] * 0.98:
+            score += 2
+        
+        # Recent strength (score +2)
+        if latest['price_change_5'] > 0.01:
+            score += 2
+        
+        # Volatility bonus (score +1)
+        if latest['volatility_10'] > latest['volatility_10'].quantile(0.7):
+            score += 1
+        
+        return min(10, max(0, int(score)))
+        
+    except Exception as e:
+        log.warning(f"Error calculating BOOF score for {symbol}: {e}")
+        return 0
+
+def check_sweep_condition(symbol):
+    """Check if sweep condition is met (price spike above resistance)"""
+    try:
+        import pytz
+        et = pytz.timezone("America/New_York")
+        end = datetime.datetime.now(et)
+        start = end - datetime.timedelta(minutes=10)
+        
+        req = StockBarsRequest(symbol_or_symbols=symbol, timeframe=TimeFrame.Minute,
+                              start=start, end=end, limit=10)
+        bars = data_client.get_stock_bars(req).df
+        
+        if isinstance(bars.index, pd.MultiIndex):
+            bars = bars.xs(symbol, level="symbol")
+        
+        if len(bars) < 5:
+            return False
+        
+        # Check for sweep (price spike above resistance)
+        latest = bars.iloc[-1]
+        previous = bars.iloc[-2]
+        
+        # Calculate resistance
+        resistance = bars['high'].rolling(window=5).max().iloc[-2]
+        
+        # Check if price swept above resistance
+        if latest['close'] > resistance * 1.002:  # 0.2% sweep
+            return True
+        
+        return False
+        
+    except Exception as e:
+        log.warning(f"Error checking sweep condition for {symbol}: {e}")
+        return False
+
+def check_cooldown(symbol):
+    """Check if cooldown period has passed"""
+    if not os.path.exists("boof31_cooldowns.json"):
+        return True
+    
+    try:
+        with open("boof31_cooldowns.json", "r") as f:
+            cooldowns = json.load(f)
+        
+        if symbol not in cooldowns:
+            return True
+        
+        last_trade = datetime.datetime.fromisoformat(cooldowns[symbol])
+        time_since = datetime.datetime.now() - last_trade
+        
+        return time_since.total_seconds() >= COOLDOWN_MINUTES * 60
+        
+    except Exception as e:
+        log.warning(f"Error checking cooldown for {symbol}: {e}")
+        return True
+
+def update_cooldown(symbol):
+    """Update cooldown timestamp for symbol"""
+    try:
+        cooldowns = {}
+        if os.path.exists("boof31_cooldowns.json"):
+            with open("boof31_cooldowns.json", "r") as f:
+                cooldowns = json.load(f)
+        
+        cooldowns[symbol] = datetime.datetime.now().isoformat()
+        
+        with open("boof31_cooldowns.json", "w") as f:
+            json.dump(cooldowns, f)
+            
+    except Exception as e:
+        log.warning(f"Error updating cooldown for {symbol}: {e}")
+
+def calculate_position_size(symbol):
+    """Calculate position size based on fixed USD amount"""
+    try:
+        current_price = get_current_price(symbol)
+        if not current_price or current_price <= 0:
+            return 0
+        
+        shares = int(POSITION_SIZE_USD / current_price)
+        return max(1, shares)
+        
+    except Exception as e:
+        log.warning(f"Error calculating position size for {symbol}: {e}")
+        return 0
+
+# ── SCAN AND ENTER (CONTINUOUS) ────────────────────────────────────────
 def scan_and_enter():
+    """Scan for BOOF 31 v2 setups and enter positions"""
     log.info("=" * 60)
-    log.info("SCAN: 9:35 ET — checking signals...")
+    log.info("BOOF 31 v2 SCAN — checking for resistance sweep setups...")
 
-    qqq_bars  = get_5min_bars(["QQQ"]).get("QQQ")
-    qqq_move  = calc_5min_move(qqq_bars)
-    qqq_ema50 = get_qqq_ema50()
-
-    if qqq_move is None:
-        log.warning("QQQ data unavailable — skipping today")
-        return
-    log.info(f"QQQ 5-min move: {qqq_move:+.3f}%  EMA50: {qqq_ema50}")
-
-    if qqq_move < QQQ_MIN_MOVE:
-        log.info(f"QQQ move {qqq_move:.3f}% < {QQQ_MIN_MOVE}% threshold — no trades today")
+    positions = get_open_boof29_positions()
+    if len(positions) >= MAX_POSITIONS:
+        log.info(f"Max positions reached ({MAX_POSITIONS})")
         return
 
-    if qqq_ema50:
-        qqq_open = float(qqq_bars.iloc[0]["open"])
-        if qqq_open <= qqq_ema50:
-            log.info(f"QQQ open {qqq_open:.2f} <= EMA50 {qqq_ema50:.2f} — no trades today")
-            return
-
-    all_bars = get_5min_bars(WATCHLIST)
-
-    signals = []
-    for sym in WATCHLIST:
-        bars = all_bars.get(sym)
-        if bars is None: continue
-        move = calc_5min_move(bars)
-        if move is None: continue
-        if MOVE_LO <= move < MOVE_HI:
-            signals.append((sym, move, float(bars.iloc[-1]["close"])))
-
-    if not signals:
-        log.info("No signals found today")
+    opportunities = []
+    for symbol in WATCHLIST:
+        if symbol in positions:
+            continue
+        
+        if not check_cooldown(symbol):
+            continue
+        
+        # Calculate BOOF score
+        score = calculate_boof_score(symbol)
+        if score < MIN_SCORE:
+            continue
+        
+        # Check sweep condition
+        if not check_sweep_condition(symbol):
+            continue
+        
+        current_price = get_current_price(symbol)
+        if not current_price:
+            continue
+        
+        opportunities.append((symbol, score, current_price))
+    
+    if not opportunities:
+        log.info("No BOOF 31 v2 setups found")
         return
 
-    log.info(f"Signals found: {[s[0] for s in signals]}")
-
-    acct      = trade_client.get_account()
-    bp        = float(acct.buying_power)
-    n_signals = min(len(signals), MAX_POSITIONS)
-    per_trade = bp / n_signals * 0.95
+    log.info(f"BOOF 31 v2 setups found: {[f'{s[0]}(score:{s[1]})' for s in opportunities]}")
 
     today = datetime.date.today().isoformat()
     entered = []
-    for sym, move, price in signals[:MAX_POSITIONS]:
-        if price <= 0: continue
-        shares = int(per_trade / price)
-        if shares < 1:
-            log.warning(f"  {sym}: insufficient buying power (${price:.2f}/share)")
+    
+    for symbol, score, price in opportunities:
+        if len(positions) + len(entered) >= MAX_POSITIONS:
+            break
+        
+        shares = calculate_position_size(symbol)
+        if shares == 0:
+            log.warning(f"  {symbol}: insufficient funds for position")
             continue
+        
         try:
-            req   = MarketOrderRequest(symbol=sym, qty=shares,
-                                       side=OrderSide.BUY, time_in_force=TimeInForce.DAY)
+            req = MarketOrderRequest(symbol=symbol, qty=shares,
+                                   side=OrderSide.SELL, time_in_force=TimeInForce.DAY)
             order = trade_client.submit_order(req)
-            log.info(f"  BUY {sym}  {shares} shares @ ~${price:.2f}  (5m move: {move:+.2f}%)  id: {order.id}")
-            sb_id = sb_insert_trade(sym, price, shares, str(order.id))
-            entered.append({"symbol": sym, "shares": shares, "entry_approx": price,
-                            "order_id": str(order.id), "sb_trade_id": sb_id or "", "date": today})
+            log.info(f"  SHORT {symbol} {shares} shares @ ${price:.2f} (Score: {score})  id: {order.id}")
+            
+            sb_id = sb_insert_trade(symbol, price, shares, str(order.id))
+            entered.append({"symbol": symbol, "shares": shares, "entry_price": price,
+                          "order_id": str(order.id), "sb_trade_id": sb_id or "", 
+                          "date": today, "score": score})
+            
+            update_cooldown(symbol)
+            positions[symbol] = True
+            
         except Exception as e:
-            log.error(f"  Order failed for {sym}: {e}")
+            log.error(f"  Order failed for {symbol}: {e}")
 
     if entered:
-        pd.DataFrame(entered).to_csv("boof29_today_entries.csv", index=False)
-        log.info(f"Entered {len(entered)} positions. Exit at 10:20 ET.")
+        pd.DataFrame(entered).to_csv("boof31_today_entries.csv", index=False)
+        log.info(f"Entered {len(entered)} BOOF 31 v2 positions.")
     else:
         log.info("No positions entered.")
 
-# ── EXIT (10:20 ET) ───────────────────────────────────────────────────
-def exit_all():
+# ── EXIT C STRATEGY (CONTINUOUS) ────────────────────────────────────────
+def manage_positions():
+    """Manage existing positions with Exit C strategy"""
     log.info("=" * 60)
-    log.info("EXIT: 10:20 ET — closing all Boof 29 positions...")
+    log.info("EXIT C MANAGEMENT — checking positions...")
+
+    positions = get_open_boof29_positions()
+    if not positions:
+        log.info("No open positions to manage.")
+        return
+
+    # Load entry data
+    entry_data = {}
+    if os.path.exists("boof31_today_entries.csv"):
+        edf = pd.read_csv("boof31_today_entries.csv")
+        entry_data = {row["symbol"]: row for _, row in edf.iterrows()}
+
+    today = datetime.date.today().isoformat()
+    positions_to_close = []
+
+    for symbol, pos in positions.items():
+        try:
+            current_price = get_current_price(symbol)
+            if not current_price:
+                continue
+
+            entry_price = float(pos.avg_entry_price)
+            shares = int(float(pos.qty))
+            
+            # Calculate unrealized PnL
+            pnl_pct = (entry_price - current_price) / entry_price
+
+            # Exit C logic: 50% at 0.50% target
+            entry_info = entry_data.get(symbol, {})
+            exit1_triggered = entry_info.get("exit1_triggered", False)
+
+            if not exit1_triggered and current_price <= entry_price * (1 - TP1):
+                # Close 50% of position
+                exit_shares = shares // 2
+                if exit_shares > 0:
+                    req = MarketOrderRequest(symbol=symbol, qty=exit_shares,
+                                           side=OrderSide.BUY, time_in_force=TimeInForce.DAY)
+                    order = trade_client.submit_order(req)
+                    log.info(f"  EXIT 1 {symbol}: {exit_shares} shares @ ${current_price:.2f} (Target: {TP1:.1%})")
+                    
+                    # Update entry data
+                    if symbol in entry_data:
+                        entry_data[symbol]["exit1_triggered"] = True
+                        entry_data[symbol]["trail_stop"] = current_price * (1 + SL_OPTIMIZED)
+                        pd.DataFrame(entry_data.values()).to_csv("boof31_today_entries.csv", index=False)
+
+            # Trailing stop for remaining position
+            if exit1_triggered:
+                trail_stop = entry_info.get("trail_stop", entry_price * (1 + SL_OPTIMIZED))
+                
+                # Update trailing stop if price moved favorably
+                new_trail_stop = current_price * (1 + SL_OPTIMIZED)
+                if new_trail_stop < trail_stop:
+                    trail_stop = new_trail_stop
+                    if symbol in entry_data:
+                        entry_data[symbol]["trail_stop"] = trail_stop
+                        pd.DataFrame(entry_data.values()).to_csv("boof31_today_entries.csv", index=False)
+
+                # Check trailing stop
+                if current_price >= trail_stop:
+                    positions_to_close.append(symbol)
+                    log.info(f"  TRAILING STOP {symbol}: {symbol} @ ${current_price:.2f}")
+
+            # Stop loss check
+            if current_price >= entry_price * (1 + SL_OPTIMIZED):
+                positions_to_close.append(symbol)
+                log.info(f"  STOP LOSS {symbol}: {symbol} @ ${current_price:.2f}")
+
+        except Exception as e:
+            log.error(f"  Error managing {symbol}: {e}")
+            positions_to_close.append(symbol)
+
+    # Close positions that need to be closed
+    for symbol in positions_to_close:
+        close_position(symbol)
+
+def close_position(symbol):
+    """Close a specific position"""
+    try:
+        pos = trade_client.get_open_position(symbol)
+        shares = int(float(pos.qty))
+        entry_price = float(pos.avg_entry_price)
+        
+        trade_client.close_position(symbol)
+        exit_price = get_current_price(symbol) or entry_price
+        
+        # Log trade
+        today = datetime.date.today().isoformat()
+        log_trade(today, symbol, entry_price, exit_price, shares)
+        
+        # Close Supabase trade
+        entry_data = {}
+        if os.path.exists("boof31_today_entries.csv"):
+            edf = pd.read_csv("boof31_today_entries.csv")
+            entry_data = {row["symbol"]: row for _, row in edf.iterrows()}
+        
+        sb_trade_id = entry_data.get(symbol, {}).get("sb_trade_id", "")
+        sb_close_trade(sb_trade_id, exit_price, entry_price, shares)
+        
+        log.info(f"  CLOSED {symbol}: PnL {((entry_price - exit_price) / entry_price):+.2%}")
+        
+    except Exception as e:
+        log.error(f"  Failed to close {symbol}: {e}")
+
+def exit_all():
+    """Emergency close all positions"""
+    log.info("=" * 60)
+    log.info("EMERGENCY EXIT — closing all positions...")
 
     positions = get_open_boof29_positions()
     if not positions:
         log.info("No open positions to close.")
         return
 
-    # Load Supabase trade IDs saved at entry
-    sb_ids = {}
-    if os.path.exists("boof29_today_entries.csv"):
-        edf = pd.read_csv("boof29_today_entries.csv")
-        sb_ids = {row["symbol"]: row.get("sb_trade_id", "") for _, row in edf.iterrows()}
+    for symbol in positions.keys():
+        close_position(symbol)
 
-    today = datetime.date.today().isoformat()
-    for sym, pos in positions.items():
-        shares   = int(float(pos.qty))
-        entry_px = float(pos.avg_entry_price)
-        try:
-            trade_client.close_position(sym)
-            exit_px = get_current_price(sym) or entry_px
-            log_trade(today, sym, entry_px, exit_px, shares)
-            sb_close_trade(sb_ids.get(sym), exit_px, entry_px, shares)
-        except Exception as e:
-            log.error(f"  Failed to close {sym}: {e}")
-
-    if os.path.exists("boof29_today_entries.csv"):
-        os.remove("boof29_today_entries.csv")
+    # Clean up entry files
+    if os.path.exists("boof31_today_entries.csv"):
+        os.remove("boof31_today_entries.csv")
 
     log.info("All positions closed.")
 
@@ -396,21 +653,44 @@ def wait_for_market_open():
             time.sleep(60)
 
 
-def run_day():
-    """Trade one full day: scan at 9:35, exit at 10:20."""
+def run_continuous():
+    """Run BOOF 31 v2 bot continuously during market hours."""
     import pytz
     et = pytz.timezone("America/New_York")
-    now_et = datetime.datetime.now(et)
-    log.info(f"=== NEW DAY {now_et.strftime('%Y-%m-%d')} === Boof 29 Paper")
-
-    wait_until_et(9, 35, "SCAN")
-    scan_and_enter()
-
-    wait_until_et(10, 20, "EXIT")
-    exit_all()
-
-    print_summary()
-    log.info("Day complete.")
+    
+    log.info("BOOF 31 v2 Bot — Continuous mode started")
+    
+    while True:
+        try:
+            now_et = datetime.datetime.now(et)
+            
+            # Check if market is open
+            if not is_market_open():
+                log.info(f"Market closed ({now_et.strftime('%H:%M:%S')} ET)")
+                time.sleep(60)  # Check every minute
+                continue
+            
+            # Log new day
+            if now_et.hour == 9 and now_et.minute == 30:
+                log.info(f"=== NEW DAY {now_et.strftime('%Y-%m-%d')} === BOOF 31 v2 Paper")
+                print_summary()
+            
+            # Scan for new opportunities
+            scan_and_enter()
+            
+            # Manage existing positions
+            manage_positions()
+            
+            # Wait before next iteration
+            time.sleep(60)  # Check every minute
+            
+        except KeyboardInterrupt:
+            log.info("Stopped by user.")
+            exit_all()
+            break
+        except Exception as e:
+            log.error(f"Continuous loop error: {e} — restarting in 60s")
+            time.sleep(60)
 
 
 # ── ENTRY POINT ───────────────────────────────────────────────────────
@@ -420,19 +700,9 @@ if __name__ == "__main__":
         exit_all()
     elif len(sys.argv) > 1 and sys.argv[1] == "scan":
         scan_and_enter()
+    elif len(sys.argv) > 1 and sys.argv[1] == "manage":
+        manage_positions()
     elif len(sys.argv) > 1 and sys.argv[1] == "summary":
         print_summary()
     else:
-        log.info("Boof 29 Paper Bot — 24/7 mode started")
-        while True:
-            try:
-                wait_for_market_open()
-                run_day()
-                time.sleep(300)  # 5 min after close before next open check
-            except KeyboardInterrupt:
-                log.info("Stopped by user.")
-                exit_all()
-                break
-            except Exception as e:
-                log.error(f"Day loop error: {e} — restarting in 60s")
-                time.sleep(60)
+        run_continuous()

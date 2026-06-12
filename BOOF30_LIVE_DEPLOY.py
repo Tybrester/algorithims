@@ -37,7 +37,7 @@ CORE_UNIVERSE = [
     # Crypto
     'COIN', 'MSTR', 'RIOT', 'MARA', 'HUT', 'CLSK', 'BTBT', 'BITF', 'IREN',
     # Space
-    'RKLB', 'LUNR', 'ASTS', 'RDW', 'SPIR',
+    'RKLB', 'LUNR', 'ASTS', 'RDW', 'SPIR', 'SPCX',
     # EVs
     'TSLA', 'RIVN', 'LCID', 'NIO', 'XPEV'
 ]

@@ -1,0 +1,18 @@
+[Unit]
+Description=Boof 30 Live Trading Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/algorithims
+Environment=PYTHONPATH=/home/ubuntu/algorithims
+Environment=ALPACA_PAPER=true
+ExecStart=/usr/bin/python3 /home/ubuntu/algorithims/BOOF30_LIVE_DEPLOY.py
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/ubuntu/logs/boof30.log
+StandardError=append:/home/ubuntu/logs/boof30_error.log
+
+[Install]
+WantedBy=multi-user.target
