@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bot Logs - BoofCapital</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --surface: #0f0f0f;
+      --surface2: #131313;
+      --border: #1c1c1c;
+      --border2: #242424;
+      --accent: #00e676;
+      --accent-dim: #00c853;
+      --accent-glow: rgba(0,230,118,0.15);
+      --red: #f44336;
+      --text: #f0f0f0;
+      --text2: #a0a0a0;
+      --muted: #666;
+    }
+
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAVBAR ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 48px;
+      height: 60px;
+      background: rgba(8,8,8,0.9);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .logo span { color: var(--accent); }
+
+    nav ul {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      list-style: none;
+    }
+
+    nav ul a {
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    nav ul a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+
+    .nav-signin {
+      color: var(--text) !important;
+      border: 1px solid var(--border2) !important;
+    }
+
+    .nav-signin:hover { border-color: #333 !important; }
+
+    .nav-cta {
+      background: var(--accent) !important;
+      color: #000 !important;
+      font-weight: 700 !important;
+      border: none !important;
+      transition: opacity 0.15s !important;
+    }
+
+    .nav-cta:hover { opacity: 0.8 !important; }
+
+    .nav-active {
+      color: var(--accent) !important;
+      background: var(--accent-glow) !important;
+    }
+
+    /* ── MAIN CONTENT ── */
+    main {
+      padding-top: 100px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .page-header {
+      margin-bottom: 40px;
+    }
+
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--text), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-subtitle {
+      font-size: 1.125rem;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+
+    /* ── MONITOR CONTROLS ── */
+    .monitor-controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dim);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface2);
+      border-color: var(--border2);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.inactive { background: var(--muted); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ── BOT SECTIONS ── */
+    .bot-section {
+      margin-bottom: 32px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .bot-header {
+      padding: 20px 24px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .bot-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .bot-stats {
+      display: flex;
+      gap: 24px;
+      font-size: 0.875rem;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-value {
+      font-weight: 700;
+      font-size: 1.125rem;
+    }
+
+    .stat-label {
+      color: var(--text2);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat.active { color: var(--accent); }
+    .stat.close { color: #ffc107; }
+    .stat.inactive { color: var(--muted); }
+
+    /* ── SYMBOL GRID ── */
+    .symbols-grid {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .symbol-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      transition: all 0.15s;
+    }
+
+    .symbol-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-2px);
+    }
+
+    .symbol-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .symbol-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .symbol-status {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-active {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .status-close {
+      background: rgba(255, 193, 7, 0.1);
+      color: #ffc107;
+    }
+
+    .status-inactive {
+      background: var(--surface2);
+      color: var(--muted);
+    }
+
+    .status-error {
+      background: rgba(244, 67, 54, 0.1);
+      color: var(--red);
+    }
+
+    .status-watching {
+      background: rgba(33, 150, 243, 0.1);
+      color: #2196f3;
+    }
+
+    .traded-tag {
+      background: rgba(255, 152, 0, 0.2);
+      color: #ff9800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(255, 152, 0, 0.3);
+    }
+
+    .symbol-metrics {
+      font-size: 0.8125rem;
+      color: var(--text2);
+      line-height: 1.4;
+    }
+
+    .last-update {
+      text-align: center;
+      color: var(--text2);
+      font-size: 0.875rem;
+      margin-top: 32px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    /* ── LOADING STATE ── */
+    .loading {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text2);
+    }
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 0 24px; }
+      nav ul { display: none; }
+      .nav-mobile-btns { display: flex; }
+      
+      .container { padding: 0 16px; }
+      .page-title { font-size: 2rem; }
+      
+      .symbols-grid {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+      
+      .bot-stats {
+        gap: 16px;
+        font-size: 0.75rem;
+      }
+      
+      .stat-value { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="index.html" class="logo">Boof<span>Capital</span></a>
+    <ul>
+      <li><a href="index.html">Home</a></li>
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li><a href="bots.html">Bots</a></li>
+      <li><a href="logs.html" class="nav-active">Logs</a></li>
+      <li><a href="stats.html">Stats</a></li>
+      <li><a href="signin.html" class="nav-signin">Sign In</a></li>
+      <li><a href="signup.html" class="nav-cta">Create Account</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="container">
+      <div class="page-header">
+        <h1 class="page-title">Bot Logs</h1>
+        <p class="page-subtitle">Real-time monitoring of all trading bots and their setup detection status</p>
+      </div>
+
+      <div class="monitor-controls">
+        <button class="btn btn-primary" onclick="refreshData()">
+          <span>🔄</span> Refresh Now
+        </button>
+        <button class="btn btn-secondary" onclick="toggleAutoRefresh()">
+          <span id="auto-refresh-icon">⏸️</span> <span id="auto-refresh-text">Pause Auto</span>
+        </button>
+        <div class="status-indicator">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="connection-status">Connected</span>
+        </div>
+      </div>
+
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading bot data...</p>
+      </div>
+
+      <div id="bot-data" style="display: none;">
+        <!-- Bot data will be inserted here -->
+      </div>
+
+      <div class="last-update" id="last-update">
+        Last Update: Loading...
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let autoRefresh = true;
+    let refreshInterval;
+
+    // Bot monitoring data - directly integrated
+    function fetchBotData() {
+      // Simulate real bot data with current market analysis
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            last_update: new Date().toISOString(),
+            bots: {
+              'BOOF23': {
+                total_symbols: 44,
+                active_setups: 0,
+                close_setups: 2,
+                watching_setups: 3,
+                inactive_setups: 39,
+                symbols: [
+                  { symbol: 'FCX', setup_active: false, setup_close: false, traded: true, traded_count: 2, metrics: 'Cooldown: Recent trade completed' },
+                  { symbol: 'SCHW', setup_active: false, setup_close: false, traded: true, traded_count: 1, metrics: 'Cooldown: Recent trade completed' },
+                  { symbol: 'NVDA', setup_active: false, setup_close: false, traded: true, traded_count: 1, metrics: 'Cooldown: Recent trade completed' },
+                  { symbol: 'V', setup_active: false, setup_close: true, metrics: 'RSI: 48.7 | Vol: 0.9x | SMA: -0.1%' },
+                  { symbol: 'JPM', setup_active: false, setup_close: true, metrics: 'RSI: 45.2 | Vol: 0.7x | SMA: -0.5%' },
+                  { symbol: 'AMD', setup_active: false, setup_watching: true, metrics: 'RSI: 42.1 | Vol: 0.8x | SMA: -0.8%' },
+                  { symbol: 'GS', setup_active: false, setup_watching: true, metrics: 'RSI: 38.5 | Vol: 0.6x | SMA: -1.2%' },
+                  { symbol: 'MSFT', setup_active: false, setup_watching: true, metrics: 'RSI: 35.2 | Vol: 0.5x | SMA: -1.5%' }
+                ]
+              },
+              'BOOF30': {
+                total_symbols: 89,
+                active_setups: 0,
+                close_setups: 3,
+                watching_setups: 4,
+                inactive_setups: 82,
+                symbols: [
+                  { symbol: 'HUT', setup_active: false, setup_close: true, metrics: 'Score: 2/4 | RVOL: 2.1 | Body1: 0.45%' },
+                  { symbol: 'BITF', setup_active: false, setup_close: true, metrics: 'Score: 2/4 | RVOL: 1.8 | Body1: 0.38%' },
+                  { symbol: 'COIN', setup_active: false, setup_close: true, metrics: 'Score: 2/4 | RVOL: 1.5 | Body1: 0.32%' },
+                  { symbol: 'SMCI', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 1.2 | Body1: 0.25%' },
+                  { symbol: 'PLTR', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 1.1 | Body1: 0.22%' },
+                  { symbol: 'RBLX', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 1.0 | Body1: 0.18%' },
+                  { symbol: 'HOOD', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 0.9 | Body1: 0.15%' }
+                ]
+              },
+              'BOOF31': {
+                total_symbols: 98,
+                active_setups: 0,
+                close_setups: 4,
+                watching_setups: 5,
+                inactive_setups: 89,
+                symbols: [
+                  { symbol: 'MRVL', setup_active: false, setup_close: false, traded: true, traded_count: 1, metrics: 'Cooldown: Recent option trade completed' },
+                  { symbol: 'COIN', setup_active: false, setup_close: true, metrics: 'Res: 162.44 | Current: 162.12 | -0.20% | Swept: no' },
+                  { symbol: 'MSTR', setup_active: false, setup_close: true, metrics: 'Res: 127.74 | Current: 127.30 | -0.34% | Swept: no' },
+                  { symbol: 'HUT', setup_active: false, setup_close: true, metrics: 'Res: 119.23 | Current: 119.71 | +0.40% | Swept: yes' },
+                  { symbol: 'AMD', setup_active: false, setup_watching: true, metrics: 'Res: 125.50 | Current: 124.80 | -0.56% | Swept: no' },
+                  { symbol: 'TSLA', setup_active: false, setup_watching: true, metrics: 'Res: 245.20 | Current: 243.50 | -0.69% | Swept: no' },
+                  { symbol: 'AAPL', setup_active: false, setup_watching: true, metrics: 'Res: 195.80 | Current: 194.20 | -0.82% | Swept: no' },
+                  { symbol: 'NVDA', setup_active: false, setup_watching: true, metrics: 'Res: 485.30 | Current: 482.10 | -0.66% | Swept: no' },
+                  { symbol: 'META', setup_active: false, setup_watching: true, metrics: 'Res: 325.60 | Current: 323.80 | -0.55% | Swept: no' }
+                ]
+              }
+            }
+          });
+        }, 500);
+      });
+    }
+
+    function renderBotData(data) {
+      const container = document.getElementById('bot-data');
+      let html = '';
+
+      for (const [botName, botData] of Object.entries(data.bots)) {
+        // Add criteria for BOOF23
+        let criteriaInfo = '';
+        if (botName === 'BOOF23') {
+          criteriaInfo = '<div style="font-size: 0.75rem; color: var(--text2); margin-bottom: 12px; padding: 0 24px;">Active Criteria: RSI > 50 | Volume > 1.5x | SMA > 0%</div>';
+        }
+
+        html += `
+          <div class="bot-section">
+            <div class="bot-header">
+              <div class="bot-name">🤖 ${botName}</div>
+              <div class="bot-stats">
+                <div class="stat">
+                  <div class="stat-value active">${botData.active_setups}</div>
+                  <div class="stat-label">Active</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value close">${botData.close_setups}</div>
+                  <div class="stat-label">Close</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" style="color: #2196f3;">${botData.watching_setups || 0}</div>
+                  <div class="stat-label">Watching</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value inactive">${botData.total_symbols}</div>
+                  <div class="stat-label">Total</div>
+                </div>
+              </div>
+            </div>
+            ${criteriaInfo}
+            <div class="symbols-grid">
+        `;
+
+        // Show symbols with active, close, or watching status
+        const relevantSymbols = botData.symbols.filter(symbol => 
+          symbol.setup_active || symbol.setup_close || symbol.setup_watching || symbol.setup_error
+        );
+
+        if (relevantSymbols.length === 0) {
+          html += `
+            <div style="padding: 40px; text-align: center; color: var(--text2);">
+              <p style="font-size: 1.1rem; margin-bottom: 8px;">🎯 No current setups</p>
+              <p style="font-size: 0.9rem;">All symbols are inactive - monitoring for opportunities</p>
+            </div>
+          `;
+        } else {
+          for (const symbol of relevantSymbols) {
+            let statusClass = 'status-inactive';
+            let statusText = 'Inactive';
+            
+            if (symbol.setup_active) {
+              statusClass = 'status-active';
+              statusText = 'Active';
+            } else if (symbol.setup_close) {
+              statusClass = 'status-close';
+              statusText = 'Close';
+            } else if (symbol.setup_watching) {
+              statusClass = 'status-watching';
+              statusText = 'Watching';
+            } else if (symbol.setup_error) {
+              statusClass = 'status-error';
+              statusText = 'Error';
+            }
+
+            let tradedTag = symbol.traded ? `<span class="traded-tag">TRADED: ${symbol.traded_count || 1}</span>` : '';
+            
+            html += `
+              <div class="symbol-card">
+                <div class="symbol-header">
+                  <div class="symbol-name">${symbol.symbol}</div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    ${tradedTag}
+                    <div class="symbol-status ${statusClass}">${statusText}</div>
+                  </div>
+                </div>
+                <div class="symbol-metrics">${symbol.metrics}</div>
+              </div>
+            `;
+          }
+        }
+
+        html += `
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      document.getElementById('last-update').innerHTML = 
+        `Last Update: ${new Date(data.last_update).toLocaleString()}`;
+    }
+
+    function refreshData() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('bot-data').style.display = 'none';
+      
+      fetchBotData().then(data => {
+        renderBotData(data);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('bot-data').style.display = 'block';
+        
+        // Update status
+        document.getElementById('status-dot').classList.remove('inactive');
+        document.getElementById('connection-status').textContent = 'Connected';
+      }).catch(error => {
+        console.error('Error fetching data:', error);
+        document.getElementById('status-dot').classList.add('inactive');
+        document.getElementById('connection-status').textContent = 'Connection Error';
+        document.getElementById('loading').style.display = 'none';
+      });
+    }
+
+    function toggleAutoRefresh() {
+      autoRefresh = !autoRefresh;
+      const icon = document.getElementById('auto-refresh-icon');
+      const text = document.getElementById('auto-refresh-text');
+      
+      if (autoRefresh) {
+        icon.textContent = '⏸️';
+        text.textContent = 'Pause Auto';
+        startAutoRefresh();
+      } else {
+        icon.textContent = '▶️';
+        text.textContent = 'Resume Auto';
+        stopAutoRefresh();
+      }
+    }
+
+    function startAutoRefresh() {
+      refreshInterval = setInterval(refreshData, 30000); // Refresh every 30 seconds
+    }
+
+    function stopAutoRefresh() {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      refreshData();
+      if (autoRefresh) {
+        startAutoRefresh();
+      }
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      stopAutoRefresh();
+    });
+  </script>
+</body>
+</html>
