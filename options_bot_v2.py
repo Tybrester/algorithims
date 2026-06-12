@@ -518,8 +518,9 @@ def run_options_continuous():
     import pytz
     et = pytz.timezone("America/New_York")
     
-    log.info("BOOF 31 v2 OPTIONS Bot — Continuous mode started")
+    log.info("BOOF 31 v2 OPTIONS Bot — 24/7 Continuous mode started")
     log.info(f"Parameters: TP={OPTIONS_TP:.0%}, SL={OPTIONS_SL:.0%}, Timeout={TIMEOUT_MINUTES}min, UNLIMITED daily trades")
+    log.info("24/7 monitoring: Active during market hours, standby when closed")
     
     while True:
         try:
@@ -527,13 +528,17 @@ def run_options_continuous():
             
             # Check if market is open
             if not is_market_open():
-                log.info(f"Market closed ({now_et.strftime('%H:%M:%S')} ET)")
-                time.sleep(30)  # Check every 30 seconds when closed
+                log.info(f"Market closed ({now_et.strftime('%H:%M:%S')} ET) - 24/7 monitoring active")
+                time.sleep(60)  # Check every minute when closed (24/7 monitoring)
                 continue
             
-            # Log new day
+            # Log new day and heartbeat
             if now_et.hour == 9 and now_et.minute == 30:
                 log.info(f"=== NEW DAY {now_et.strftime('%Y-%m-%d')} === BOOF 31 v2 OPTIONS")
+            
+            # Hourly heartbeat for 24/7 monitoring
+            if now_et.minute == 0:
+                log.info(f"HEARTBEAT {now_et.strftime('%H:%M')} ET - 24/7 Options Bot Active")
             
             # Manage existing options positions (TP/SL/timeout)
             manage_options_positions()
