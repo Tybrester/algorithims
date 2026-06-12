@@ -36,23 +36,20 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── NAVBAR ── */
-    nav {
+    /* ── SIDEBAR NAVIGATION ── */
+    .sidebar {
       position: fixed;
-      top: 0; left: 0; right: 0;
+      top: 0; left: 0;
+      width: 240px;
+      height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
       z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 48px;
-      height: 60px;
-      background: rgba(8,8,8,0.9);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
+      padding: 24px 0;
+      overflow-y: auto;
     }
 
-    .logo {
+    .sidebar .logo {
       font-size: 1.15rem;
       font-weight: 800;
       letter-spacing: -0.03em;
@@ -60,56 +57,67 @@
       text-decoration: none;
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 8px;
+      padding: 0 24px;
+      margin-bottom: 32px;
     }
 
     .logo span { color: var(--accent); }
 
-    nav ul {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .sidebar ul {
       list-style: none;
+      padding: 0;
+      margin: 0;
     }
 
-    nav ul a {
+    .sidebar li {
+      margin-bottom: 4px;
+    }
+
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      padding: 12px 24px;
       color: var(--text2);
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
-      padding: 6px 14px;
-      border-radius: 6px;
-      transition: color 0.15s, background 0.15s;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
     }
 
-    nav ul a:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+    .sidebar a:hover {
+      color: var(--text);
+      background: rgba(255,255,255,0.04);
+      border-left-color: var(--accent);
+    }
+
+    .sidebar a.active {
+      color: var(--accent);
+      background: rgba(0,230,118,0.1);
+      border-left-color: var(--accent);
+    }
 
     .nav-signin {
       color: var(--text) !important;
       border: 1px solid var(--border2) !important;
+      border-radius: 6px !important;
+      padding: 6px 12px !important;
     }
-
-    .nav-signin:hover { border-color: #333 !important; }
 
     .nav-cta {
       background: var(--accent) !important;
       color: #000 !important;
       font-weight: 700 !important;
-      border: none !important;
-      transition: opacity 0.15s !important;
-    }
-
-    .nav-cta:hover { opacity: 0.8 !important; }
-
-    .nav-active {
-      color: var(--accent) !important;
-      background: var(--accent-glow) !important;
+      border-radius: 6px !important;
+      padding: 6px 12px !important;
     }
 
     /* ── MAIN CONTENT ── */
     main {
-      padding-top: 100px;
+      margin-left: 240px;
       min-height: 100vh;
+      padding: 24px;
     }
 
     .container {
@@ -401,23 +409,18 @@
   </style>
 </head>
 <body>
-  <nav>
+  <aside class="sidebar">
     <a href="index.html" class="logo">Boof<span>Capital</span><img src="bull.png" style="height:1.2em;vertical-align:middle;margin-left:6px;" alt="" /></a>
     <ul>
-      <li><a href="#how">How It Works</a></li>
-      <li><a href="#features">Features</a></li>
+      <li><a href="index.html">Home</a></li>
       <li><a href="dashboard.html">Dashboard</a></li>
       <li><a href="bots.html">Bots</a></li>
-      <li><a href="logs.html" style="color: var(--accent);">Logs</a></li>
+      <li><a href="logs.html" class="active">Logs</a></li>
       <li><a href="stats.html">Stats</a></li>
-      <li><a href="signup.html" class="nav-cta">Create Account</a></li>
       <li><a href="signin.html" class="nav-signin">Sign In</a></li>
+      <li><a href="signup.html" class="nav-cta">Create Account</a></li>
     </ul>
-    <div class="nav-mobile-btns">
-      <a href="signup.html" style="background:var(--accent);color:#000;">Create Account</a>
-      <a href="signin.html" style="border:1px solid var(--border2);color:var(--text);">Sign In</a>
-    </div>
-  </nav>
+  </aside>
 
   <main>
     <div class="container">
