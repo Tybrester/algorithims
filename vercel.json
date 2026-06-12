@@ -8,6 +8,7 @@
     { "source": "/alerts", "destination": "/alerts.html" },
     { "source": "/brokers", "destination": "/brokers.html" },
     { "source": "/kalshi", "destination": "/kalshi.html" },
+    { "source": "/logs", "destination": "/logs.html" },
     { "source": "/stats", "destination": "/stats.html" }
   ]
 }
