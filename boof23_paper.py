@@ -1,6 +1,6 @@
 """
 BOOF 23 — Paper Trading Bot (Alpaca Paper)
-5-min signal + 1-min execution | TP=+0.45% | SL=-0.18% | 1% account risk/trade
+5-min signal + 1-min execution | TP=+0.50% | SL=-0.25% | 1% account risk/trade
 Strict 4-rule mode: cross filter, one trade per pivot, cooldown, lockout
 
 Setup:
@@ -17,8 +17,8 @@ import pytz
 import requests as _requests
 
 # ── KEYS ──────────────────────────────────────────────────────────────
-PAPER_KEY    = os.environ.get("ALPACA_PAPER_KEY",    "PKAJ7LELQVQMPJPEJTGZDRT3XP")
-PAPER_SECRET = os.environ.get("ALPACA_PAPER_SECRET", "53BHpMNadsdZ6gUx4DmU7wHD7eGu1SNwnHKPqFHhqwhZ")
+PAPER_KEY    = os.environ.get("ALPACA_PAPER_KEY",    "PKLDR3B5YNRLB3TIL7ZLZLW7WH")
+PAPER_SECRET = os.environ.get("ALPACA_PAPER_SECRET", "BJkGMcbPudvadQxuvxuwVuprPquGDDE8bLwFPLuMxmiq")
 BASE_URL     = "https://paper-api.alpaca.markets"
 
 SUPABASE_URL     = "https://isanhutzyctcjygjhzbn.supabase.co"
@@ -27,8 +27,8 @@ SUPABASE_USER_ID = "d0bb84ba-f968-446c-9792-9bcff8849e37"
 BOT_ID           = "63b10810-676a-4c0c-b0bd-d9f09af1a849"
 
 # ── CONFIG ────────────────────────────────────────────────────────────
-TP_PCT       = 0.0045   # +0.45%
-SL_PCT       = 0.0018   # -0.18%
+TP_PCT       = 0.005    # +0.50%
+SL_PCT       = 0.0025   # -0.25%
 RISK_PCT     = 0.01     # 1% of account per trade
 MAX_POSITIONS= 10       # max concurrent open positions
 SIGNAL_TF    = "5Min"   # signal timeframe
