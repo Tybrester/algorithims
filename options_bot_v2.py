@@ -95,7 +95,7 @@ except Exception as e:
 
 # ── OPTIONS FUNCTIONS ────────────────────────────────────────────────
 def get_nearest_put_options(symbol, target_dte=7):
-    """Get nearest expiration PUT options for a symbol"""
+    """Get PUT options targeting $350 price, walking strikes up/down to find available"""
     try:
         # Get current date and target expiration
         current_date = datetime.date.today()
@@ -108,7 +108,7 @@ def get_nearest_put_options(symbol, target_dte=7):
             type=OptionType.PUT,
             expiration_date_gte=target_date,
             expiration_date_lte=target_date + datetime.timedelta(days=7),
-            limit=10
+            limit=50  # Get more contracts to walk through
         )
         
         contracts = trade_client.get_option_contracts(request)
@@ -119,21 +119,58 @@ def get_nearest_put_options(symbol, target_dte=7):
         stock_req = StockLatestTradeRequest(symbol_or_symbols=symbol)
         stock_price = stock_data_client.get_stock_latest_trade(stock_req)[symbol].price
         
-        # Filter for near-the-money puts (within 10% of stock price)
+        # Target $350 price - find options closest to this price
+        target_price = 350.0
         valid_options = []
+        
         for contract in contracts:
             strike = float(contract.strike_price)
-            if abs(strike - stock_price) / stock_price <= 0.10:  # Within 10%
-                valid_options.append({
-                    'symbol': contract.symbol,
-                    'strike': strike,
-                    'expiration': contract.expiration_date,
-                    'delta': contract.delta if hasattr(contract, 'delta') else None
-                })
+            
+            # Get option price to check if it's close to target
+            try:
+                option_price = get_option_price(contract.symbol)
+                if option_price is None:
+                    continue
+                    
+                # Calculate difference from target price
+                price_diff = abs(option_price - target_price)
+                
+                # Include options within reasonable range of target ($100-$600)
+                if 100 <= option_price <= 600:
+                    valid_options.append({
+                        'symbol': contract.symbol,
+                        'strike': strike,
+                        'expiration': contract.expiration_date,
+                        'option_price': option_price,
+                        'price_diff': price_diff,
+                        'delta': contract.delta if hasattr(contract, 'delta') else None
+                    })
+                    
+            except Exception:
+                continue
         
-        # Sort by strike (closest to ATM first)
-        valid_options.sort(key=lambda x: abs(x['strike'] - stock_price))
-        return valid_options[:3]  # Return top 3 closest strikes
+        if not valid_options:
+            # Fallback: if no options in target price range, get closest to ATM
+            for contract in contracts:
+                strike = float(contract.strike_price)
+                if abs(strike - stock_price) / stock_price <= 0.20:  # Within 20%
+                    try:
+                        option_price = get_option_price(contract.symbol)
+                        if option_price and option_price <= 1000:  # Reasonable price limit
+                            valid_options.append({
+                                'symbol': contract.symbol,
+                                'strike': strike,
+                                'expiration': contract.expiration_date,
+                                'option_price': option_price,
+                                'price_diff': abs(option_price - target_price),
+                                'delta': contract.delta if hasattr(contract, 'delta') else None
+                            })
+                    except Exception:
+                        continue
+        
+        # Sort by price difference from $350 target (closest first)
+        valid_options.sort(key=lambda x: x['price_diff'])
+        return valid_options[:5]  # Return top 5 closest to target price
         
     except Exception as e:
         log.warning(f"Error getting options for {symbol}: {e}")
@@ -170,7 +207,7 @@ def buy_put_option(symbol, option_symbol):
         )
         
         order = trade_client.submit_order(req)
-        log.info(f"  BOUGHT PUT {symbol} {option_symbol} {contracts} contracts @ ${price:.2f}  id: {order.id}")
+        log.info(f"  BOUGHT PUT {symbol} {option_symbol} {contracts} contracts @ ${price:.2f} (target: $350)  id: {order.id}")
         
         return {
             'symbol': symbol,
@@ -446,8 +483,9 @@ def scan_and_enter_options():
             log.warning(f"  {symbol}: No liquid PUT options available")
             continue
         
-        # Buy the first (closest to ATM) option
+        # Buy the first (closest to $350 target) option
         option = options[0]
+        log.info(f"  {symbol}: Selected option {option['symbol']} @ ${option['option_price']:.2f} (target: $350, diff: ${option['price_diff']:.2f})")
         position = buy_put_option(symbol, option['symbol'])
         
         if position:
