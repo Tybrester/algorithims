@@ -258,10 +258,11 @@ class BOOF31Bot:
             # Different score thresholds for core vs extended universe
             is_core = symbol in CORE_UNIVERSE
             required_score = 3 if is_core else 6
-            
+            universe_type = "CORE" if is_core else "EXTENDED"
+
+            log.info(f"SETUP DETECTED: {symbol} ({universe_type}) Score={score}/{required_score} Res=${signal['resistance']:.2f} Touches={signal['touches']} {'✅ TRADING' if score >= required_score else '❌ BELOW THRESHOLD'}")
+
             if score >= required_score:
-                universe_type = "CORE" if is_core else "EXTENDED"
-                log.info(f"BOOF31 SETUP: {symbol} ({universe_type}) Score={score}/{required_score} Resistance=${signal['resistance']:.2f} Touches={signal['touches']}")
                 
                 # Place short order
                 entry_price = df["open"].iloc[signal["entry_i"]]
