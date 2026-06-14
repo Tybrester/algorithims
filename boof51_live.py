@@ -1,9 +1,12 @@
 """
 BOOF51 Live Trading Bot
 ========================
-Strategy : SHORT only on gap-up > 0.5% days
+Strategy : BUY PUTS on gap-up > 0.5% days (NO stock shorts)
 Entry     : Fresh 1st touch of routed level + bounce >= 0.15% + +1 bar confirmation
-Exit      : TP 0.50% below entry | SL 0.25% above entry | Max hold 60 bars
+            → Buy 1DTE put, delta 0.40-0.60, highest open interest ATM strike
+Exit      : Stock price hits TP (down 0.50% from entry) → sell put at market
+            Stock price hits SL (up 0.25% from entry)   → sell put at market
+            Max hold 60 bars                             → sell put at market
 Universe  : 20 symbols, each routed to its optimal level (PMH/PDH/pivot TF)
 
 Routing:
@@ -16,13 +19,12 @@ Routing:
   Daily : CRM
 
 Kill switches:
-  - Short only — no longs ever
   - Gap-up > 0.5% required — flat/gap-down days skipped
-  - Max 5 open positions at once
+  - Max 5 open put positions at once
   - Max 2 consecutive losses per symbol → pause rest of day
   - Max 8 daily losses total → stop bot for the day
   - No new entries after 15:00 ET
-  - Force-close all positions at 15:55 ET
+  - Force-close all puts at 15:55 ET
 
 Paste your paper API key/secret below before running.
 """
@@ -168,12 +170,10 @@ class SymState:
         self.level_states = {}
         self.pending_entry = False  # True when SM fired, waiting for next bar open
 
-        # open position — stock short
-        self.position    = None    # dict when in trade
-        self.bars_held   = 0
-
-        # options leg — put bought alongside stock short
-        self.opt_position = None   # dict: {opt_sym, qty, entry_fill, order_id}
+        # active put position
+        self.position     = None   # dict: {entry, tp, sl, opt_sym, qty, order_id, opened_at}
+        self.bars_held    = 0
+        self.opt_position = None   # same as position — kept for _close_put compatibility
 
         # kill switch
         self.consec_loss = 0
@@ -191,6 +191,7 @@ class SymState:
         self.position      = None
         self.bars_held     = 0
         self.opt_position  = None
+        self.pending_entry = False
 
     def reset_daily_kill(self):
         self.consec_loss = 0
@@ -432,12 +433,10 @@ def _close_put(s: SymState, reason: str):
         s.opt_position = None
 
 
-# ── TRADE MANAGEMENT ──────────────────────────────────────────────────────────────
+# ── TRADE MANAGEMENT (PUTS ONLY — no stock shorts) ───────────────────────────────
 
 def open_trade(s: SymState, entry_px: float):
-    global daily_losses, bot_stopped
-    # ── HARD GUARD: short only, always ──────────────────────────────────────
-    # This bot never goes long under any circumstance.
+    """Signal fired — buy a 1DTE put. No stock short."""
     with _lock:
         open_count = sum(1 for ss in state.values() if ss.position is not None)
         if open_count >= MAX_POSITIONS:
@@ -446,76 +445,33 @@ def open_trade(s: SymState, entry_px: float):
             return
         if s.position is not None:
             s.pending_entry = False
-            return  # already in trade
+            return
         if not s.gap_ok:
             s.pending_entry = False
-            return  # gap gate: should never reach here, but hard-guard anyway
+            return
 
-    tp_px = round(entry_px * (1 - TP_PCT), 4)
-    sl_px = round(entry_px * (1 + SL_PCT), 4)
+    tp_px = round(entry_px * (1 - TP_PCT), 4)  # stock price target for TP
+    sl_px = round(entry_px * (1 + SL_PCT), 4)  # stock price level for SL
+    log.info(f"SIGNAL {s.sym}  stock_entry~{entry_px:.4f}  TP_level={tp_px:.4f}  SL_level={sl_px:.4f}")
 
-    try:
-        # SHORT ONLY — market sell to open short
-        order = api.submit_order(
-            symbol=s.sym, qty=QTY, side="sell",
-            type="market", time_in_force="day",
-        )
-        log.info(f"SHORT  {s.sym}  entry~{entry_px:.4f}  TP={tp_px:.4f}  SL={sl_px:.4f}")
+    # Record position first so _buy_put can reference it
+    with _lock:
+        s.position = {
+            "entry":     entry_px,
+            "tp":        tp_px,
+            "sl":        sl_px,
+            "opened_at": datetime.now(TZ),
+        }
+        s.bars_held     = 0
+        s.pending_entry = False
 
-        with _lock:
-            s.position = {
-                "entry":     entry_px,
-                "tp":        tp_px,
-                "sl":        sl_px,
-                "order_id":  order.id,
-                "opened_at": datetime.now(TZ),
-            }
-            s.bars_held     = 0
-            s.pending_entry = False
-
-        # Place bracket exits as OCO (buy limit=TP, buy stop=SL)
-        _place_exits(s, tp_px, sl_px)
-
-        # Buy put alongside stock short (options leg)
-        threading.Thread(target=_buy_put, args=(s,), daemon=True).start()
-
-    except Exception as e:
-        log.error(f"Entry order failed {s.sym}: {e}")
-        with _lock:
-            s.pending_entry = False
-
-
-def _place_exits(s: SymState, tp_px: float, sl_px: float):
-    """Place cover-short OCO: buy limit (TP) + buy stop (SL)."""
-    try:
-        api.submit_order(
-            symbol        = s.sym,
-            qty           = QTY,
-            side          = "buy",
-            type          = "limit",
-            time_in_force = "day",
-            limit_price   = str(round(tp_px, 2)),
-            order_class   = "oco",
-            stop_loss     = {"stop_price": str(round(sl_px, 2))},
-        )
-        log.info(f"OCO    {s.sym}  TP={tp_px:.4f}  SL={sl_px:.4f}")
-    except Exception as e:
-        log.error(f"OCO exit failed {s.sym}: {e}")
+    # Buy the put (runs in thread, fills asynchronously)
+    threading.Thread(target=_buy_put, args=(s,), daemon=True).start()
+    _sb_update(s)
 
 
 def close_trade(s: SymState, reason: str):
-    """Market-buy to close stock short + market-sell to close put."""
-    if s.position is None:
-        return
-    try:
-        api.submit_order(
-            symbol=s.sym, qty=QTY, side="buy",
-            type="market", time_in_force="day",
-        )
-        log.info(f"CLOSE  {s.sym}  reason={reason}")
-    except Exception as e:
-        log.error(f"Close failed {s.sym}: {e}")
-    # close options leg at same time
+    """Sell put at market and clear position."""
     _close_put(s, reason)
     with _lock:
         s.position = None
@@ -523,26 +479,25 @@ def close_trade(s: SymState, reason: str):
 
 
 def on_exit_fill(s: SymState, won: bool, fill_px: float, reason: str):
+    """Called when stock price hits TP or SL level — sell put immediately."""
     global daily_losses, bot_stopped
-    # Close options leg immediately when stock exit fires
     _close_put(s, reason)
     with _lock:
         s.position  = None
         s.bars_held = 0
         if won:
             s.consec_loss = 0
-            log.info(f"WIN    {s.sym}  {reason}  exit={fill_px:.4f}")
+            log.info(f"WIN    {s.sym}  {reason}  stock_px={fill_px:.4f}")
         else:
             s.consec_loss += 1
             daily_losses  += 1
-            log.info(f"LOSS   {s.sym}  {reason}  exit={fill_px:.4f}  streak={s.consec_loss}")
+            log.info(f"LOSS   {s.sym}  {reason}  stock_px={fill_px:.4f}  streak={s.consec_loss}")
             if s.consec_loss >= MAX_CONSEC_SYM:
                 s.paused = True
                 log.warning(f"PAUSE  {s.sym} — {MAX_CONSEC_SYM} consecutive losses")
             if daily_losses >= MAX_DAILY_LOSS:
                 bot_stopped = True
                 log.warning(f"KILL   Bot stopped — {MAX_DAILY_LOSS} daily losses")
-
     _sb_update(s)
 
 
@@ -876,9 +831,8 @@ def main():
     log.info(f"Universe ({len(SYMBOLS)}): {', '.join(SYMBOLS)}")
     log.info(f"--- Strategy checks ---")
     log.info(f"[OK] Routing    : Version H — PMH/PDH/10m/30m/2H/4H/Daily per symbol")
-    log.info(f"[OK] Direction  : SHORT ONLY (side=sell hardcoded, no long path exists)")
-    log.info(f"[OK] Options    : {'ENABLED' if TRADE_OPTIONS else 'DISABLED'}  "
-             f"— buy put 1DTE delta {OPT_DELTA_MIN}-{OPT_DELTA_MAX} highest OI on each signal")
+    log.info(f"[OK] Direction  : PUTS ONLY — no stock shorts, buys 1DTE put on every signal")
+    log.info(f"[OK] Options    : 1DTE put  delta {OPT_DELTA_MIN}-{OPT_DELTA_MAX}  highest OI strike")
     log.info(f"[OK] Gap gate   : gap-up > {GAP_MIN*100:.1f}% required each day per symbol")
     log.info(f"[OK] Entry      : fresh 1st touch + bounce >= {BOUNCE*100:.2f}% + +1 bar confirmation")
     log.info(f"[OK] TP/SL      : TP={TP_PCT*100:.2f}% below entry  SL={SL_PCT*100:.2f}% above entry")
