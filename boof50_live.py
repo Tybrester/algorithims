@@ -286,7 +286,7 @@ def handle_bar(sym: str, bar: dict):
     t      = now_et.strftime("%H:%M")
     s      = state[sym]
 
-    if t == "04:00":
+    if t == "09:00":
         s.cum_pv = s.cum_vol = 0.0
         s.bars = []; s.confirm = {}
 
