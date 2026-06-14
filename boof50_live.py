@@ -52,9 +52,9 @@ SL_MULT        = 0.85    # -15%
 FILL_WAIT_S    = 7       # seconds between limit price bumps
 CONFIRM_BARS   = 5
 MAX_HOLD_MIN   = 120
-MAX_POSITIONS  = 3
+MAX_POSITIONS  = 5
 MAX_LOSSES_SYM = 3
-MAX_DAILY_LOSS = 5
+MAX_DAILY_LOSS = 8
 TZ             = ZoneInfo("America/New_York")
 
 logging.basicConfig(
