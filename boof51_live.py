@@ -36,8 +36,7 @@ from zoneinfo import ZoneInfo
 from collections import defaultdict
 
 import alpaca_trade_api as tradeapi
-from alpaca.data.live import StockDataStream
-from alpaca.trading.stream import TradingStream
+from alpaca_trade_api.stream import Stream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
@@ -863,27 +862,16 @@ def main():
     threading.Thread(target=schedule_eod_reset,  daemon=True).start()
     threading.Thread(target=fetch_pm_snapshots,  daemon=True).start()
 
-    # Stream bars (alpaca-py StockDataStream — handles reconnects with backoff)
+    # Stream using proven alpaca_trade_api library (same as boof50)
     log.info("Streaming started — waiting for bars...")
-    import asyncio
-
-    from alpaca.data.enums import DataFeed
-
-    # Data stream — bars
-    data_stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.IEX)
-    data_stream.subscribe_bars(on_bar, *SYMBOLS)
-    data_stream.subscribe_updated_bars(on_bar, *SYMBOLS)
-
-    # Trade stream — fill events (runs in background thread)
-    trade_stream = TradingStream(API_KEY, API_SECRET, paper=PAPER)
-    trade_stream.subscribe_trade_updates(on_trade_update)
-    threading.Thread(target=trade_stream.run, daemon=True).start()
-
-    # Run data stream with backoff
     backoff = 5
     while True:
         try:
-            data_stream.run()
+            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
+            stream.subscribe_bars(on_bar, *SYMBOLS)
+            stream.subscribe_updated_bars(on_bar, *SYMBOLS)
+            stream.subscribe_trade_updates(on_trade_update)
+            stream.run()
         except Exception as e:
             log.error(f"Stream error: {e} — reconnecting in {backoff}s")
             time.sleep(backoff)
