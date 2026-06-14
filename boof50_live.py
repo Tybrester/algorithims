@@ -24,7 +24,7 @@ Kill switches:
   - PAPER = True by default
 """
 
-import time, threading, logging
+import time, threading, logging, requests as _requests
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -63,6 +63,23 @@ logging.basicConfig(
     datefmt="%H:%M:%S"
 )
 log = logging.getLogger("BOOF50")
+
+# ── Supabase ───────────────────────────────────────────────────────────────────
+
+SUPABASE_URL     = "https://isanhutzyctcjygjhzbn.supabase.co"
+SUPABASE_KEY     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0"
+_SB_HEADERS      = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"}
+
+def sb_push_status(symbols_payload: list):
+    try:
+        _requests.post(
+            f"{SUPABASE_URL}/rest/v1/bot_status",
+            headers=_SB_HEADERS,
+            json=symbols_payload,
+            timeout=5,
+        )
+    except Exception as e:
+        log.debug(f"Supabase status push failed: {e}")
 
 # ── Alpaca client ──────────────────────────────────────────────────────────────
 
@@ -308,6 +325,22 @@ def handle_bar(sym: str, bar: dict):
                     target=place_entry, args=(sym, side, curr["c"]), daemon=True
                 ).start()
                 del s.confirm[side]
+
+    # push status to Supabase every bar
+    confirm_str = ", ".join(f"{sd}:{cnt}/{CONFIRM_BARS}" for sd, cnt in s.confirm.items())
+    pos_str     = ", ".join(f"{sd}@{p['entry']:.2f}" for sd, p in s.position.items())
+    setup_active   = len(s.position) > 0
+    setup_close    = any(v >= CONFIRM_BARS - 1 for v in s.confirm.values())
+    setup_watching = bool(s.confirm) and not setup_close
+    metrics = f"VWAP: {curr['vwap']:.2f} | Price: {curr['c']:.2f}"
+    if confirm_str: metrics += f" | Confirm: {confirm_str}"
+    if pos_str:     metrics += f" | Position: {pos_str}"
+    threading.Thread(target=sb_push_status, args=([{
+        "bot": "BOOF50", "symbol": sym,
+        "setup_active": setup_active, "setup_close": setup_close,
+        "setup_watching": setup_watching,
+        "metrics": metrics, "updated_at": datetime.now(TZ).isoformat(),
+    }],), daemon=True).start()
 
     # time exit
     for side, pos in list(s.position.items()):
