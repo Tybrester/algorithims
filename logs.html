@@ -7,7 +7,8 @@
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -26,99 +27,37 @@
       --muted: #666;
     }
 
-    html { scroll-behavior: smooth; font-size: 16px; }
+    html { font-size: 80%; }
 
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      overflow-x: hidden;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── SIDEBAR NAVIGATION ── */
-    .sidebar {
-      position: fixed;
-      top: 0; left: 0;
-      width: 240px;
-      height: 100vh;
+    #loading-screen { position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center; }
+    .spinner { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      height: 52px;
       background: var(--surface);
-      border-right: 1px solid var(--border);
-      z-index: 100;
-      padding: 24px 0;
-      overflow-y: auto;
-    }
-
-    .sidebar .logo {
-      font-size: 1.15rem;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      color: var(--text);
-      text-decoration: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
       padding: 0 24px;
-      margin-bottom: 32px;
     }
-
-    .logo span { color: var(--accent); }
-
-    .sidebar ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .sidebar li {
-      margin-bottom: 4px;
-    }
-
-    .sidebar a {
-      display: flex;
-      align-items: center;
-      padding: 12px 24px;
-      color: var(--text2);
-      text-decoration: none;
-      font-size: 0.875rem;
-      font-weight: 500;
-      transition: all 0.15s;
-      border-left: 3px solid transparent;
-    }
-
-    .sidebar a:hover {
-      color: var(--text);
-      background: rgba(255,255,255,0.04);
-      border-left-color: var(--accent);
-    }
-
-    .sidebar a.active {
-      color: var(--accent);
-      background: rgba(0,230,118,0.1);
-      border-left-color: var(--accent);
-    }
-
-    .nav-signin {
-      color: var(--text) !important;
-      border: 1px solid var(--border2) !important;
-      border-radius: 6px !important;
-      padding: 6px 12px !important;
-    }
-
-    .nav-cta {
-      background: var(--accent) !important;
-      color: #000 !important;
-      font-weight: 700 !important;
-      border-radius: 6px !important;
-      padding: 6px 12px !important;
-    }
+    .logo { font-size:1rem;font-weight:800;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:6px; }
+    .logo span { color:var(--accent); }
+    .nav-right { display:flex;align-items:center;gap:16px; }
+    .nav-email { font-size:0.78rem;color:var(--text2); }
+    .nav-signout { font-size:0.78rem;color:var(--muted);background:none;border:1px solid var(--border);border-radius:5px;padding:4px 10px;cursor:pointer;color:var(--text2); }
+    .nav-signout:hover { border-color:#333;color:var(--text); }
 
     /* ── MAIN CONTENT ── */
-    main {
-      margin-left: 240px;
-      min-height: 100vh;
-      padding: 24px;
-    }
+    main { min-height:100vh; padding:24px; }
 
     .container {
       max-width: 1400px;
@@ -409,18 +348,15 @@
   </style>
 </head>
 <body>
-  <aside class="sidebar">
-    <a href="index.html" class="logo">Boof<span>Capital</span><img src="bull.png" style="height:1.2em;vertical-align:middle;margin-left:6px;" alt="" /></a>
-    <ul>
-      <li><a href="index.html">Home</a></li>
-      <li><a href="dashboard.html">Dashboard</a></li>
-      <li><a href="bots.html">Bots</a></li>
-      <li><a href="logs.html" class="active">Logs</a></li>
-      <li><a href="stats.html">Stats</a></li>
-      <li><a href="signin.html" class="nav-signin">Sign In</a></li>
-      <li><a href="signup.html" class="nav-cta">Create Account</a></li>
-    </ul>
-  </aside>
+  <div id="loading-screen"><div class="spinner"></div></div>
+
+  <nav>
+    <a href="dashboard.html" class="logo">Boof<span>Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:6px;" alt="" /></a>
+    <div class="nav-right">
+      <span class="nav-email" id="nav-email"></span>
+      <button class="nav-signout" onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
 
   <main>
     <div class="container">
@@ -458,70 +394,29 @@
   </main>
 
   <script>
+    const SUPABASE_URL = 'https://isanhutzyctcjygjhzbn.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function init() {
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (!session) { window.location.href = 'signin.html'; return; }
+      document.getElementById('nav-email').textContent = session.user.email;
+      document.getElementById('loading-screen').style.display = 'none';
+      refreshData();
+      if (autoRefresh) startAutoRefresh();
+    }
+
+    async function signOut() {
+      await sbClient.auth.signOut();
+      window.location.href = 'signin.html';
+    }
+
     let autoRefresh = true;
     let refreshInterval;
 
-    const SUPABASE_URL = 'https://isanhutzyctcjygjhzbn.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
-
-    const BOOF31_SYMS = [
-      'COIN','MSTR','HUT','MARA','RIOT','CLSK','AMD','TSLA','AAPL','NVDA',
-      'META','MSFT','GOOGL','AMZN','NFLX','PLTR','CRWD','NET','SNOW','DDOG'
-    ];
-    const BOOF31_RES = {
-      'COIN':162.44,'MSTR':127.74,'HUT':119.23,'MARA':22.50,'RIOT':10.80,
-      'CLSK':12.40,'AMD':125.50,'TSLA':245.20,'AAPL':195.80,'NVDA':485.30,
-      'META':325.60,'MSFT':430.00,'GOOGL':178.00,'AMZN':190.00,'NFLX':645.00,
-      'PLTR':24.50,'CRWD':360.00,'NET':95.00,'SNOW':185.00,'DDOG':125.00
-    };
-
-    async function getLivePrice(symbol) {
-      try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/get-price?symbol=${symbol}`, {
-          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-        });
-        const data = await res.json();
-        return data.price || null;
-      } catch { return null; }
-    }
-
-    async function fetchBOOF31Live() {
-      const symbols = [];
-      let active = 0, close = 0, watching = 0;
-
-      await Promise.all(BOOF31_SYMS.map(async (sym) => {
-        const price = await getLivePrice(sym);
-        const res = BOOF31_RES[sym] || null;
-        if (!price || !res) return;
-
-        const pct = ((price - res) / res * 100).toFixed(2);
-        const swept = price > res * 1.002;
-        const nearRes = price > res * 0.995;
-        const aboveRes = price > res;
-
-        // Rough score: swept + near + above
-        let score = 0;
-        if (swept) score += 3;
-        else if (nearRes) score += 1;
-        if (aboveRes) score += 1;
-        score = Math.min(score, 7);
-
-        const metrics = `Res: ${res.toFixed(2)} | Current: ${price.toFixed(2)} | ${pct > 0 ? '+' : ''}${pct}% | Swept: ${swept ? 'yes' : 'no'} | Score: ${score}/7`;
-
-        let setup_active = false, setup_close = false, setup_watching = false;
-        if (swept) { setup_close = true; close++; }
-        else if (nearRes) { setup_watching = true; watching++; }
-
-        symbols.push({ symbol: sym, setup_active, setup_close, setup_watching, metrics });
-      }));
-
-      symbols.sort((a, b) => (b.setup_close ? 1 : 0) - (a.setup_close ? 1 : 0));
-      return { total_symbols: 98, active_setups: active, close_setups: close, watching_setups: watching, inactive_setups: 98 - active - close - watching, symbols };
-    }
-
-    // Fetch BOOF50 status from Supabase bot_status table
-    const SB_URL = "https://isanhutzyctcjygjhzbn.supabase.co";
-    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0";
+    const SB_URL = SUPABASE_URL;
+    const SB_KEY = SUPABASE_KEY;
 
     const BOOF50_SYMS = ['TSLA','AMD','APP','COIN','HOOD','SMCI','UPST','META','MSFT','NVDA','MSTR','PLTR','CRWD','AAPL','AMZN'];
 
@@ -553,71 +448,10 @@
       return { total_symbols: 15, active_setups: active, close_setups: close, watching_setups: watching, symbols };
     }
 
-    // Bot monitoring data - directly integrated
     function fetchBotData() {
-      return fetchBOOF50Status()
-        .then((boof50Data) => ({
-          last_update: new Date().toISOString(),
-          bots: { 'BOOF23': { total_symbols: 46, active_setups: 0, close_setups: 0, watching_setups: 0, symbols: [] }, 'BOOF50': boof50Data }
-        })).catch(() => new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            last_update: new Date().toISOString(),
-            bots: {
-              'BOOF23': {
-                total_symbols: 44,
-                active_setups: 0,
-                close_setups: 2,
-                watching_setups: 3,
-                inactive_setups: 39,
-                symbols: [
-                  { symbol: 'FCX', setup_active: false, setup_close: false, traded: true, traded_count: 2, metrics: 'Cooldown: Recent trade completed' },
-                  { symbol: 'SCHW', setup_active: false, setup_close: false, traded: true, traded_count: 1, metrics: 'Cooldown: Recent trade completed' },
-                  { symbol: 'NVDA', setup_active: false, setup_close: false, traded: true, traded_count: 1, metrics: 'Cooldown: Recent trade completed' },
-                  { symbol: 'V', setup_active: false, setup_close: true, metrics: 'RSI: 48.7 | Vol: 0.9x | SMA: -0.1%' },
-                  { symbol: 'JPM', setup_active: false, setup_close: true, metrics: 'RSI: 45.2 | Vol: 0.7x | SMA: -0.5%' },
-                  { symbol: 'AMD', setup_active: false, setup_watching: true, metrics: 'RSI: 42.1 | Vol: 0.8x | SMA: -0.8%' },
-                  { symbol: 'GS', setup_active: false, setup_watching: true, metrics: 'RSI: 38.5 | Vol: 0.6x | SMA: -1.2%' },
-                  { symbol: 'MSFT', setup_active: false, setup_watching: true, metrics: 'RSI: 35.2 | Vol: 0.5x | SMA: -1.5%' }
-                ]
-              },
-              'BOOF30': {
-                total_symbols: 89,
-                active_setups: 0,
-                close_setups: 3,
-                watching_setups: 4,
-                inactive_setups: 82,
-                symbols: [
-                  { symbol: 'HUT', setup_active: false, setup_close: true, metrics: 'Score: 2/4 | RVOL: 2.1 | Body1: 0.45%' },
-                  { symbol: 'BITF', setup_active: false, setup_close: true, metrics: 'Score: 2/4 | RVOL: 1.8 | Body1: 0.38%' },
-                  { symbol: 'COIN', setup_active: false, setup_close: true, metrics: 'Score: 2/4 | RVOL: 1.5 | Body1: 0.32%' },
-                  { symbol: 'SMCI', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 1.2 | Body1: 0.25%' },
-                  { symbol: 'PLTR', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 1.1 | Body1: 0.22%' },
-                  { symbol: 'RBLX', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 1.0 | Body1: 0.18%' },
-                  { symbol: 'HOOD', setup_active: false, setup_watching: true, metrics: 'Score: 1/4 | RVOL: 0.9 | Body1: 0.15%' }
-                ]
-              },
-              'BOOF31': {
-                total_symbols: 98,
-                active_setups: 0,
-                close_setups: 4,
-                watching_setups: 5,
-                inactive_setups: 89,
-                symbols: [
-                  { symbol: 'MRVL', setup_active: false, setup_close: false, traded: true, traded_count: 1, metrics: 'Cooldown: Recent option trade completed' },
-                  { symbol: 'COIN', setup_active: false, setup_close: true, metrics: 'Res: 162.44 | Current: 162.12 | -0.20% | Swept: no | Score: 3/7' },
-                  { symbol: 'MSTR', setup_active: false, setup_close: true, metrics: 'Res: 127.74 | Current: 127.30 | -0.34% | Swept: no | Score: 2/7' },
-                  { symbol: 'HUT', setup_active: false, setup_close: true, metrics: 'Res: 119.23 | Current: 119.71 | +0.40% | Swept: yes | Score: 4/7' },
-                  { symbol: 'AMD', setup_active: false, setup_watching: true, metrics: 'Res: 125.50 | Current: 124.80 | -0.56% | Swept: no | Score: 2/7' },
-                  { symbol: 'TSLA', setup_active: false, setup_watching: true, metrics: 'Res: 245.20 | Current: 243.50 | -0.69% | Swept: no | Score: 1/7' },
-                  { symbol: 'AAPL', setup_active: false, setup_watching: true, metrics: 'Res: 195.80 | Current: 194.20 | -0.82% | Swept: no | Score: 2/7' },
-                  { symbol: 'NVDA', setup_active: false, setup_watching: true, metrics: 'Res: 485.30 | Current: 482.10 | -0.66% | Swept: no | Score: 3/7' },
-                  { symbol: 'META', setup_active: false, setup_watching: true, metrics: 'Res: 325.60 | Current: 323.80 | -0.55% | Swept: no | Score: 1/7' }
-                ]
-              }
-            }
-          });
-        }, 500);
+      return fetchBOOF50Status().then((boof50Data) => ({
+        last_update: new Date().toISOString(),
+        bots: { 'BOOF23': { total_symbols: 46, active_setups: 0, close_setups: 0, watching_setups: 0, symbols: [] }, 'BOOF50': boof50Data }
       }));
     }
 
@@ -766,18 +600,8 @@
       }
     }
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      refreshData();
-      if (autoRefresh) {
-        startAutoRefresh();
-      }
-    });
-
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-      stopAutoRefresh();
-    });
+    window.addEventListener('beforeunload', () => stopAutoRefresh());
+    init();
   </script>
 </body>
 </html>
