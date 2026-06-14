@@ -17,8 +17,8 @@ import pytz
 import requests as _requests
 
 # ── KEYS ──────────────────────────────────────────────────────────────
-PAPER_KEY    = os.environ.get("ALPACA_PAPER_KEY",    "PKLDR3B5YNRLB3TIL7ZLZLW7WH")
-PAPER_SECRET = os.environ.get("ALPACA_PAPER_SECRET", "BJkGMcbPudvadQxuvxuwVuprPquGDDE8bLwFPLuMxmiq")
+PAPER_KEY    = os.environ.get("ALPACA_PAPER_KEY",    "PK7N52NHGPS2GBVZU64BCUEDNO")
+PAPER_SECRET = os.environ.get("ALPACA_PAPER_SECRET", "B3uwbzRDHZeDwt5riUd3G4U9oxnELTukfCKGovZx9K9E")
 BASE_URL     = "https://paper-api.alpaca.markets"
 
 SUPABASE_URL     = "https://isanhutzyctcjygjhzbn.supabase.co"
