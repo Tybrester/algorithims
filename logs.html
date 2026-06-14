@@ -519,12 +519,35 @@
       return { total_symbols: 98, active_setups: active, close_setups: close, watching_setups: watching, inactive_setups: 98 - active - close - watching, symbols };
     }
 
+    // Fetch BOOF50 status from Supabase bot_status table
+    const SB_URL = "https://isanhutzyctcjygjhzbn.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0";
+
+    async function fetchBOOF50Status() {
+      const res = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF50&order=symbol.asc`, {
+        headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
+      });
+      const rows = await res.json();
+      const symbols = rows.map(r => ({
+        symbol: r.symbol,
+        setup_active: r.setup_active,
+        setup_close: r.setup_close,
+        setup_watching: r.setup_watching,
+        metrics: r.metrics || '',
+      }));
+      const active  = symbols.filter(s => s.setup_active).length;
+      const close   = symbols.filter(s => s.setup_close).length;
+      const watching = symbols.filter(s => s.setup_watching).length;
+      return { total_symbols: 15, active_setups: active, close_setups: close, watching_setups: watching, symbols };
+    }
+
     // Bot monitoring data - directly integrated
     function fetchBotData() {
-      return fetchBOOF31Live().then(boof31Data => ({
-        last_update: new Date().toISOString(),
-        bots: { 'BOOF31': boof31Data }
-      })).catch(() => new Promise((resolve) => {
+      return Promise.all([fetchBOOF31Live(), fetchBOOF50Status()])
+        .then(([boof31Data, boof50Data]) => ({
+          last_update: new Date().toISOString(),
+          bots: { 'BOOF31': boof31Data, 'BOOF50': boof50Data }
+        })).catch(() => new Promise((resolve) => {
         setTimeout(() => {
           resolve({
             last_update: new Date().toISOString(),
