@@ -523,20 +523,32 @@
     const SB_URL = "https://isanhutzyctcjygjhzbn.supabase.co";
     const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0";
 
+    const BOOF50_SYMS = ['TSLA','AMD','APP','COIN','HOOD','SMCI','UPST','META','MSFT','NVDA','MSTR','PLTR','CRWD','AAPL','AMZN'];
+
     async function fetchBOOF50Status() {
       const res = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF50&order=symbol.asc`, {
         headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
       });
       const rows = await res.json();
-      const symbols = rows.map(r => ({
-        symbol: r.symbol,
-        setup_active: r.setup_active,
-        setup_close: r.setup_close,
-        setup_watching: r.setup_watching,
-        metrics: r.metrics || '',
-      }));
-      const active  = symbols.filter(s => s.setup_active).length;
-      const close   = symbols.filter(s => s.setup_close).length;
+      const rowMap = {};
+      for (const r of rows) rowMap[r.symbol] = r;
+      // Always show all 15 symbols, fill missing as inactive
+      const symbols = BOOF50_SYMS.map(sym => {
+        const r = rowMap[sym];
+        return r ? {
+          symbol: sym,
+          setup_active: r.setup_active,
+          setup_close: r.setup_close,
+          setup_watching: r.setup_watching,
+          metrics: r.metrics || '',
+        } : {
+          symbol: sym,
+          setup_active: false, setup_close: false, setup_watching: false,
+          metrics: 'Waiting for bars...',
+        };
+      });
+      const active   = symbols.filter(s => s.setup_active).length;
+      const close    = symbols.filter(s => s.setup_close).length;
       const watching = symbols.filter(s => s.setup_watching).length;
       return { total_symbols: 15, active_setups: active, close_setups: close, watching_setups: watching, symbols };
     }
@@ -647,10 +659,12 @@
             <div class="symbols-grid">
         `;
 
-        // Show symbols with active, close, or watching status
-        const relevantSymbols = botData.symbols.filter(symbol => 
-          symbol.setup_active || symbol.setup_close || symbol.setup_watching || symbol.setup_error
-        );
+        // For BOOF50 show all symbols; for others only active/close/watching
+        const relevantSymbols = botName === 'BOOF50'
+          ? botData.symbols
+          : botData.symbols.filter(symbol =>
+              symbol.setup_active || symbol.setup_close || symbol.setup_watching || symbol.setup_error
+            );
 
         if (relevantSymbols.length === 0) {
           html += `
