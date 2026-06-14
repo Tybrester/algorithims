@@ -1,9 +1,9 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BoofCapital â€” How It Works</title>
+  <title>BoofCapital — How It Works</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +27,7 @@
     .user-dropdown { position: relative; }
     .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
-    .user-dropdown-toggle::after { content: 'â–¾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-toggle::after { content: '?'; font-size: 0.7rem; color: var(--accent); }
     .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
     .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--text); cursor: pointer; transition: background 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
@@ -75,7 +75,7 @@
           </button>
           <div class="user-dropdown-menu">
             <button class="user-dropdown-item red" onclick="signOut()">
-              <span>ðŸšª</span> Sign Out
+              <span>??</span> Sign Out
             </button>
           </div>
         </div>
@@ -87,6 +87,9 @@
         <div class="sidebar-section">Menu</div>
         <a href="dashboard.html" class="sidebar-item">Dashboard</a>
         <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
         <a href="paper-market.html" class="sidebar-item">Paper Market</a>
         <a href="alerts.html" class="sidebar-item">Systems</a>
         <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -163,7 +166,7 @@
             <div class="step-num">2</div>
             <div class="step-content">
               <h3>Choose Your Parameters</h3>
-              <p>Configure the bot's core settings: set your <strong>$ amount per trade</strong>, choose your <strong>trade direction</strong> (Both, Long Only, or Short Only), and select your <strong>broker</strong> â€” paper trading to test risk-free, or a live connected account.</p>
+              <p>Configure the bot's core settings: set your <strong>$ amount per trade</strong>, choose your <strong>trade direction</strong> (Both, Long Only, or Short Only), and select your <strong>broker</strong> — paper trading to test risk-free, or a live connected account.</p>
             </div>
           </div>
 
@@ -171,7 +174,7 @@
             <div class="step-num">3</div>
             <div class="step-content">
               <h3>Select a Market & Timeframe</h3>
-              <p>Pick the markets you want to scan: <strong>Stocks (Market Hours)</strong>, <strong>Crypto (24/7)</strong>, or <strong>Futures (24/7)</strong>. Then choose your trading style and candle timeframe â€” e.g. Swing on 15m candles, or adjust intervals to match your strategy.</p>
+              <p>Pick the markets you want to scan: <strong>Stocks (Market Hours)</strong>, <strong>Crypto (24/7)</strong>, or <strong>Futures (24/7)</strong>. Then choose your trading style and candle timeframe — e.g. Swing on 15m candles, or adjust intervals to match your strategy.</p>
             </div>
           </div>
 
@@ -181,10 +184,10 @@
               <h3>Choose a Signal System</h3>
               <p>Select which signal algorithm powers your bot:</p>
               <p style="margin-top:10px;line-height:2;">
-                <code>Boof 1.0</code> â€” Foundational trend-following logic<br>
-                <code>Boof 2.0</code> â€” ML-style predictive signals<br>
-                <code>Boof 3.0</code> â€” KMeans regime detection<br>
-                <code>Boof 5.0</code> â€” Advanced multi-factor model
+                <code>Boof 1.0</code> — Foundational trend-following logic<br>
+                <code>Boof 2.0</code> — ML-style predictive signals<br>
+                <code>Boof 3.0</code> — KMeans regime detection<br>
+                <code>Boof 5.0</code> — Advanced multi-factor model
               </p>
               <p style="margin-top:8px;">Higher versions use more sophisticated market regime and signal filtering. Test each on paper first to find what fits your market.</p>
             </div>
@@ -210,14 +213,14 @@
         <div class="section-card">
           <div class="section-card-title">Supported Asset Types</div>
           <div class="step">
-            <div class="step-num" style="background:#444;color:#fff;">ðŸ“ˆ</div>
+            <div class="step-num" style="background:#444;color:#fff;">??</div>
             <div class="step-content">
               <h3>Stocks, Crypto & Futures</h3>
               <p>Standard trading with automatic price fetching and P&L calculation. Use the standard JSON format for all three.</p>
             </div>
           </div>
           <div class="step">
-            <div class="step-num" style="background:#444;color:#fff;">âš¡</div>
+            <div class="step-num" style="background:#444;color:#fff;">?</div>
             <div class="step-content">
               <h3>Options</h3>
               <p>Add <code>contract</code> (call/put), <code>strike</code>, and <code>expiry</code> fields to your JSON for options trading. 100x multiplier applied automatically.</p>

@@ -1,9 +1,9 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EazyTrade â€” Accounts</title>
+  <title>EazyTrade — Accounts</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -81,7 +81,7 @@
     .user-dropdown { position: relative; }
     .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
-    .user-dropdown-toggle::after { content: 'â–¾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-toggle::after { content: '?'; font-size: 0.7rem; color: var(--accent); }
     .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
     .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--text); cursor: pointer; transition: background 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
@@ -116,7 +116,7 @@
           </button>
           <div class="user-dropdown-menu">
             <button class="user-dropdown-item red" onclick="signOut()">
-              <span>ðŸšª</span> Sign Out
+              <span>??</span> Sign Out
             </button>
           </div>
         </div>
@@ -125,10 +125,13 @@
 
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeDrawer()"></div>
     <div class="sidebar-drawer" id="sidebar-drawer">
-      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">âœ•</button></div>
+      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">?</button></div>
       <div class="sidebar-section">Menu</div>
       <a href="dashboard.html" class="sidebar-item">Dashboard</a>
       <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
       <a href="paper-market.html" class="sidebar-item">Paper Market</a>
       <a href="alerts.html" class="sidebar-item">Systems</a>
       <a href="accounts.html" class="sidebar-item active">Accounts</a>
@@ -143,6 +146,9 @@
         <div class="sidebar-section">Menu</div>
         <a href="dashboard.html" class="sidebar-item">Dashboard</a>
         <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
         <a href="paper-market.html" class="sidebar-item">Paper Market</a>
         <a href="alerts.html" class="sidebar-item">Systems</a>
         <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -234,7 +240,7 @@
 
       console.log('[Accounts] Final check - paperEnabled:', paperEnabled, 'tastyConnected:', tastyConnected);
       if (!paperEnabled && !tastyConnected) {
-        html += `<div class="empty-accounts">No accounts connected. <a href="brokers.html">Connect a broker â†’</a></div>`;
+        html += `<div class="empty-accounts">No accounts connected. <a href="brokers.html">Connect a broker ?</a></div>`;
       } else {
         console.log('[Accounts] Rendering paper account:', paperEnabled);
         if (paperEnabled) {
@@ -242,7 +248,7 @@
             <div class="broker-account-card paper">
               <div>
                 <div class="bac-name">BoofCapital paper</div>
-                <div class="bac-type">Paper Trading Â· Simulated</div>
+                <div class="bac-type">Paper Trading · Simulated</div>
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
                 <div class="bac-balance" style="display:flex;flex-direction:column;align-items:flex-end;">
@@ -273,7 +279,7 @@
                 <div class="broker-account-card connected">
                   <div>
                     <div class="bac-name">Alpaca ${env === 'live' ? 'Live' : 'Paper'}</div>
-                    <div class="bac-type">${env === 'live' ? 'Live Trading' : 'Paper Trading'} Â· ${alpacaCreds.credentials.api_key.substring(0, 8)}...</div>
+                    <div class="bac-type">${env === 'live' ? 'Live Trading' : 'Paper Trading'} · ${alpacaCreds.credentials.api_key.substring(0, 8)}...</div>
                   </div>
                   <div class="bac-balance" style="display:flex;flex-direction:column;align-items:flex-end;">
                     <div class="bac-balance-label">Available Balance</div>
@@ -287,7 +293,7 @@
               <div class="broker-account-card connected">
                 <div>
                   <div class="bac-name">Alpaca</div>
-                  <div class="bac-type">Connected Â· ${alpacaCreds.credentials.env || 'paper'}</div>
+                  <div class="bac-type">Connected · ${alpacaCreds.credentials.env || 'paper'}</div>
                 </div>
                 <div class="bac-balance">
                   <div class="bac-balance-val" style="font-size:0.85rem;color:var(--muted);">Connected</div>
@@ -302,7 +308,7 @@
             <div class="broker-account-card connected">
               <div>
                 <div class="bac-name">Tastytrade Live</div>
-                <div class="bac-type">Live Trading Â· Direct API</div>
+                <div class="bac-type">Live Trading · Direct API</div>
               </div>
               <div class="bac-balance" style="display:flex;flex-direction:column;align-items:flex-end;">
                 <div class="bac-balance-label">Account Value</div>
@@ -318,7 +324,7 @@
             <div class="broker-account-card">
               <div>
                 <div class="bac-name">${label}</div>
-                <div class="bac-type">Live Â· Connected via TradersPost</div>
+                <div class="bac-type">Live · Connected via TradersPost</div>
               </div>
               <div class="bac-balance">
                 <div class="bac-balance-val" style="font-size:0.85rem;color:var(--muted);">Webhook Active</div>
@@ -383,9 +389,9 @@
       modal.style.cssText = 'background:var(--surface);border-radius:12px;padding:28px 32px;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
       
       modal.innerHTML = `
-        <div style="font-size:2rem;margin-bottom:12px;">ðŸ”„</div>
+        <div style="font-size:2rem;margin-bottom:12px;">??</div>
         <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:12px;">Reset Paper Trading?</div>
-        <div style="font-size:0.9rem;color:var(--muted);line-height:1.5;margin-bottom:24px;">This will:<br>â€¢ Reset balance to <strong style="color:var(--accent);">$100,000</strong><br>â€¢ <strong style="color:var(--red);">Delete ALL trades</strong><br>â€¢ Clear your trading history</div>
+        <div style="font-size:0.9rem;color:var(--muted);line-height:1.5;margin-bottom:24px;">This will:<br>• Reset balance to <strong style="color:var(--accent);">$100,000</strong><br>• <strong style="color:var(--red);">Delete ALL trades</strong><br>• Clear your trading history</div>
         <div style="display:flex;gap:12px;justify-content:center;">
           <button id="reset-cancel" style="background:transparent;border:1px solid #555;color:#888;font-weight:600;padding:10px 20px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:0.85rem;">Cancel</button>
           <button id="reset-confirm" style="background:var(--red);color:#fff;font-weight:700;padding:10px 20px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:0.85rem;">Reset Everything</button>
@@ -425,7 +431,7 @@
         }
         const toast = document.createElement('div');
         toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-weight:700;padding:12px 24px;border-radius:8px;z-index:10000;animation:slideDown 0.3s ease;';
-        toast.textContent = 'âœ“ Paper trading reset - All trades deleted, balance $100,000';
+        toast.textContent = '? Paper trading reset - All trades deleted, balance $100,000';
         document.body.appendChild(toast);
         setTimeout(() => { 
           toast.remove();

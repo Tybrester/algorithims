@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -70,7 +70,7 @@
 </head>
 <body>
 <div class="header">
-  <h1>⚡ Backtest Engine</h1>
+  <h1>? Backtest Engine</h1>
 </div>
 
 <div class="layout">
@@ -78,6 +78,9 @@
     <div class="sidebar-section">Menu</div>
     <a href="dashboard.html" class="sidebar-item">Dashboard</a>
     <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
     <a href="paper-market.html" class="sidebar-item">Paper Market</a>
     <a href="alerts.html" class="sidebar-item">Systems</a>
     <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -93,7 +96,7 @@
   <div class="controls">
     <div class="control-group">
       <label>Symbol</label>
-      <input type="text" id="bt-symbol" value="ES=F" placeholder="ES=F, NQ=F, AAPL, BTC-USD…" style="text-transform:uppercase">
+      <input type="text" id="bt-symbol" value="ES=F" placeholder="ES=F, NQ=F, AAPL, BTC-USD�" style="text-transform:uppercase">
     </div>
     <div class="control-group">
       <label>Interval</label>
@@ -123,8 +126,8 @@
       <select id="bt-systems">
         <option value="all" selected>All 4</option>
         <option value="boof14">Boof 14.0 (Simplified EV-Based Entry)</option>
-        <option value="boof15">Boof 15.0 (EV-Based Entry — Session Aware)</option>
-        <option value="boof16">Boof 16.0 (Quant-Enhanced — Kelly + Costs + WFA)</option>
+        <option value="boof15">Boof 15.0 (EV-Based Entry � Session Aware)</option>
+        <option value="boof16">Boof 16.0 (Quant-Enhanced � Kelly + Costs + WFA)</option>
         <option value="boof18">Boof 18.0 (ORB + Compression + Regime Filter)</option>
       </select>
     </div>
@@ -146,7 +149,7 @@
     </div>
     <div class="control-group">
       <label>&nbsp;</label>
-      <button class="run-btn" id="run-btn" onclick="runBacktest()">▶ Run Backtest</button>
+      <button class="run-btn" id="run-btn" onclick="runBacktest()">? Run Backtest</button>
     </div>
   </div>
 
@@ -156,9 +159,9 @@
 </div>
 
 <script>
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // MATH HELPERS (ported from options-bot/index.ts)
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function calcEMA(data, period) {
   const k = 2 / (period + 1);
@@ -290,9 +293,9 @@ function calcMACD(closes, fast, slow, signal) {
   return { macdLine, signalLine, hist };
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // SIGNAL GENERATORS
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function computeBoof10Signals(candles) {
   const highs  = candles.map(c => c.high);
@@ -404,7 +407,7 @@ function generateSignalRSIMACD(candles, direction = 'both') {
   return { signal, price: curClose };
 }
 
-// Boof 3.0: rolling k-means — only uses past data at each bar (no look-ahead bias)
+// Boof 3.0: rolling k-means � only uses past data at each bar (no look-ahead bias)
 function kMeans3(features, dims, maxIter=30) {
   const k=3, n=features.length;
   if (n < k) return new Array(n).fill(0);
@@ -462,7 +465,7 @@ function computeBoof30Signals(candles) {
   if (n < 50) return out;
 
   const lookback = 14;
-  const WINDOW = 100; // only use past 100 bars for clustering — no look-ahead
+  const WINDOW = 100; // only use past 100 bars for clustering � no look-ahead
 
   const returns = new Array(n).fill(0);
   for (let i=1;i<n;i++) returns[i]=(closes[i]-closes[i-1])/closes[i-1];
@@ -485,7 +488,7 @@ function computeBoof30Signals(candles) {
 
   const validStart = Math.max(lookback, 20);
 
-  // At each bar, cluster only the past WINDOW bars (rolling — no future data)
+  // At each bar, cluster only the past WINDOW bars (rolling � no future data)
   for (let ci = validStart + WINDOW; ci < n; ci++) {
     const winStart = ci - WINDOW;
     const winIndices = [];
@@ -525,7 +528,7 @@ function computeBoof30Signals(candles) {
     const isPullbackUp = curPrice < prevPrice && prevPrice > prev2Price;
     const isPullbackDown = curPrice > prevPrice && prevPrice < prev2Price;
 
-    // State every bar — use RSI + slope direction for signal + pullback + high/low filter
+    // State every bar � use RSI + slope direction for signal + pullback + high/low filter
     if (regime==='Trend')   {
       if (maSlope[ci]>0 && isPullbackUp && !nearHigh) out[ci] = 1;
       else if (maSlope[ci]<0 && isPullbackDown && !nearLow) out[ci] = -1;
@@ -557,10 +560,10 @@ function generateSignalBoof30(candles, direction = 'both') {
   return { signal, price: closes[ci] };
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // BOOF 5.0 - SIX-FACTOR QUANT MODEL (BACKTEST)
 // Momentum, Mean Reversion, Volatility, Trend, Volume, Microstructure
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function computeBoof50Signals(candles) {
   const closes = candles.map(c => c.close);
@@ -635,7 +638,7 @@ function computeBoof50Signals(candles) {
 
   // Compute signals starting at bar 50
   for (let i = 50; i < n; i++) {
-    // ── FACTOR 1: MOMENTUM ──
+    // -- FACTOR 1: MOMENTUM --
     const momentum = ((closes[i] - closes[i-10]) / closes[i-10]) * 100;
     const momentumPrev = ((closes[i-1] - closes[i-11]) / closes[i-11]) * 100;
     const momAccel = momentum - momentumPrev;
@@ -646,7 +649,7 @@ function computeBoof50Signals(candles) {
     else if (momentum < -1.5 && momAccel < 0) momScore = -2;
     else if (momentum < -0.5) momScore = -1;
 
-    // ── FACTOR 2: MEAN REVERSION ──
+    // -- FACTOR 2: MEAN REVERSION --
     const sma20val = sma(closes.slice(0, i+1), 20).pop();
     const std20val = stddev(closes.slice(0, i+1), 20).pop();
     const zScore = std20val > 0 ? (closes[i] - sma20val) / std20val : 0;
@@ -655,13 +658,13 @@ function computeBoof50Signals(candles) {
     if (zScore < -1.5) mrScore = 1;
     else if (zScore > 1.5) mrScore = -1;
 
-    // ── FACTOR 3: VOLATILITY ──
+    // -- FACTOR 3: VOLATILITY --
     const currentVol = vol20[vol20.length - 1] || 0;
     const volMean = vol50[vol50.length - 1] || 0;
     const volPercentile = volMean > 0 ? Math.min(1, currentVol / (volMean * 2)) : 0.5;
     const highVol = volPercentile > 0.8;
 
-    // ── FACTOR 4: TREND STRENGTH ──
+    // -- FACTOR 4: TREND STRENGTH --
     const aboveEMA20 = closes[i] > ema20[i];
     const aboveEMA50 = closes[i] > ema50[i];
     const aboveEMA200 = closes[i] > ema200[i];
@@ -672,11 +675,11 @@ function computeBoof50Signals(candles) {
     else if (!aboveEMA20 && !aboveEMA50 && !aboveEMA200) trendScore = -2;
     else if (!aboveEMA20 && !aboveEMA50) trendScore = -1;
 
-    // ── FACTOR 5: VOLUME ──
+    // -- FACTOR 5: VOLUME --
     const relVol = volumes[i] / (volSMA20[volSMA20.length - 1] || volumes[i]);
     const volScore = relVol > 1.2 ? 1 : 0;
 
-    // ── FACTOR 6: MICROSTRUCTURE ──
+    // -- FACTOR 6: MICROSTRUCTURE --
     const body = Math.abs(closes[i] - opens[i]);
     const wick = highs[i] - lows[i];
     const upperWick = highs[i] - Math.max(opens[i], closes[i]);
@@ -688,7 +691,7 @@ function computeBoof50Signals(candles) {
     if (lowerRej && body / wick > 0.3) microScore = 1;
     else if (upperRej && body / wick > 0.3) microScore = -1;
 
-    // ── COMPOSITE ──
+    // -- COMPOSITE --
     let composite = momScore + trendScore + mrScore + volScore + microScore;
 
     // Regime adjustments
@@ -727,10 +730,10 @@ function generateSignalBoof50(candles, direction = 'both') {
   return { signal, price: closes[ci] };
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // BOOF 6.0 - MULTI-TIMEFRAME SCALPING (BACKTEST)
 // Simplified single-TF version for backtesting
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function computeBoof60Signals(candles) {
   const closes = candles.map(c => c.close);
@@ -919,12 +922,12 @@ function generateSignalBoof90(candles, direction = 'both') {
   return { signal, price: closes[ci] };
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // BACKTEST ENGINE
 // Accepts a pre-computed state array (1=long, -1=short, 0=neutral) for each bar.
 // Enters on the first bar the state flips to a tradeable direction.
 // Exits on the first bar the state flips away from the current position.
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function runBacktestEngine(candles, stateArr, direction, tpPct = 0, slPct = 0) {
   const trades = [];
@@ -940,7 +943,7 @@ function runBacktestEngine(candles, stateArr, direction, tpPct = 0, slPct = 0) {
     const time  = candles[i].time;
     const stateFlipped = state !== prev;
 
-    // ── CHECK TP/SL on open position first (uses this bar's high/low) ──
+    // -- CHECK TP/SL on open position first (uses this bar's high/low) --
     if (open) {
       let exitPrice = null, exitReason = null;
       if (open.action === 'buy') {
@@ -958,7 +961,7 @@ function runBacktestEngine(candles, stateArr, direction, tpPct = 0, slPct = 0) {
       }
     }
 
-    // ── EXIT on signal flip (if not already closed by TP/SL) ──
+    // -- EXIT on signal flip (if not already closed by TP/SL) --
     if (open) {
       const shouldExit = (open.action === 'buy'  && state !== 1)
                       || (open.action === 'sell' && state !== -1);
@@ -970,7 +973,7 @@ function runBacktestEngine(candles, stateArr, direction, tpPct = 0, slPct = 0) {
       }
     }
 
-    // ── ENTER new position on state flip ──
+    // -- ENTER new position on state flip --
     if (!open && stateFlipped) {
       if (state === 1  && direction !== 'short') open = { action: 'buy',  entry: price, entryIdx: i, entryTime: time };
       if (state === -1 && direction !== 'long')  open = { action: 'sell', entry: price, entryIdx: i, entryTime: time };
@@ -990,16 +993,16 @@ function runBacktestEngine(candles, stateArr, direction, tpPct = 0, slPct = 0) {
   return { trades, wins: wins.length, losses: losses.length, totalPnl, winRate, avgWin, avgLoss, profitFactor };
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // CONFIG
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 const SUPABASE_URL      = 'https://isanhutzyctcjygjhzbn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // FETCH CANDLES (via get-candles edge function)
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 async function fetchCandles(symbol, interval, count) {
   const url = `${SUPABASE_URL}/functions/v1/get-candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&count=${count}`;
@@ -1013,9 +1016,9 @@ async function fetchCandles(symbol, interval, count) {
   return json.candles;
 }
 
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 // RENDER
-// ─────────────────────────────────────────────
+// ---------------------------------------------
 
 function fmtTime(ts) {
   return new Date(ts * 1000).toLocaleDateString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:false });
@@ -1045,7 +1048,7 @@ function renderSystemCard(name, badgeClass, result, symbol) {
           <td>${fmtPrice(t.exit)}</td>
           <td class="${t.win ? 'pnl-pos' : 'pnl-neg'}">${fmtPct(t.pct)}</td>
           <td style="font-size:0.75rem;">${exitLabel}</td>
-          <td style="font-size:0.75rem;">${sellHigher ? '<span style="color:#00e676;">✓ Yes</span>' : '<span style="color:#ff5252;">✗ No</span>'}</td>
+          <td style="font-size:0.75rem;">${sellHigher ? '<span style="color:#00e676;">? Yes</span>' : '<span style="color:#ff5252;">? No</span>'}</td>
         </tr>`;
       }).join('');
 
@@ -1069,7 +1072,7 @@ function renderSystemCard(name, badgeClass, result, symbol) {
       </div>
       <div class="stat-box">
         <div class="stat-label">Profit Factor</div>
-        <div class="stat-value ${pfClass}">${isFinite(profitFactor) ? profitFactor.toFixed(2) : '∞'}</div>
+        <div class="stat-value ${pfClass}">${isFinite(profitFactor) ? profitFactor.toFixed(2) : '8'}</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Total P&L (pts)</div>
@@ -1112,17 +1115,17 @@ async function runBacktest() {
   const errEl = document.getElementById('error-container');
   const resEl = document.getElementById('results-container');
   btn.disabled = true;
-  btn.textContent = '⏳ Running…';
+  btn.textContent = '? Running�';
   errEl.innerHTML = '';
-  resEl.innerHTML = `<div class="loading"><span class="spinner"></span>Fetching ${count} candles for ${symbol} (${interval})…</div>`;
+  resEl.innerHTML = `<div class="loading"><span class="spinner"></span>Fetching ${count} candles for ${symbol} (${interval})�</div>`;
 
   try {
     const candles = await fetchCandles(symbol, interval, count);
-    if (candles.length < 30) throw new Error(`Only ${candles.length} candles returned — try a longer range or different interval.`);
+    if (candles.length < 30) throw new Error(`Only ${candles.length} candles returned � try a longer range or different interval.`);
 
-    resEl.innerHTML = `<div class="loading"><span class="spinner"></span>Running signal backtests on ${candles.length} candles…</div>`;
+    resEl.innerHTML = `<div class="loading"><span class="spinner"></span>Running signal backtests on ${candles.length} candles�</div>`;
 
-    // Pre-compute all signal arrays once — no look-ahead bias, no re-computation per slice
+    // Pre-compute all signal arrays once � no look-ahead bias, no re-computation per slice
     // Note: Boof 14, 15, 16, 18 are implemented in TypeScript (Supabase functions)
     // Browser backtest currently only supports legacy versions
     const systemDefs = [];
@@ -1144,17 +1147,17 @@ async function runBacktest() {
 
     resEl.innerHTML = `
       <div style="margin-bottom:12px;font-size:0.8rem;color:#555;">
-        ${candles.length} candles · ${symbol} · ${interval} · ${direction === 'both' ? 'Long & Short' : direction === 'long' ? 'Long Only' : 'Short Only'}
-        · from ${fmtTime(candles[0].time)} to ${fmtTime(candles[candles.length-1].time)}
+        ${candles.length} candles � ${symbol} � ${interval} � ${direction === 'both' ? 'Long & Short' : direction === 'long' ? 'Long Only' : 'Short Only'}
+        � from ${fmtTime(candles[0].time)} to ${fmtTime(candles[candles.length-1].time)}
       </div>
       <div class="results-grid">${cards.join('')}</div>`;
 
   } catch (err) {
-    errEl.innerHTML = `<div class="error-msg">⚠ ${err.message}</div>`;
+    errEl.innerHTML = `<div class="error-msg">? ${err.message}</div>`;
     resEl.innerHTML = '<div class="empty-state">Backtest failed. Check the symbol and try again.</div>';
   } finally {
     btn.disabled = false;
-    btn.textContent = '▶ Run Backtest';
+    btn.textContent = '? Run Backtest';
   }
 }
 </script>

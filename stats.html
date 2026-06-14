@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -82,7 +82,7 @@
       justify-content: space-between;
     }
     .interval-btn::after {
-      content: '→';
+      content: '?';
       opacity: 0;
       transition: opacity 0.2s;
     }
@@ -343,8 +343,8 @@
     <div style="display: flex; gap: 15px; align-items: center;">
       <span id="last-updated" style="font-size:0.75rem;color:#666;margin-right:10px;">Loading...</span>
       <button class="refresh-btn" onclick="loadStats()">Refresh</button>
-      <button class="refresh-btn" onclick="showDailyAnalysis()" style="background:#1a3a1a;color:#00e676;border:1px solid #00e676;">📊 Daily Analysis</button>
-      <button class="clear-btn" onclick="recalculateAllPnl()" style="background:#441111;color:#ff6b6b;border:1px solid #ff6b6b;">⟳ Recalc All Bots</button>
+      <button class="refresh-btn" onclick="showDailyAnalysis()" style="background:#1a3a1a;color:#00e676;border:1px solid #00e676;">?? Daily Analysis</button>
+      <button class="clear-btn" onclick="recalculateAllPnl()" style="background:#441111;color:#ff6b6b;border:1px solid #ff6b6b;">? Recalc All Bots</button>
       <button class="clear-btn" onclick="clearAllData()">Clear All Data</button>
     </div>
   </div>
@@ -354,6 +354,9 @@
       <div class="sidebar-section">Menu</div>
       <a href="dashboard.html" class="sidebar-item">Dashboard</a>
       <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
       <a href="paper-market.html" class="sidebar-item">Paper Market</a>
       <a href="alerts.html" class="sidebar-item">Systems</a>
       <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -388,9 +391,9 @@
     let globalStockBots = [];
     let globalOptionsBots = [];
 
-    // ─────────────────────────────────────────────
+    // ---------------------------------------------
     // FUTURES P&L CALCULATION (Real contract specs)
-    // ─────────────────────────────────────────────
+    // ---------------------------------------------
     function getFuturesTickValue(symbol) {
       const specs = {
         'ES=F': { tickSize: 0.25, tickValue: 12.50 },      // E-mini S&P 500
@@ -609,9 +612,9 @@
         await loadStats();
         
         const diff = totalNewPnl - totalOldPnl;
-        const msg = `✓ Recalculated ${recalcCount} trades\n\nOld Total P&L: $${totalOldPnl.toFixed(2)}\nNew Total P&L: $${totalNewPnl.toFixed(2)}\nDifference: ${diff >= 0 ? '+' : ''}$${diff.toFixed(2)}${errors.length > 0 ? '\n\nErrors (' + errors.length + '):\n' + errors.slice(0, 5).join('\n') : ''}`;
+        const msg = `? Recalculated ${recalcCount} trades\n\nOld Total P&L: $${totalOldPnl.toFixed(2)}\nNew Total P&L: $${totalNewPnl.toFixed(2)}\nDifference: ${diff >= 0 ? '+' : ''}$${diff.toFixed(2)}${errors.length > 0 ? '\n\nErrors (' + errors.length + '):\n' + errors.slice(0, 5).join('\n') : ''}`;
         alert(msg);
-        console.log(`[Recalc All] Completed. ${recalcCount} trades updated. P&L: $${totalOldPnl.toFixed(2)} → $${totalNewPnl.toFixed(2)}`);
+        console.log(`[Recalc All] Completed. ${recalcCount} trades updated. P&L: $${totalOldPnl.toFixed(2)} ? $${totalNewPnl.toFixed(2)}`);
         
       } catch (err) {
         console.error('[Recalc All] Error:', err);
@@ -818,7 +821,7 @@
                 <span style="background:#00d4ff22;color:#00d4ff;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">Stock</span>
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:0.85rem;color:#888;">${bot.bot_interval || '1m'} · ${bot.bot_signal || 'Boof 1.0'}</span>
+                <span style="font-size:0.85rem;color:#888;">${bot.bot_interval || '1m'} � ${bot.bot_signal || 'Boof 1.0'}</span>
                 <span style="color:#555;font-size:0.8rem;">Daily</span>
               </div>
             </div>
@@ -924,7 +927,7 @@
                 <span style="background:#ffd70022;color:#ffd700;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">Options</span>
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:0.85rem;color:#888;">${bot.bot_expiry_type || 'weekly'} · ${bot.bot_signal || 'supertrend'}${openCount > 0 ? ` · <span style="color:#00e676">${openCount} open</span>` : ''}</span>
+                <span style="font-size:0.85rem;color:#888;">${bot.bot_expiry_type || 'weekly'} � ${bot.bot_signal || 'supertrend'}${openCount > 0 ? ` � <span style="color:#00e676">${openCount} open</span>` : ''}</span>
                 <span style="color:#555;font-size:0.8rem;">Daily</span>
               </div>
             </div>
@@ -1021,7 +1024,7 @@
                 <span style="background:#00e67622;color:#00e676;padding:3px 10px;border-radius:20px;font-size:0.75rem;font-weight:600;">LIVE</span>
               </div>
               <div style="display:flex;align-items:center;gap:10px;">
-                <span style="font-size:0.85rem;color:#888;">${bot.bot_expiry_type || 'weekly'} · ${bot.bot_signal || 'supertrend'}${openCount > 0 ? ` · <span style="color:#00e676">${openCount} open</span>` : ''}</span>
+                <span style="font-size:0.85rem;color:#888;">${bot.bot_expiry_type || 'weekly'} � ${bot.bot_signal || 'supertrend'}${openCount > 0 ? ` � <span style="color:#00e676">${openCount} open</span>` : ''}</span>
                 <span style="color:#555;font-size:0.8rem;">Daily</span>
               </div>
             </div>
@@ -1063,7 +1066,7 @@
         botStatsHtml += `
           <div style="margin-bottom:30px;">
             <h3 class="section-title" style="margin:0 0 15px 0;padding-bottom:10px;border-bottom:2px solid #00d4ff;color:#00d4ff;font-size:1.1rem;display:flex;align-items:center;gap:10px;">
-              <span>📊</span> Stock Bots <span style="font-size:0.8rem;color:#555;font-weight:normal;">(${stockBots.length})</span>
+              <span>??</span> Stock Bots <span style="font-size:0.8rem;color:#555;font-weight:normal;">(${stockBots.length})</span>
             </h3>
             ${stockBotsHtml}
           </div>
@@ -1075,7 +1078,7 @@
         botStatsHtml += `
           <div style="margin-bottom:30px;">
             <h3 class="section-title" style="margin:0 0 15px 0;padding-bottom:10px;border-bottom:2px solid #ffd700;color:#ffd700;font-size:1.1rem;display:flex;align-items:center;gap:10px;">
-              <span>📊</span> Options Bots (Paper) <span style="font-size:0.8rem;color:#555;font-weight:normal;">(${paperBots.length})</span>
+              <span>??</span> Options Bots (Paper) <span style="font-size:0.8rem;color:#555;font-weight:normal;">(${paperBots.length})</span>
             </h3>
             ${paperOptionsHtml}
           </div>
@@ -1087,7 +1090,7 @@
         botStatsHtml += `
           <div style="margin-bottom:30px;">
             <h3 class="section-title" style="margin:0 0 15px 0;padding-bottom:10px;border-bottom:2px solid #00e676;color:#00e676;font-size:1.1rem;display:flex;align-items:center;gap:10px;">
-              <span>🔴</span> Live Options Bots <span style="font-size:0.8rem;color:#555;font-weight:normal;">(${liveBots.length})</span>
+              <span>??</span> Live Options Bots <span style="font-size:0.8rem;color:#555;font-weight:normal;">(${liveBots.length})</span>
             </h3>
             ${liveOptionsHtml}
           </div>
@@ -1146,12 +1149,12 @@
         
         botStatsHtml += `
           <div style="margin-top:30px;border-top:2px solid #333;padding-top:20px;">
-            <h2 class="section-title" style="margin-top:0;">📊 Portfolio Summary — By Signal Type</h2>
+            <h2 class="section-title" style="margin-top:0;">?? Portfolio Summary � By Signal Type</h2>
             ${b21}${b22}${b23}${other}
             
             <div class="bot-stat-card" style="background:linear-gradient(135deg,#0a0a0a 0%,#0d0d0d 100%);border:2px solid ${totalAllPnl >= 0 ? '#00e676' : '#ff5252'};border-radius:12px;padding:16px 20px;margin-top:20px;">
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-                <span style="font-size:1rem;font-weight:700;color:#e0e0e0;">📊 All Bots Combined</span>
+                <span style="font-size:1rem;font-weight:700;color:#e0e0e0;">?? All Bots Combined</span>
               </div>
               <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
                 <div style="text-align:center;">
@@ -1176,7 +1179,7 @@
                 </div>
               </div>
               <div style="text-align:center;padding-top:12px;border-top:1px solid #222;margin-top:12px;">
-                <span style="font-size:0.85rem;color:#888;">${stockBots.length} stock bots · ${optionsBots.length} options bots</span>
+                <span style="font-size:0.85rem;color:#888;">${stockBots.length} stock bots � ${optionsBots.length} options bots</span>
               </div>
             </div>
           </div>
@@ -1201,7 +1204,7 @@
       const modal = document.getElementById('signal-stats-modal');
       const title = document.getElementById('signal-stats-title');
       const content = document.getElementById('signal-stats-content');
-      title.textContent = `${signalName} — All Bots`;
+      title.textContent = `${signalName} � All Bots`;
       content.innerHTML = '<div style="text-align:center;padding:40px;color:#666;">Loading...</div>';
       modal.style.display = 'flex';
 
@@ -1303,8 +1306,8 @@
   <div id="daily-analysis-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:20px;">
     <div style="background:#111;border:1px solid #333;border-radius:16px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto;padding:24px 28px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid #222;padding-bottom:12px;">
-        <h2 style="font-size:1.2rem;color:#00e676;">📊 Daily Trade Analysis - <span id="analysis-date"></span></h2>
-        <button onclick="closeDailyAnalysis()" style="background:none;border:none;color:#888;font-size:1.5rem;cursor:pointer;">×</button>
+        <h2 style="font-size:1.2rem;color:#00e676;">?? Daily Trade Analysis - <span id="analysis-date"></span></h2>
+        <button onclick="closeDailyAnalysis()" style="background:none;border:none;color:#888;font-size:1.5rem;cursor:pointer;">�</button>
       </div>
       <div id="daily-analysis-content" style="font-size:0.9rem;line-height:1.6;">
         <div style="text-align:center;color:#666;padding:40px;">Loading analysis...</div>
@@ -1317,7 +1320,7 @@
     <div style="background:#111;border:1px solid #333;border-radius:16px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto;padding:24px 28px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid #222;padding-bottom:12px;">
         <h2 style="font-size:1.2rem;color:#00e676;" id="signal-stats-title">Signal Stats</h2>
-        <button onclick="closeSignalStatsModal()" style="background:none;border:none;color:#888;font-size:1.5rem;cursor:pointer;">×</button>
+        <button onclick="closeSignalStatsModal()" style="background:none;border:none;color:#888;font-size:1.5rem;cursor:pointer;">�</button>
       </div>
       <div id="signal-stats-content" style="font-size:0.9rem;line-height:1.6;">
         <div style="text-align:center;color:#666;padding:40px;">Loading...</div>
@@ -1464,7 +1467,7 @@
             closedTrades.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
             for (const t of closedTrades) {
               const time = t.created_at.split('T')[1].slice(0,5);
-              const emoji = (t.pnl || 0) > 0 ? '🟢' : '🔴';
+              const emoji = (t.pnl || 0) > 0 ? '??' : '??';
               const color = (t.pnl || 0) > 0 ? '#00e676' : '#ff5252';
               html += `
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #1a1a1a;font-size:0.85rem;">
@@ -1491,7 +1494,7 @@
                   <span style="font-weight:600;">${t.symbol || 'N/A'}</span>
                   <span style="color:#888;">x${t.contracts || 1}</span>
                   <span>Entry: $${(t.premium_per_contract || 0).toFixed(2)}</span>
-                  <span style="font-size:0.75rem;color:#666;">⏳ OPEN</span>
+                  <span style="font-size:0.75rem;color:#666;">? OPEN</span>
                 </div>
               `;
             }

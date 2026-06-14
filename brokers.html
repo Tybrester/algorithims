@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EazyTrade — Brokers</title>
+  <title>EazyTrade � Brokers</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -105,7 +105,7 @@
     .user-dropdown { position: relative; }
     .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
-    .user-dropdown-toggle::after { content: '▾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-toggle::after { content: '?'; font-size: 0.7rem; color: var(--accent); }
     .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
     .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--text); cursor: pointer; transition: background 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
@@ -129,7 +129,7 @@
           </button>
           <div class="user-dropdown-menu">
             <button class="user-dropdown-item red" onclick="signOut()">
-              <span>🚪</span> Sign Out
+              <span>??</span> Sign Out
             </button>
           </div>
         </div>
@@ -138,10 +138,13 @@
 
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeDrawer()"></div>
     <div class="sidebar-drawer" id="sidebar-drawer">
-      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">✕</button></div>
+      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">?</button></div>
       <div class="sidebar-section">Menu</div>
       <a href="dashboard.html" class="sidebar-item">Dashboard</a>
       <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
       <a href="paper-market.html" class="sidebar-item">Paper Market</a>
       <a href="alerts.html" class="sidebar-item">Systems</a>
       <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -159,6 +162,9 @@
         <div class="sidebar-section">Menu</div>
         <a href="dashboard.html" class="sidebar-item">Dashboard</a>
         <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
         <a href="paper-market.html" class="sidebar-item">Paper Market</a>
         <a href="alerts.html" class="sidebar-item">Systems</a>
         <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -187,7 +193,7 @@
             <div style="display:flex;align-items:center;gap:12px;">
               <div>
                 <div class="broker-logo" style="font-size:1.5rem;">BoofCapital <span style="color:var(--accent);">paper</span></div>
-                <div class="broker-desc" style="margin-top:6px;">Simulate your strategies risk-free with BoofCapital's built-in paper trading. No real money, no risk — just results.</div>
+                <div class="broker-desc" style="margin-top:6px;">Simulate your strategies risk-free with BoofCapital's built-in paper trading. No real money, no risk � just results.</div>
               </div>
             </div>
             <div class="broker-tags" style="margin-top:4px;">
@@ -236,7 +242,7 @@
               <span class="broker-tag">Crypto</span>
               <span class="broker-tag">API</span>
             </div>
-            <div id="alpaca-status" style="display:none;" class="broker-status">✓ Connected</div>
+            <div id="alpaca-status" style="display:none;" class="broker-status">? Connected</div>
             <div id="alpaca-account-display" style="display:none;font-size:0.78rem;color:#555;margin-top:2px;"></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="broker-connect" id="alpaca-connect-btn" onclick="openAlpacaModal()">Connect Alpaca</button>
@@ -286,7 +292,7 @@
               <span class="broker-tag">Futures</span>
               <span class="broker-tag">Direct API</span>
             </div>
-            <div id="tastytrade-status" style="display:none;" class="broker-status">✓ Connected</div>
+            <div id="tastytrade-status" style="display:none;" class="broker-status">? Connected</div>
             <div id="tastytrade-account-display" style="display:none;font-size:0.78rem;color:#555;margin-top:2px;"></div>
             <div style="display:flex;gap:8px;">
               <button class="broker-connect" id="tastytrade-connect-btn" onclick="connectTastyOAuth()">Connect with tastytrade</button>
@@ -320,7 +326,7 @@
           <label>Secret Key</label>
           <div class="pw-wrap">
             <input type="password" id="alpaca-secret" placeholder="Your Alpaca secret key" autocomplete="off" />
-            <button type="button" class="pw-toggle" onclick="togglePw('alpaca-secret',this)" tabindex="-1">👁️</button>
+            <button type="button" class="pw-toggle" onclick="togglePw('alpaca-secret',this)" tabindex="-1">???</button>
           </div>
         </div>
         <div class="field-group">
@@ -356,7 +362,7 @@
           <label>Client Secret</label>
           <div class="pw-wrap">
             <input type="password" id="tasty-client-secret" placeholder="From OAuth Application settings" autocomplete="off" />
-            <button type="button" class="pw-toggle" onclick="togglePw('tasty-client-secret',this)" tabindex="-1">👁️</button>
+            <button type="button" class="pw-toggle" onclick="togglePw('tasty-client-secret',this)" tabindex="-1">???</button>
           </div>
         </div>
         <div class="field-hint" style="color:#555;">
@@ -511,7 +517,7 @@
         status.style.display = 'flex';
         status.style.alignItems = 'center';
         status.style.gap = '6px';
-        status.innerHTML = '<span style="color:var(--accent);font-size:1rem;">●</span> Live Trading Connected';
+        status.innerHTML = '<span style="color:var(--accent);font-size:1rem;">?</span> Live Trading Connected';
         acctEl.style.display = 'none';
         connBtn.style.display = 'none';
         apiBtn.style.display = 'none';
@@ -580,7 +586,7 @@
         card.classList.add('broker-connected');
         status.style.display = 'block';
         acctEl.style.display = 'block';
-        acctEl.textContent = apiKey.substring(0, 8) + '...' + (env === 'live' ? ' · Live' : ' · Paper');
+        acctEl.textContent = apiKey.substring(0, 8) + '...' + (env === 'live' ? ' � Live' : ' � Paper');
         connBtn.textContent = 'Edit Keys';
         discBtn.style.display = 'block';
       } else {
@@ -643,7 +649,7 @@
           const balJson = await balRes.json();
           if (balJson.account_value) {
             const statusEl = document.getElementById('tastytrade-status');
-            statusEl.innerHTML = `<span style="color:var(--accent);font-size:1rem;">●</span> Live Trading • $${Number(balJson.account_value).toLocaleString()}`;
+            statusEl.innerHTML = `<span style="color:var(--accent);font-size:1rem;">?</span> Live Trading � $${Number(balJson.account_value).toLocaleString()}`;
           }
         } catch (e) {
           console.log('[Brokers] Balance fetch failed:', e);
@@ -659,7 +665,7 @@
       if (paperEnabled) {
         const paperBtn = document.getElementById('paper-btn');
         if (paperBtn) {
-          paperBtn.textContent = 'Enabled ✓';
+          paperBtn.textContent = 'Enabled ?';
           paperBtn.style.background = 'transparent';
           paperBtn.style.border = '1px solid var(--accent)';
           paperBtn.style.color = 'var(--accent)';
@@ -714,7 +720,7 @@
       const inp = document.getElementById(id);
       const show = inp.type === 'password';
       inp.type = show ? 'text' : 'password';
-      btn.textContent = show ? '🙈' : '👁️';
+      btn.textContent = show ? '??' : '???';
     }
     async function signOut() {
       await sbClient.auth.signOut();

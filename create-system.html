@@ -1,9 +1,9 @@
-ï»¿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EazyTrade â€” Create System</title>
+  <title>EazyTrade — Create System</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -437,7 +437,7 @@
     }
 
     #no-expiration:checked::after {
-      content: 'âœ“';
+      content: '?';
       position: absolute;
       top: 50%;
       left: 50%;
@@ -605,7 +605,7 @@
     .user-dropdown { position: relative; }
     .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
-    .user-dropdown-toggle::after { content: 'â–¾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-toggle::after { content: '?'; font-size: 0.7rem; color: var(--accent); }
     .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
     .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--text); cursor: pointer; transition: background 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
@@ -630,7 +630,7 @@
           </button>
           <div class="user-dropdown-menu">
             <button class="user-dropdown-item red" onclick="signOut()">
-              <span>ðŸšª</span> Sign Out
+              <span>??</span> Sign Out
             </button>
           </div>
         </div>
@@ -646,6 +646,9 @@
         <a href="trades.html" class="sidebar-item">
           <span></span> Trades
         </a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
         <a href="alerts.html" class="sidebar-item">
           <span></span> Systems
         </a>
@@ -654,7 +657,7 @@
         </a>
         <a href="create-system.html" class="sidebar-item active">
           <span></span> Create System
-          <span class="sidebar-arrow">â€º</span>
+          <span class="sidebar-arrow">›</span>
         </a>
         <a href="paper-market.html" class="sidebar-item">
           <span></span> Paper Market
@@ -692,7 +695,7 @@
               <div class="tutorial-sub">Use the chart's search to find your asset</div>
             </div>
           </div>
-          <div class="tutorial-divider">â€º</div>
+          <div class="tutorial-divider">›</div>
           <div class="tutorial-step">
             <div class="tutorial-num">2</div>
             <div class="tutorial-text">
@@ -700,7 +703,7 @@
               <div class="tutorial-sub">Click + Create Alert to set your trigger</div>
             </div>
           </div>
-          <div class="tutorial-divider">â€º</div>
+          <div class="tutorial-divider">›</div>
           <div class="tutorial-step">
             <div class="tutorial-num">3</div>
             <div class="tutorial-text">
@@ -952,7 +955,7 @@
                 <a id="options-chain-link" href="#" target="_blank"
                   style="font-size:0.78rem;color:var(--accent);white-space:nowrap;text-decoration:none;padding:6px 12px;border:1px solid var(--accent);border-radius:6px;transition:background 0.15s;"
                   onmouseover="this.style.background='rgba(0,230,118,0.1)'" onmouseout="this.style.background='transparent'">
-                  View Chain â†—
+                  View Chain ?
                 </a>
               </div>
             </div>
@@ -1011,9 +1014,9 @@
           <div class="modal-row-label">Broker</div>
           <div class="modal-row-content">
             <select class="modal-select" id="alert-broker">
-              <option value="">â€” No broker â€”</option>
+              <option value="">— No broker —</option>
             </select>
-            <div id="broker-none-hint" style="font-size:0.75rem;color:#555;margin-top:5px;">No brokers connected. <a href="brokers.html" style="color:var(--accent);text-decoration:none;">Connect one â†’</a></div>
+            <div id="broker-none-hint" style="font-size:0.75rem;color:#555;margin-top:5px;">No brokers connected. <a href="brokers.html" style="color:var(--accent);text-decoration:none;">Connect one ?</a></div>
           </div>
         </div>
         <div class="modal-row" id="webhook-url-row" style="display:none;">
@@ -1386,7 +1389,7 @@
         const WEBHOOK_BROKERS = { tastytrade: 'tastytrade' };
         const brokerSelect = document.getElementById('alert-broker');
         const hint = document.getElementById('broker-none-hint');
-        brokerSelect.innerHTML = '<option value="">â€” No broker â€”</option>';
+        brokerSelect.innerHTML = '<option value="">— No broker —</option>';
         let count = 0;
 
         if (localStorage.getItem('paper_trading_enabled') === 'true') {

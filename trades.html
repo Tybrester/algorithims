@@ -1,9 +1,9 @@
-Ôªø<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EazyTrade ‚Äî Trades</title>
+  <title>EazyTrade ó Trades</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -85,7 +85,7 @@
     .user-dropdown { position: relative; }
     .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; font-family: inherit; }
     .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
-    .user-dropdown-toggle::after { content: '‚ñæ'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-toggle::after { content: '?'; font-size: 0.7rem; color: var(--accent); }
     .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
     .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--red); cursor: pointer; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
@@ -169,7 +169,7 @@
           </button>
           <div class="user-dropdown-menu">
             <button class="user-dropdown-item red" onclick="signOut()">
-              <span>üö™</span> Sign Out
+              <span>??</span> Sign Out
             </button>
           </div>
         </div>
@@ -178,10 +178,13 @@
 
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeDrawer()"></div>
     <div class="sidebar-drawer" id="sidebar-drawer">
-      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">‚úï</button></div>
+      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">?</button></div>
       <div class="sidebar-section">Menu</div>
       <a href="dashboard.html" class="sidebar-item">Dashboard</a>
       <a href="trades.html" class="sidebar-item active">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
       <a href="paper-market.html" class="sidebar-item">Paper Market</a>
       <a href="alerts.html" class="sidebar-item">Systems</a>
       <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -196,6 +199,9 @@
         <div class="sidebar-section">Menu</div>
         <a href="dashboard.html" class="sidebar-item">Dashboard</a>
         <a href="trades.html" class="sidebar-item active">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
         <a href="paper-market.html" class="sidebar-item">Paper Market</a>
         <a href="alerts.html" class="sidebar-item">Systems</a>
         <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -272,7 +278,7 @@
     function normalizeSymbol(symbol) {
       if (!symbol) return symbol;
       let s = symbol.includes(':') ? symbol.split(':')[1] : symbol;
-      // TradingView futures use ! suffix ‚Äî map to Yahoo Finance equivalents
+      // TradingView futures use ! suffix ó map to Yahoo Finance equivalents
       const futuresMap = {
         'CL1!': 'CL=F', 'ES1!': 'ES=F', 'NQ1!': 'NQ=F', 'GC1!': 'GC=F',
         'SI1!': 'SI=F', 'NG1!': 'NG=F', 'ZB1!': 'ZB=F', 'ZN1!': 'ZN=F',
@@ -367,7 +373,7 @@
         modal.style.cssText = 'background:var(--surface);border-radius:12px;padding:28px 32px;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
         
         modal.innerHTML = `
-          <div style="font-size:2rem;margin-bottom:12px;">‚ö†Ô∏è</div>
+          <div style="font-size:2rem;margin-bottom:12px;">??</div>
           <div style="font-size:1.1rem;font-weight:700;color:var(--text);margin-bottom:12px;">Close Trade?</div>
           <div style="font-size:0.9rem;color:var(--muted);line-height:1.5;margin-bottom:24px;">This will close your ${symbol || 'trade'} position.<br>Proceed?</div>
           <div style="display:flex;gap:12px;justify-content:center;">
@@ -435,7 +441,7 @@
         loadTrades();
     }
 
-    // ‚îÄ‚îÄ AUTO SL CHECKER ‚îÄ‚îÄ Closes positions via Alpaca when SL hit
+    // -- AUTO SL CHECKER -- Closes positions via Alpaca when SL hit
     async function checkAndCloseSL() {
       const alpacaKey = 'PKVQF7O7QTIKHVFBXHNA5IK6IS';
       const alpacaSecret = 'kXLuAom1kqjceVf11kioCFBHKxYgCoFquBP1Keyz2dJ';
@@ -537,7 +543,7 @@
       modal.style.cssText = 'background:var(--surface);border-radius:12px;padding:28px 32px;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
       
       modal.innerHTML = `
-        <div style="font-size:2.5rem;margin-bottom:12px;">‚ö†Ô∏è</div>
+        <div style="font-size:2.5rem;margin-bottom:12px;">??</div>
         <div style="font-size:1.1rem;font-weight:700;color:var(--red);margin-bottom:12px;">Insufficient Funds</div>
         <div style="font-size:0.9rem;color:var(--text);line-height:1.5;margin-bottom:20px;">${message}</div>
         <button onclick="this.closest('#trade-error-modal').remove()" style="background:var(--red);color:#fff;font-weight:700;padding:10px 28px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:0.9rem;">OK</button>
@@ -667,7 +673,7 @@
         }
       } else {
         if (statusEl) {
-          statusEl.textContent = '‚úì Saved';
+          statusEl.textContent = '? Saved';
           statusEl.style.color = 'var(--accent)';
           setTimeout(() => {
             if (statusEl) {
@@ -702,7 +708,7 @@
       if (container && !container.querySelector('.clear-tp-btn')) {
         const xBtn = document.createElement('button');
         xBtn.className = 'clear-tp-btn';
-        xBtn.innerHTML = '√ó';
+        xBtn.innerHTML = '◊';
         xBtn.onclick = () => clearTP(id);
         xBtn.style.cssText = 'background:none;border:none;color:var(--red);font-size:1.2rem;cursor:pointer;padding:4px;line-height:1;';
         xBtn.title = 'Clear TP';
@@ -728,7 +734,7 @@
       if (container && !container.querySelector('.clear-sl-btn')) {
         const xBtn = document.createElement('button');
         xBtn.className = 'clear-sl-btn';
-        xBtn.innerHTML = '√ó';
+        xBtn.innerHTML = '◊';
         xBtn.onclick = () => clearSL(id);
         xBtn.style.cssText = 'background:none;border:none;color:var(--red);font-size:1.2rem;cursor:pointer;padding:4px;line-height:1;';
         xBtn.title = 'Clear SL';
@@ -923,12 +929,12 @@
           const direction  = t.direction || (t.action === 'buy' ? 'Long' : 'Short');
           const currentPrice = await fetchPrice(t.symbol);
           return `<tr>
-            <td style="color:var(--text);font-weight:600;">${t.symbol || '‚Äî'} ${t.source === 'auto-bot' || t.source === 'options-bot' ? '<span class="badge" style="font-size:0.68rem;background:rgba(0,230,118,0.15);color:var(--accent);">Bot</span>' : ''} <span class="badge" style="font-size:0.68rem;background:rgba(255,193,7,0.12);color:#ffc107;">Pending</span></td>
+            <td style="color:var(--text);font-weight:600;">${t.symbol || 'ó'} ${t.source === 'auto-bot' || t.source === 'options-bot' ? '<span class="badge" style="font-size:0.68rem;background:rgba(0,230,118,0.15);color:var(--accent);">Bot</span>' : ''} <span class="badge" style="font-size:0.68rem;background:rgba(255,193,7,0.12);color:#ffc107;">Pending</span></td>
             <td><span class="badge ${direction === 'Long' ? 'badge-long' : 'badge-short'}">${direction}</span></td>
             <td style="color:var(--muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;">${detectAssetType(t.symbol, t.payload)}</td>
-            <td>${t.quantity || '‚Äî'}</td>
-            <td>${currentPrice ? '$'+currentPrice.toFixed(2) : (entryPrice ? '$'+Number(entryPrice).toFixed(2) : '‚Äî')}</td>
-            <td>${(currentPrice && t.quantity) ? '$'+(currentPrice * t.quantity).toFixed(2) : '‚Äî'}</td>
+            <td>${t.quantity || 'ó'}</td>
+            <td>${currentPrice ? '$'+currentPrice.toFixed(2) : (entryPrice ? '$'+Number(entryPrice).toFixed(2) : 'ó')}</td>
+            <td>${(currentPrice && t.quantity) ? '$'+(currentPrice * t.quantity).toFixed(2) : 'ó'}</td>
             <td style="color:var(--muted);font-size:0.8rem;">${t.broker || 'paper'}</td>
             <td style="display:flex;gap:6px;">
               <button class="btn-close-trade" style="border-color:var(--accent);color:var(--accent);" onclick="fillTrade('${t.id}','${t.action||'buy'}',${currentPrice||entryPrice||0},${t.quantity||1})">Fill</button>
@@ -986,7 +992,7 @@
           const pnlDollars = alpacaPos ? alpacaPos.pnl : null;
           const pnlPct = alpacaPos ? alpacaPos.pnlPct : null;
           
-          let pnlHtml = '‚Äî';
+          let pnlHtml = 'ó';
           if (currentPrice && entryPrice && t.quantity) {
             if (alpacaPos) {
               // Use accurate Alpaca P&L
@@ -1007,14 +1013,14 @@
             }
           }
           const isFilled = t.status === 'filled';
-          const filledAt = t.filled_at ? new Date(t.filled_at).toLocaleString() : '‚Äî';
+          const filledAt = t.filled_at ? new Date(t.filled_at).toLocaleString() : 'ó';
           return `<tr>
-            <td style="color:var(--text);font-weight:600;">${t.symbol || '‚Äî'}</td>
+            <td style="color:var(--text);font-weight:600;">${t.symbol || 'ó'}</td>
             <td><span class="badge ${direction === 'Long' ? 'badge-long' : 'badge-short'}">${direction}</span></td>
             <td style="color:var(--muted);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.05em;">${detectAssetType(t.symbol, t.payload)}</td>
-            <td>${t.quantity || '‚Äî'}</td>
-            <td>${entryPrice ? `<div>$${Number(entryPrice).toFixed(2)}</div><div style="font-size:0.7rem;color:var(--muted);">${t.quantity || 1} contract${(t.quantity || 1) !== 1 ? 's' : ''}</div>` : '‚Äî'}</td>
-            <td>${currentPrice ? `$${currentPrice.toFixed(2)}` : '‚Äî'}</td>
+            <td>${t.quantity || 'ó'}</td>
+            <td>${entryPrice ? `<div>$${Number(entryPrice).toFixed(2)}</div><div style="font-size:0.7rem;color:var(--muted);">${t.quantity || 1} contract${(t.quantity || 1) !== 1 ? 's' : ''}</div>` : 'ó'}</td>
+            <td>${currentPrice ? `$${currentPrice.toFixed(2)}` : 'ó'}</td>
             <td>${pnlHtml}</td>
             <td>
               <div style="display:flex;gap:6px;align-items:center;">
@@ -1024,7 +1030,7 @@
                   <option value="percent" ${t.take_profit_type === 'percent' ? 'selected' : ''}>%</option>
                   <option value="pnl" ${t.take_profit_type === 'pnl' ? 'selected' : ''}>P&L</option>
                 </select>
-                ${t.take_profit ? `<button onclick="clearTP('${t.id}')" style="background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:4px;line-height:1;" title="Clear TP">√ó</button>` : ''}
+                ${t.take_profit ? `<button onclick="clearTP('${t.id}')" style="background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:4px;line-height:1;" title="Clear TP">◊</button>` : ''}
               </div>
               <div id="tp-status-${t.id}" style="font-size:0.65rem;color:var(--muted);margin-top:2px;height:14px;"></div>
             </td>
@@ -1036,7 +1042,7 @@
                   <option value="percent" ${t.stop_loss_type === 'percent' ? 'selected' : ''}>%</option>
                   <option value="pnl" ${t.stop_loss_type === 'pnl' ? 'selected' : ''}>P&L</option>
                 </select>
-                ${t.stop_loss ? `<button onclick="clearSL('${t.id}')" style="background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:4px;line-height:1;" title="Clear SL">√ó</button>` : ''}
+                ${t.stop_loss ? `<button onclick="clearSL('${t.id}')" style="background:none;border:none;color:var(--red);font-size:1rem;cursor:pointer;padding:4px;line-height:1;" title="Clear SL">◊</button>` : ''}
               </div>
               <div id="sl-status-${t.id}" style="font-size:0.65rem;color:var(--muted);margin-top:2px;height:14px;"></div>
             </td>
@@ -1092,27 +1098,27 @@
           const pct = entryCost > 0 && pnl != null ? ((pnl / entryCost) * 100).toFixed(2) : '0.00';
           const pnlHtml = pnl != null
             ? `<span class="${pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">${pnl >= 0 ? '+' : ''}$${Number(pnl).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} (${pnl >= 0 ? '+' : ''}${pct}%)</span>`
-            : '‚Äî';
+            : 'ó';
           return `<tr>
-            <td style="color:var(--text);font-weight:600;">${t.symbol || '‚Äî'}</td>
+            <td style="color:var(--text);font-weight:600;">${t.symbol || 'ó'}</td>
             <td><span class="badge ${direction === 'Long' ? 'badge-long' : 'badge-short'}">${direction}</span></td>
-            <td>${t.quantity || '‚Äî'}</td>
-            <td>${exitPrice ? '$'+Number(exitPrice).toFixed(2) : '‚Äî'}</td>
+            <td>${t.quantity || 'ó'}</td>
+            <td>${exitPrice ? '$'+Number(exitPrice).toFixed(2) : 'ó'}</td>
             <td>${pnlHtml}</td>
             <td style="color:var(--muted);font-size:0.8rem;">${t.broker || 'paper'}</td>
-            <td style="color:var(--muted);font-size:0.78rem;">${t.closed_at ? new Date(t.closed_at).toLocaleDateString() : '‚Äî'}</td>
+            <td style="color:var(--muted);font-size:0.78rem;">${t.closed_at ? new Date(t.closed_at).toLocaleDateString() : 'ó'}</td>
           </tr>`;
         });
         const paginationControls = totalPages > 1 ? `
           <div style="display:flex;justify-content:center;align-items:center;gap:16px;margin-top:16px;padding:12px;background:#111;border-radius:8px;border:1px solid #2a2a2a;">
             <button onclick="changeClosedTradesPage(-1)" ${closedTradesPage === 1 ? 'disabled' : ''} 
               style="background:${closedTradesPage === 1 ? '#333' : 'var(--surface)'};color:var(--text);border:1px solid #2a2a2a;padding:8px 16px;border-radius:6px;cursor:${closedTradesPage === 1 ? 'not-allowed' : 'pointer'};font-family:inherit;font-size:0.85rem;">
-              ‚Üê Prev
+              ? Prev
             </button>
             <span style="color:var(--text);font-size:0.85rem;font-weight:500;">Page ${closedTradesPage} of ${totalPages} (${closed.length} trades)</span>
             <button onclick="changeClosedTradesPage(1)" ${closedTradesPage === totalPages ? 'disabled' : ''}
               style="background:${closedTradesPage === totalPages ? '#333' : 'var(--surface)'};color:var(--text);border:1px solid #2a2a2a;padding:8px 16px;border-radius:6px;cursor:${closedTradesPage === totalPages ? 'not-allowed' : 'pointer'};font-family:inherit;font-size:0.85rem;">
-              Next ‚Üí
+              Next ?
             </button>
           </div>
         ` : '';
@@ -1134,12 +1140,12 @@
           const entryPrice = t.entry_price ?? t.price;
           const direction  = t.direction || (t.action === 'buy' ? 'Long' : 'Short');
           return `<tr>
-            <td style="color:var(--text);font-weight:600;">${t.symbol || '‚Äî'}</td>
+            <td style="color:var(--text);font-weight:600;">${t.symbol || 'ó'}</td>
             <td><span class="badge ${direction === 'Long' ? 'badge-long' : 'badge-short'}">${direction}</span></td>
-            <td>${t.quantity || '‚Äî'}</td>
-            <td>${entryPrice ? '$'+Number(entryPrice).toFixed(2) : '‚Äî'}</td>
+            <td>${t.quantity || 'ó'}</td>
+            <td>${entryPrice ? '$'+Number(entryPrice).toFixed(2) : 'ó'}</td>
             <td style="color:var(--red);font-size:0.85rem;">${t.failure_reason || 'Insufficient balance'}</td>
-            <td><button class="btn-icon" onclick="retryTrade('${t.id}')" title="Retry">‚Üª</button></td>
+            <td><button class="btn-icon" onclick="retryTrade('${t.id}')" title="Retry">?</button></td>
           </tr>`;
         });
         failedEl.innerHTML = `<table class="trades-table">
@@ -1195,7 +1201,7 @@
       const selectedOpt = systemSel?.options[systemSel.selectedIndex];
       const webhookUrl = selectedOpt?.dataset?.url || '';
       if (webhookUrl) {
-        webhookEl.textContent = 'üîó ' + webhookUrl;
+        webhookEl.textContent = '?? ' + webhookUrl;
         webhookEl.style.display = 'block';
       } else {
         webhookEl.style.display = 'none';
@@ -1230,7 +1236,7 @@
       if (chainLink) {
         const sym = symbolRaw && !symbolRaw.includes('{{') ? symbolRaw.toUpperCase() : 'AAPL';
         chainLink.href = `https://finance.yahoo.com/quote/${sym}/options/`;
-        chainLink.textContent = `View ${sym} Chain ‚Üó`;
+        chainLink.textContent = `View ${sym} Chain ?`;
       }
     }
 

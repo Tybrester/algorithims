@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BoofCapital — Paper Market</title>
+  <title>BoofCapital � Paper Market</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,7 +41,7 @@
     .user-dropdown { position: relative; }
     .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
-    .user-dropdown-toggle::after { content: '▾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-toggle::after { content: '?'; font-size: 0.7rem; color: var(--accent); }
     .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
     .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--text); cursor: pointer; transition: background 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
@@ -173,7 +173,7 @@
           </button>
           <div class="user-dropdown-menu">
             <button class="user-dropdown-item red" onclick="signOut()">
-              <span>🚪</span> Sign Out
+              <span>??</span> Sign Out
             </button>
           </div>
         </div>
@@ -185,6 +185,9 @@
         <div class="sidebar-section">Menu</div>
         <a href="dashboard.html" class="sidebar-item">Dashboard</a>
         <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
         <a href="paper-market.html" class="sidebar-item">Paper Market</a>
         <a href="alerts.html" class="sidebar-item">Systems</a>
         <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -254,11 +257,11 @@
               <input type="hidden" id="order-dollars" />
 
               <div class="order-summary" id="order-summary">
-                <div class="order-summary-row"><span>Symbol</span><span id="sum-sym">—</span></div>
+                <div class="order-summary-row"><span>Symbol</span><span id="sum-sym">�</span></div>
                 <div class="order-summary-row"><span>Side</span><span id="sum-side">Buy</span></div>
-                <div class="order-summary-row"><span>Est. Price</span><span id="sum-price">—</span></div>
-                <div class="order-summary-row"><span>Quantity</span><span id="sum-qty">—</span></div>
-                <div class="order-summary-row"><span>Est. Total</span><span id="sum-total">—</span></div>
+                <div class="order-summary-row"><span>Est. Price</span><span id="sum-price">�</span></div>
+                <div class="order-summary-row"><span>Quantity</span><span id="sum-qty">�</span></div>
+                <div class="order-summary-row"><span>Est. Total</span><span id="sum-total">�</span></div>
               </div>
 
               <button class="submit-btn buy" id="submit-btn" onclick="submitOrder()">Place Buy Order</button>
@@ -279,7 +282,7 @@
             <span id="chart-trades-count" style="font-size:0.72rem;color:#555;"></span>
           </div>
           <div id="chart-trades-body" style="display:none;">
-            <div class="tbl-empty">No trades yet — place an order to get started</div>
+            <div class="tbl-empty">No trades yet � place an order to get started</div>
           </div>
           <div id="chart-positions-body">
             <div class="tbl-empty">No open positions</div>
@@ -308,7 +311,7 @@
     let paperAcct = null;
     let priceInterval = null;
 
-    // ── TradingView chart ────────────────────────────────────────────────────
+    // -- TradingView chart ----------------------------------------------------
     function syncChartSymbol(symbolInfo) {
       const raw = (symbolInfo.ticker || symbolInfo.name || '').replace(/^.*:/,'').toUpperCase();
       if (!raw || raw === currentSymbol) return;
@@ -343,7 +346,7 @@
       window.addEventListener('message', (e) => {
         try {
           const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-          // TradingView posts various message shapes — check common ones
+          // TradingView posts various message shapes � check common ones
           const sym =
             d?.name === 'tv-widget-symbol' ? d.data :
             d?.symbol_info?.name ? d.symbol_info.name :
@@ -385,7 +388,7 @@
       initChart(currentSymbol, interval);
     }
 
-    // ── Symbol search ────────────────────────────────────────────────────────
+    // -- Symbol search --------------------------------------------------------
     document.addEventListener('DOMContentLoaded', () => {
       const searchInp = document.getElementById('chart-symbol-search');
       if (searchInp) searchInp.addEventListener('keydown', e => { if (e.key === 'Enter') applySymbolSearch(); });
@@ -405,7 +408,7 @@
       }
     });
 
-    // ── Live price polling via Polygon ───────────────────────────────────────
+    // -- Live price polling via Polygon ---------------------------------------
     async function fetchLivePrice(symbol) {
       try {
         const res = await fetch(`${SUPABASE_URL}/functions/v1/get-price?symbol=${symbol}`, {
@@ -431,10 +434,10 @@
       const el = document.getElementById('live-price');
       if (!el) return;
       if (price) { el.textContent = '$' + Number(price).toFixed(2); el.className = 'chart-price pos'; }
-      else { el.textContent = '—'; el.className = 'chart-price'; el.style.color = 'var(--muted)'; }
+      else { el.textContent = '�'; el.className = 'chart-price'; el.style.color = 'var(--muted)'; }
     }
 
-    // ── Order form helpers ───────────────────────────────────────────────────
+    // -- Order form helpers ---------------------------------------------------
     function setSide(side) {
       currentSide = side;
       document.getElementById('tab-buy').classList.toggle('active', side === 'buy');
@@ -479,13 +482,13 @@
         ? (parseFloat(document.getElementById('order-limit-price').value) || livePrice || 0)
         : (livePrice || 0);
       const qty = amountMode === 'shares' ? amount : (price > 0 ? Math.floor(amount / price) : 0);
-      document.getElementById('sum-sym').textContent = sym || '—';
-      document.getElementById('sum-price').textContent = price ? '$' + price.toFixed(2) : '—';
-      document.getElementById('sum-qty').textContent = qty || '—';
-      document.getElementById('sum-total').textContent = (qty && price) ? '$' + (qty * price).toFixed(2) : '—';
+      document.getElementById('sum-sym').textContent = sym || '�';
+      document.getElementById('sum-price').textContent = price ? '$' + price.toFixed(2) : '�';
+      document.getElementById('sum-qty').textContent = qty || '�';
+      document.getElementById('sum-total').textContent = (qty && price) ? '$' + (qty * price).toFixed(2) : '�';
     }
 
-    // ── System / balance ─────────────────────────────────────────────────────
+    // -- System / balance -----------------------------------------------------
     async function loadSystems() {
       const { data } = await sbClient.from('systems').select('id, name').eq('user_id', currentUser.id).order('created_at');
       systems = data || [];
@@ -528,10 +531,10 @@
 
       loadHistory();
       if (document.getElementById('tab-positions').classList.contains('active')) loadOpenPositions();
-      showMsg('Position closed · P&L: ' + (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2), 'success');
+      showMsg('Position closed � P&L: ' + (pnl >= 0 ? '+' : '') + '$' + pnl.toFixed(2), 'success');
     }
 
-    // ── Trade history ────────────────────────────────────────────────────────
+    // -- Trade history --------------------------------------------------------
     async function loadHistory() {
       const { data } = await sbClient.from('trades')
         .select('id, symbol, action, price, quantity, pnl, created_at')
@@ -583,7 +586,7 @@
               <td><span class="tbl-side ${r.action}">${r.action.toUpperCase()}</span></td>
               <td>${r.quantity}</td>
               <td>$${Number(r.price).toFixed(2)}</td>
-              <td>${livePrice ? '$' + livePrice.toFixed(2) : '—'}</td>
+              <td>${livePrice ? '$' + livePrice.toFixed(2) : '�'}</td>
               <td class="tbl-pnl ${pnlClass}">${pnlStr}</td>
               <td><button class="pos-close" onclick="event.stopPropagation();closePosition('${r.id}','${r.action}',${r.quantity},${r.price})">Close</button></td>
             </tr>`;
@@ -620,7 +623,7 @@
             const dt = new Date(r.created_at);
             const timeStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             const total = (Number(r.price) * r.quantity).toFixed(2);
-            const pnl = r.pnl != null ? ((r.pnl >= 0 ? '+' : '') + '$' + Number(r.pnl).toFixed(2)) : '—';
+            const pnl = r.pnl != null ? ((r.pnl >= 0 ? '+' : '') + '$' + Number(r.pnl).toFixed(2)) : '�';
             const pnlClass = r.pnl != null ? (r.pnl >= 0 ? 'pos' : 'neg') : '';
             const isOpen = r.pnl == null;
             const status = isOpen ? 'Open' : 'Closed';
@@ -642,7 +645,7 @@
       </table>`;
     }
 
-    // ── Submit order ─────────────────────────────────────────────────────────
+    // -- Submit order ---------------------------------------------------------
     async function submitOrder() {
       console.log('[PaperMarket] submitOrder clicked');
       const msgEl = document.getElementById('trade-msg');
@@ -701,7 +704,7 @@
       el.style.display = 'block';
     }
 
-    // ── Init ─────────────────────────────────────────────────────────────────
+    // -- Init -----------------------------------------------------------------
     async function init() {
       const { data: { session } } = await sbClient.auth.getSession();
       if (!session) { window.location.href = 'signin.html'; return; }

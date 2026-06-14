@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BoofCapital — Systems</title>
+  <title>BoofCapital � Systems</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -116,7 +116,7 @@
     .user-dropdown { position: relative; }
     .user-dropdown-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.88rem; color: var(--muted); font-weight: 500; cursor: pointer; transition: all 0.2s; }
     .user-dropdown-toggle:hover { background: #1a1a1a; color: var(--text); }
-    .user-dropdown-toggle::after { content: '▾'; font-size: 0.7rem; color: var(--accent); }
+    .user-dropdown-toggle::after { content: '?'; font-size: 0.7rem; color: var(--accent); }
     .user-dropdown-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.4); opacity: 0; visibility: hidden; transform: translateY(-8px); transition: all 0.2s; z-index: 100; }
     .user-dropdown.open .user-dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
     .user-dropdown-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; font-size: 0.85rem; color: var(--text); cursor: pointer; transition: background 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: inherit; }
@@ -151,7 +151,7 @@
           </button>
           <div class="user-dropdown-menu">
             <button class="user-dropdown-item red" onclick="signOut()">
-              <span>🚪</span> Sign Out
+              <span>??</span> Sign Out
             </button>
           </div>
         </div>
@@ -160,10 +160,13 @@
 
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeDrawer()"></div>
     <div class="sidebar-drawer" id="sidebar-drawer">
-      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">✕</button></div>
+      <div class="drawer-close"><a href="dashboard.html" class="logo">Boof<span style="color:var(--accent);">Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:8px;display:inline-block;" alt="bull" /></a><button onclick="closeDrawer()">?</button></div>
       <div class="sidebar-section">Menu</div>
       <a href="dashboard.html" class="sidebar-item">Dashboard</a>
       <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
       <a href="paper-market.html" class="sidebar-item">Paper Market</a>
       <a href="alerts.html" class="sidebar-item active">Systems</a>
       <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -178,6 +181,9 @@
         <div class="sidebar-section">Menu</div>
         <a href="dashboard.html" class="sidebar-item">Dashboard</a>
         <a href="trades.html" class="sidebar-item">Trades</a>
+      <a href="logs.html" class="sidebar-item">
+        <span class="sidebar-icon"></span> Logs
+      </a>
         <a href="paper-market.html" class="sidebar-item">Paper Market</a>
         <a href="alerts.html" class="sidebar-item active">Systems</a>
         <a href="accounts.html" class="sidebar-item">Accounts</a>
@@ -225,7 +231,7 @@
           </div>
           <div id="json-options-fields" style="display:none;grid-template-columns:1fr 1fr;gap:16px;max-width:760px;margin-top:16px;">
             <div><label style="font-size:0.78rem;color:var(--muted);display:block;margin-bottom:6px;">Contract</label><select id="json-contract" style="width:100%;background:#111;border:1px solid #2a2a2a;color:var(--text);padding:9px 12px;border-radius:8px;font-family:inherit;font-size:0.85rem;outline:none;" onchange="buildJSONPreview()"><option value="call">Call</option><option value="put">Put</option></select></div>
-            <div><label style="font-size:0.78rem;color:var(--muted);display:block;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">Strike Price<a id="options-chain-link" href="https://finance.yahoo.com/quote/AAPL/options/" target="_blank" style="font-size:0.72rem;color:var(--accent);text-decoration:none;font-weight:600;">View Chain ↗</a></label><input id="json-strike" type="number" placeholder="e.g. 215" style="width:100%;background:#111;border:1px solid #2a2a2a;color:var(--text);padding:9px 12px;border-radius:8px;font-family:inherit;font-size:0.85rem;outline:none;box-sizing:border-box;" oninput="buildJSONPreview()" /></div>
+            <div><label style="font-size:0.78rem;color:var(--muted);display:block;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">Strike Price<a id="options-chain-link" href="https://finance.yahoo.com/quote/AAPL/options/" target="_blank" style="font-size:0.72rem;color:var(--accent);text-decoration:none;font-weight:600;">View Chain ?</a></label><input id="json-strike" type="number" placeholder="e.g. 215" style="width:100%;background:#111;border:1px solid #2a2a2a;color:var(--text);padding:9px 12px;border-radius:8px;font-family:inherit;font-size:0.85rem;outline:none;box-sizing:border-box;" oninput="buildJSONPreview()" /></div>
             <div>
               <label style="font-size:0.78rem;color:var(--muted);display:block;margin-bottom:6px;">Expiry</label>
               <div style="display:flex;gap:8px;margin-bottom:6px;">
@@ -380,12 +386,12 @@
         broker,
       });
       if (error) {
-        // Supabase failed — fall back to localStorage
+        // Supabase failed � fall back to localStorage
         const arr = getLocalSystems();
         arr.unshift(system);
         saveLocalSystems(arr);
       } else {
-        // Supabase succeeded — clear localStorage junk
+        // Supabase succeeded � clear localStorage junk
         localStorage.removeItem('easytrade_systems');
       }
       document.getElementById('create-system-modal').classList.remove('open');
@@ -472,7 +478,7 @@
         header.style.cursor = 'pointer';
         const brokerLabel = s.broker === 'tastytrade' ? 'tastytrade' : 'Paper';
         const brokerColor = s.broker === 'tastytrade' ? '#ff7043' : 'var(--accent)';
-        header.innerHTML = `<div><div class="sc-name">${s.name}</div><span style="font-size:0.7rem;font-weight:700;color:${brokerColor};text-transform:uppercase;letter-spacing:0.06em;">${brokerLabel}</span></div><span style="font-size:1.1rem;color:var(--accent);">›</span>`;
+        header.innerHTML = `<div><div class="sc-name">${s.name}</div><span style="font-size:0.7rem;font-weight:700;color:${brokerColor};text-transform:uppercase;letter-spacing:0.06em;">${brokerLabel}</span></div><span style="font-size:1.1rem;color:var(--accent);">�</span>`;
         header.addEventListener('click', () => {
           sessionStorage.setItem('edit_system_id', s.id);
           window.location.href = 'system-edit.html?id=' + s.id;
@@ -577,7 +583,7 @@
       document.getElementById('json-preview').textContent = JSON.stringify(payload, null, 2);
 
       const chainLink = document.getElementById('options-chain-link');
-      if (chainLink) { const sym = symbolRaw && !symbolRaw.includes('{{') ? symbolRaw.toUpperCase() : 'AAPL'; chainLink.href = `https://finance.yahoo.com/quote/${sym}/options/`; chainLink.textContent = `View ${sym} Chain ↗`; }
+      if (chainLink) { const sym = symbolRaw && !symbolRaw.includes('{{') ? symbolRaw.toUpperCase() : 'AAPL'; chainLink.href = `https://finance.yahoo.com/quote/${sym}/options/`; chainLink.textContent = `View ${sym} Chain ?`; }
     }
 
     let expiryMode = 'date';
