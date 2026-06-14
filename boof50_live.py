@@ -286,7 +286,7 @@ def handle_bar(sym: str, bar: dict):
     t      = now_et.strftime("%H:%M")
     s      = state[sym]
 
-    if t == "09:30":
+    if t == "04:00":
         s.cum_pv = s.cum_vol = 0.0
         s.bars = []; s.confirm = {}
 
@@ -399,8 +399,9 @@ def main():
 
     stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
     stream.subscribe_bars(on_minute_bar, *SYMBOLS)
+    stream.subscribe_updated_bars(on_minute_bar, *SYMBOLS)  # pre/post market bars
     stream.subscribe_trade_updates(on_trade_update)
-    log.info("Streaming — waiting for bars...")
+    log.info("Streaming — waiting for bars (incl. pre-market)...")
     stream.run()
 
 
