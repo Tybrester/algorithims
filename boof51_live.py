@@ -705,6 +705,40 @@ async def on_trade_update(update):
         on_exit_fill(s, won, fill, reason)
 
 
+# ── HEARTBEAT ─────────────────────────────────────────────────────────────────────
+
+def heartbeat():
+    """Log bot status every 5 minutes so it's visible in console/logs."""
+    import os
+    while True:
+        time.sleep(300)  # every 5 minutes
+        try:
+            now_et   = datetime.now(TZ).strftime("%H:%M ET")
+            open_pos = [(s.sym, s.position["entry"]) for s in state.values() if s.position]
+            paused   = [s.sym for s in state.values() if s.paused]
+            mem_mb   = 0
+            try:
+                with open(f"/proc/{os.getpid()}/status") as f:
+                    for line in f:
+                        if line.startswith("VmRSS"):
+                            mem_mb = int(line.split()[1]) // 1024
+                            break
+            except Exception:
+                pass
+            pos_str    = ", ".join(f"{sym}@{px:.2f}" for sym, px in open_pos) or "none"
+            paused_str = ", ".join(paused) or "none"
+            log.info(
+                f"HEARTBEAT  {now_et}  "
+                f"positions={len(open_pos)}/5 [{pos_str}]  "
+                f"daily_losses={daily_losses}/{MAX_DAILY_LOSS}  "
+                f"paused=[{paused_str}]  "
+                f"stopped={bot_stopped}  "
+                f"mem={mem_mb}MB"
+            )
+        except Exception as e:
+            log.warning(f"HEARTBEAT error: {e}")
+
+
 # ── DAILY RESET + CLOSE TRACKER ──────────────────────────────────────────────────
 
 def end_of_day_reset():
@@ -861,6 +895,7 @@ def main():
     # Start background threads
     threading.Thread(target=schedule_eod_reset,  daemon=True).start()
     threading.Thread(target=fetch_pm_snapshots,  daemon=True).start()
+    threading.Thread(target=heartbeat,           daemon=True).start()
 
     # Stream using proven alpaca_trade_api library (same as boof50)
     log.info("Streaming started — waiting for bars...")
