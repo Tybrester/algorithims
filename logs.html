@@ -555,10 +555,10 @@
 
     // Bot monitoring data - directly integrated
     function fetchBotData() {
-      return Promise.all([fetchBOOF31Live(), fetchBOOF50Status()])
-        .then(([boof31Data, boof50Data]) => ({
+      return fetchBOOF50Status()
+        .then((boof50Data) => ({
           last_update: new Date().toISOString(),
-          bots: { 'BOOF31': boof31Data, 'BOOF50': boof50Data }
+          bots: { 'BOOF23': { total_symbols: 46, active_setups: 0, close_setups: 0, watching_setups: 0, symbols: [] }, 'BOOF50': boof50Data }
         })).catch(() => new Promise((resolve) => {
         setTimeout(() => {
           resolve({
