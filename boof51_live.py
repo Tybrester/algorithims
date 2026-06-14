@@ -36,7 +36,8 @@ from zoneinfo import ZoneInfo
 from collections import defaultdict
 
 import alpaca_trade_api as tradeapi
-from alpaca_trade_api.stream import Stream
+from alpaca.data.live import StockDataStream
+from alpaca.trading.stream import TradingStream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
@@ -689,15 +690,15 @@ async def on_trade_update(update):
     if update.event not in ("fill", "partial_fill"):
         return
     order = update.order
-    sym   = order.get("symbol", "")
+    sym   = order.get("symbol", "") if isinstance(update.order, dict) else getattr(update.order, "symbol", "")
     if sym not in state:
         return
     s = state[sym]
     if s.position is None:
         return
-    fill = float(order.get("filled_avg_price", 0))
-    otype = order.get("type", "")
-    side  = order.get("side", "")
+    fill = float(order.get("filled_avg_price", 0) if isinstance(update.order, dict) else getattr(update.order, "filled_avg_price", 0) or 0)
+    otype = (order.get("type", "") if isinstance(update.order, dict) else getattr(update.order, "type", ""))
+    side  = (order.get("side", "") if isinstance(update.order, dict) else getattr(update.order, "side", ""))
     # buy fill = closing the short
     if side == "buy":
         won = (otype == "limit")  # limit = TP | stop = SL
@@ -862,14 +863,33 @@ def main():
     threading.Thread(target=schedule_eod_reset,  daemon=True).start()
     threading.Thread(target=fetch_pm_snapshots,  daemon=True).start()
 
-    # Stream bars + trade updates
-    stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
-    stream.subscribe_bars(on_bar, *SYMBOLS)
-    stream.subscribe_updated_bars(on_bar, *SYMBOLS)   # includes pre-market
-    stream.subscribe_trade_updates(on_trade_update)
-
+    # Stream bars (alpaca-py StockDataStream — handles reconnects with backoff)
     log.info("Streaming started — waiting for bars...")
-    stream.run()
+    import asyncio
+
+    async def run_streams():
+        data_stream  = StockDataStream(API_KEY, API_SECRET, feed="sip")
+        trade_stream = TradingStream(API_KEY, API_SECRET, paper=PAPER)
+
+        data_stream.subscribe_bars(on_bar, *SYMBOLS)
+        data_stream.subscribe_updated_bars(on_bar, *SYMBOLS)
+        trade_stream.subscribe_trade_updates(on_trade_update)
+
+        await asyncio.gather(
+            data_stream._run_forever(),
+            trade_stream._run_forever(),
+        )
+
+    backoff = 5
+    while True:
+        try:
+            asyncio.run(run_streams())
+        except Exception as e:
+            log.error(f"Stream error: {e} — reconnecting in {backoff}s")
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 60)  # cap at 60s
+        else:
+            backoff = 5  # reset on clean exit
 
 
 if __name__ == "__main__":
