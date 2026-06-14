@@ -10,11 +10,14 @@ Setup:
   python boof23_paper.py summary  # print today's results
 """
 
-import os, time, datetime, csv, logging, importlib.util
+import os, time, datetime, csv, logging, importlib.util, threading
 import pandas as pd
 import numpy as np
 import pytz
 import requests as _requests
+import alpaca_trade_api as tradeapi
+from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 # ── KEYS ──────────────────────────────────────────────────────────────
 PAPER_KEY    = os.environ.get("ALPACA_PAPER_KEY",    "PK7N52NHGPS2GBVZU64BCUEDNO")
@@ -27,13 +30,22 @@ SUPABASE_USER_ID = "d0bb84ba-f968-446c-9792-9bcff8849e37"
 BOT_ID           = "63b10810-676a-4c0c-b0bd-d9f09af1a849"
 
 # ── CONFIG ────────────────────────────────────────────────────────────
-TP_PCT       = 0.005    # +0.50%
-SL_PCT       = 0.0025   # -0.25%
+TP_PCT       = 0.005    # kept for signal logic only
+SL_PCT       = 0.0025   # kept for signal logic only
 RISK_PCT     = 0.01     # 1% of account per trade
-MAX_POSITIONS= 10       # max concurrent open positions
+MAX_POSITIONS= 3        # max concurrent open option positions
 SIGNAL_TF    = "5Min"   # signal timeframe
 EXEC_TF      = "1Min"   # execution timeframe
-COOLDOWN_SEC = 50 * 60  # 10 × 5-min bars ≈ 50 min cooldown per symbol
+COOLDOWN_SEC = 50 * 60  # cooldown per symbol after exit
+
+# ── OPTIONS CONFIG ────────────────────────────────────────────────────
+OPTION_TARGET  = 3.50   # target option mid price
+CONTRACTS      = 1
+TP_MULT        = 1.30   # +30%
+SL_MULT        = 0.85   # -15%
+FILL_WAIT_S    = 7      # seconds between limit price bumps
+MAX_LOSSES_SYM = 3      # stop symbol after N consecutive losses
+MAX_DAILY_LOSS = 5      # stop bot after N daily losses
 
 SYMS = [
     'TOST','HOOD','ORCL','MSFT','V','JPM','SOUN','PODD','ENTG','GE',
@@ -125,7 +137,7 @@ def log_trade(date, sym, direction, entry_px, exit_px, shares, exit_type="tp/sl"
     log.info(f"  {sym:>6} {direction:<5}  entry={entry_px:.2f}  exit={exit_px:.2f}  "
              f"shares={shares}  pnl={pnl_pct:+.2f}%  ${pnl_usd:+.2f}  [{exit_type}]")
 
-# ── ALPACA CLIENT ─────────────────────────────────────────────────────
+# ── ALPACA CLIENTS ────────────────────────────────────────────────────
 try:
     from alpaca.trading.client import TradingClient
     from alpaca.trading.requests import MarketOrderRequest, LimitOrderRequest
@@ -144,6 +156,10 @@ except Exception as e:
     log.error(f"Alpaca connection failed: {e}")
     log.error("Install: pip install alpaca-py")
     raise
+
+# alpaca_trade_api REST client for options (get_option_contracts, snapshots)
+api = tradeapi.REST(PAPER_KEY, PAPER_SECRET, BASE_URL, api_version="v2")
+TZ  = ZoneInfo("America/New_York")
 
 # ── HELPERS ───────────────────────────────────────────────────────────
 def is_market_open():
@@ -213,14 +229,116 @@ def get_spread_pct(symbol):
     except:
         return 0
 
-def calc_shares(price, tier='expanded'):
-    dollars = 600 if tier == 'core' else 200
-    return max(1, int(dollars / price))
-
 # ── STATE ─────────────────────────────────────────────────────────────
-open_positions = {}    # sym -> {shares, entry_px, direction, tp, sl, entry_time}
-cooldown_until = {}    # sym -> datetime: don't re-enter before this time
-used_pivots    = set() # cleared each day
+open_positions  = {}   # sym -> {opt_sym, entry, tp, sl, direction, opened_at}
+cooldown_until  = {}   # sym -> datetime
+used_pivots     = set()
+_lock           = threading.Lock()
+daily_losses    = 0
+bot_stopped     = False
+consec_loss     = {}   # sym -> int
+
+# ── 1DTE OPTION HELPERS ────────────────────────────────────────────────
+def get_1dte_expiry():
+    now = datetime.datetime.now(TZ)
+    exp = now + timedelta(days=1)
+    while exp.weekday() >= 5:
+        exp += timedelta(days=1)
+    return exp.strftime("%Y-%m-%d")
+
+def select_option(sym, side, underlying_price):
+    opt_type = "call" if side == "long" else "put"
+    expiry   = get_1dte_expiry()
+    try:
+        chain = api.get_option_contracts(
+            underlying_symbol=sym,
+            expiration_date=expiry,
+            option_type=opt_type,
+            limit=50,
+        )
+        best = None; best_diff = float("inf")
+        for contract in chain:
+            snap = api.get_option_snapshot(contract.symbol)
+            if not snap: continue
+            bid = snap.latest_quote.bid_price
+            ask = snap.latest_quote.ask_price
+            if bid is None or ask is None or bid <= 0: continue
+            mid  = (bid + ask) / 2
+            diff = abs(mid - OPTION_TARGET)
+            if diff < best_diff:
+                best_diff = diff
+                best = {"symbol": contract.symbol, "bid": bid, "ask": ask, "mid": mid}
+        return best
+    except Exception as e:
+        log.error(f"Option chain error {sym}: {e}")
+        return None
+
+def place_option_entry(sym, direction, underlying_price):
+    global daily_losses, bot_stopped
+    if bot_stopped:
+        log.warning("Bot stopped — skipping"); return
+    with _lock:
+        if len(open_positions) >= MAX_POSITIONS:
+            log.info(f"Max positions — skipping {sym}"); return
+        if sym in open_positions:
+            log.info(f"{sym} already open — skipping"); return
+
+    contract = select_option(sym, direction, underlying_price)
+    if not contract:
+        log.warning(f"No suitable option for {sym} {direction}"); return
+
+    opt_sym = contract["symbol"]
+    bid = contract["bid"]; ask = contract["ask"]; mid = contract["mid"]
+    spread = ask - bid
+    log.info(f"OPTION {sym:5s} {direction:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}")
+
+    prices = [round(mid, 2), round(mid + 0.25*spread, 2), round(mid + 0.50*spread, 2)]
+    order_id = None
+    for attempt, limit_px in enumerate(prices):
+        try:
+            if order_id:
+                api.cancel_order(order_id)
+            order = api.submit_order(
+                symbol=opt_sym, qty=CONTRACTS, side="buy",
+                type="limit", time_in_force="day", limit_price=str(limit_px)
+            )
+            order_id = order.id
+            log.info(f"  Attempt {attempt+1}: BUY LIMIT {opt_sym} @ {limit_px:.2f}")
+            time.sleep(FILL_WAIT_S)
+            o = api.get_order(order_id)
+            if o.status == "filled":
+                fill = float(o.filled_avg_price)
+                tp_price = round(fill * TP_MULT, 2)
+                sl_price = round(fill * SL_MULT, 2)
+                log.info(f"FILL   {sym:5s} {direction:5s}  {opt_sym} @ {fill:.2f}  TP={tp_price:.2f}  SL={sl_price:.2f}")
+                try:
+                    tp_order = api.submit_order(
+                        symbol=opt_sym, qty=CONTRACTS, side="sell",
+                        type="limit", time_in_force="day",
+                        limit_price=str(tp_price),
+                        order_class="oco",
+                        stop_loss={"stop_price": str(sl_price)},
+                    )
+                    with _lock:
+                        open_positions[sym] = {
+                            "opt_sym": opt_sym, "entry": fill,
+                            "tp": tp_price, "sl": sl_price,
+                            "direction": direction,
+                            "opened_at": datetime.datetime.now(TZ),
+                            "order_id": tp_order.id,
+                        }
+                        sb_insert_trade(sym, fill, CONTRACTS, str(tp_order.id), direction)
+                except Exception as e:
+                    log.error(f"OCO exit error {sym}: {e}")
+                return
+        except Exception as e:
+            log.error(f"Entry order error {sym} attempt {attempt+1}: {e}")
+            return
+
+    if order_id:
+        try: api.cancel_order(order_id)
+        except: pass
+    log.info(f"SKIP   {sym} {direction} — no fill after 3 attempts")
 
 # ── SIGNAL SCAN ───────────────────────────────────────────────────────
 def scan_signals():
@@ -284,87 +402,37 @@ def scan_signals():
         price = get_latest_price(sym) or price
         if price <= 0:
             continue
-        tier = trade_info.get('tier', 'expanded')
-        shares = calc_shares(price, tier)
-        if shares < 1:
-            log.warning(f"  {sym}: not enough equity for 1 share @ ${price:.2f}")
-            continue
-
-        side = OrderSide.BUY if direction == "long" else OrderSide.SELL
-        tp   = price * (1 + TP_PCT) if direction == "long" else price * (1 - TP_PCT)
-        sl   = price * (1 - SL_PCT) if direction == "long" else price * (1 + SL_PCT)
-
-        # Check spread - skip if too wide (slippage will eat the edge)
-        spread_pct = get_spread_pct(sym)
-        if spread_pct > 0.0005:  # 0.05%
-            log.info(f"  {sym}: skipped (spread {spread_pct*100:.3f}% > 0.05%)")
-            continue
-
-        open_positions[sym] = {"reserved": True}  # reserve slot before order
-        try:
-            req = MarketOrderRequest(symbol=sym, qty=shares,
-                                     side=side, time_in_force=TimeInForce.DAY)
-            order = trade_client.submit_order(req)
-            sb_id = sb_insert_trade(sym, price, shares, str(order.id), direction)
-            open_positions[sym] = {
-                "shares": shares, "entry_px": price, "direction": direction,
-                "tp": tp, "sl": sl, "entry_time": now_et,
-                "order_id": str(order.id), "sb_trade_id": sb_id
-            }
-            log.info(f"  {'LONG' if direction=='long' else 'SHORT':5} {sym:>6}  "
-                     f"{shares} shares @ ${price:.2f}  "
-                     f"TP=${tp:.2f}  SL=${sl:.2f}  id={order.id}")
-        except Exception as e:
-            log.error(f"  Order failed {sym}: {e}")
+        threading.Thread(
+            target=place_option_entry, args=(sym, direction, price), daemon=True
+        ).start()
 
 # ── TP/SL MONITOR ─────────────────────────────────────────────────────
 def check_exits():
-    """Check all open positions for TP/SL hit."""
-    if not open_positions:
-        return
-
-    today = datetime.date.today().isoformat()
+    """OCO exits are handled by Alpaca automatically. This checks for timed-out positions."""
+    now_et = datetime.datetime.now(TZ)
     to_close = []
-
     for sym, pos in list(open_positions.items()):
-        price = get_latest_price(sym)
-        if price is None:
-            continue
-
-        direction = pos["direction"]
-        hit_tp = (price >= pos["tp"]) if direction == "long" else (price <= pos["tp"])
-        hit_sl = (price <= pos["sl"]) if direction == "long" else (price >= pos["sl"])
-
-        if hit_tp or hit_sl:
-            exit_type = "tp" if hit_tp else "sl"
+        if "opened_at" not in pos: continue
+        age_min = (now_et - pos["opened_at"]).total_seconds() / 60
+        if age_min >= 120:  # 2hr max hold
+            log.info(f"TIMEOUT {sym} — closing after {age_min:.0f} min")
             try:
-                trade_client.close_position(sym)
-                exit_px = get_latest_price(sym) or price
-                log_trade(today, sym, direction, pos["entry_px"], exit_px,
-                          pos["shares"], exit_type)
-                sb_close_trade(pos.get("sb_trade_id"), exit_px, pos["entry_px"],
-                               pos["shares"], direction)
-                cooldown_until[sym] = datetime.datetime.now(ET) + datetime.timedelta(seconds=COOLDOWN_SEC)
-                to_close.append(sym)
+                api.submit_order(pos["opt_sym"], CONTRACTS, "sell", "market", "day")
             except Exception as e:
-                log.error(f"  Close failed {sym}: {e}")
-
+                log.error(f"Timeout close failed {sym}: {e}")
+            to_close.append(sym)
     for sym in to_close:
         open_positions.pop(sym, None)
+        cooldown_until[sym] = datetime.datetime.now(ET) + datetime.timedelta(seconds=COOLDOWN_SEC)
 
 # ── EOD EXIT ──────────────────────────────────────────────────────────
 def close_all_eod():
-    """Force-close all open Boof 23 positions at end of day."""
+    """Force-close all open Boof 23 option positions at end of day."""
     log.info("EOD: closing all open positions...")
-    today = datetime.date.today().isoformat()
     for sym, pos in list(open_positions.items()):
         try:
-            trade_client.close_position(sym)
-            exit_px = get_latest_price(sym) or pos["entry_px"]
-            log_trade(today, sym, pos["direction"], pos["entry_px"],
-                      exit_px, pos["shares"], "eod")
-            sb_close_trade(pos.get("sb_trade_id"), exit_px, pos["entry_px"],
-                           pos["shares"], pos["direction"])
+            api.submit_order(pos["opt_sym"], CONTRACTS, "sell", "market", "day")
+            log.info(f"  EOD closed {sym} {pos['opt_sym']}")
         except Exception as e:
             log.error(f"  EOD close failed {sym}: {e}")
     open_positions.clear()
