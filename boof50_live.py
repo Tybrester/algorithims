@@ -109,7 +109,7 @@ def get_1dte_expiry() -> str:
     return exp.strftime("%Y-%m-%d")
 
 
-def select_option(sym: str, side: str, underlying_price: float) -> dict | None:
+def select_option(sym: str, side: str, underlying_price: float):
     """
     Fetch option chain for sym, find the strike whose mid is closest
     to OPTION_TARGET. Returns dict with keys: symbol, bid, ask, mid.
