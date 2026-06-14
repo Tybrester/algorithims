@@ -867,29 +867,29 @@ def main():
     log.info("Streaming started — waiting for bars...")
     import asyncio
 
-    async def run_streams():
-        data_stream  = StockDataStream(API_KEY, API_SECRET, feed="sip")
-        trade_stream = TradingStream(API_KEY, API_SECRET, paper=PAPER)
+    from alpaca.data.enums import DataFeed
 
-        data_stream.subscribe_bars(on_bar, *SYMBOLS)
-        data_stream.subscribe_updated_bars(on_bar, *SYMBOLS)
-        trade_stream.subscribe_trade_updates(on_trade_update)
+    # Data stream — bars
+    data_stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.SIP)
+    data_stream.subscribe_bars(on_bar, *SYMBOLS)
+    data_stream.subscribe_updated_bars(on_bar, *SYMBOLS)
 
-        await asyncio.gather(
-            data_stream._run_forever(),
-            trade_stream._run_forever(),
-        )
+    # Trade stream — fill events (runs in background thread)
+    trade_stream = TradingStream(API_KEY, API_SECRET, paper=PAPER)
+    trade_stream.subscribe_trade_updates(on_trade_update)
+    threading.Thread(target=trade_stream.run, daemon=True).start()
 
+    # Run data stream with backoff
     backoff = 5
     while True:
         try:
-            asyncio.run(run_streams())
+            data_stream.run()
         except Exception as e:
             log.error(f"Stream error: {e} — reconnecting in {backoff}s")
             time.sleep(backoff)
-            backoff = min(backoff * 2, 60)  # cap at 60s
+            backoff = min(backoff * 2, 60)
         else:
-            backoff = 5  # reset on clean exit
+            backoff = 5
 
 
 if __name__ == "__main__":
