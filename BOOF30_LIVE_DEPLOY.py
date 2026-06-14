@@ -20,8 +20,8 @@ logging.basicConfig(
 )
 
 # PAPER TRADING KEYS
-API_KEY = 'PK2O2N4OQ4PEATNTDN57MNSIB7'
-API_SECRET = '894T7WQpHVjfLXitiv1cG1ZkGeQsegtWhA2jLocVfCnc'
+API_KEY = 'PK7OQWKVUULJ7KRHMOQTUQS3QX'
+API_SECRET = 'AFJBzr795JzeLwCtEMfyuHR7xE7xq1euTNCbYrD22xUd'
 
 # Initialize clients
 trading_client = TradingClient(API_KEY, API_SECRET, paper=True)
@@ -51,7 +51,7 @@ EXTENDED_UNIVERSE = [
 ]
 
 # PARAMETERS
-PARAMS = {'rvol': 7, 'bar1_body': 0.9, 'vwap_slope': 0.25, 'bar2_body': 0.5}
+PARAMS = {'rvol': 3, 'bar1_body': 0.5, 'vwap_slope': 0.25, 'bar2_body': 0.3}
 TP_1, TP_2, SL = 1.0, 1.75, 1.0
 
 # RISK SETTINGS

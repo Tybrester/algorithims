@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-BOOF 31 - STRUCTURE + TREND + VOLUME STARTER
+BOOF 31 - RESISTANCE SWEEP / FAILED BREAKOUT ALGORITHM
 Live Deployment on Alpaca Paper
 
-Strategy: Pivot-based entries with trend confirmation and volume surge
-- Long: Near support pivot, trend up, dry volume pullback, green candle
-- Short: Near resistance pivot, trend down, dry volume pullback, red candle
+Strategy: Resistance sweep detection with BOOF scoring
+- Detect multi-touch resistance levels
+- Identify 0.20% sweeps above resistance
+- Score setups (volume, rejection, level quality)
+- Enter on breakdown with minimum score of 6
 """
 
 import os
@@ -22,6 +24,13 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 import pandas as pd
 import numpy as np
+
+# BOOF31 Parameters
+SWEEP_BUFFER = 0.002     # 0.20% sweep above resistance
+MIN_SCORE = 6            # Minimum BOOF score required
+COOLDOWN_MINUTES = 30    # 30-minute cooldown
+LOOKBACK = 80            # Resistance lookback period
+RES_TOL = 0.002          # Resistance tolerance
 
 # Alpaca API Keys - Boof 23/30 account
 API_KEY = 'PK2O2N4OQ4PEATNTDN57MNSIB7'

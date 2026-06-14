@@ -1,29 +1,85 @@
 """
-backtest_10k_all_bots.py
-========================
-10,000+ trades with walk-forward optimization for Boof 21, 22, 23
-Period: 2021-2026 (5+ years)
+BOOF 31 - LARGE UNIVERSE BACKTEST
+Updated algorithm with 98 symbols using cached 5-minute data
 """
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from scipy import stats
-from backtest_signals import fetch_alpaca_bars, get_alpaca_credentials
+import os
+import logging
+from datetime import datetime
 
-creds = get_alpaca_credentials()
-API_KEY = creds['api_key']
-API_SECRET = creds['secret_key']
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
-# =============================================================================
-# CONFIG
-# =============================================================================
-START_DATE = datetime(2025, 2, 1)  # 15 months of data
-END_DATE = datetime(2026, 5, 31)
-SYMBOLS = ['AAPL', 'NVDA', 'META', 'GOOGL', 'AMD', 'TSLA', 'QQQ', 'SPY']
+# BOOF31 Parameters
+SWEEP_BUFFER = 0.002     # 0.20% sweep above resistance
+MIN_SCORE = 6            # Minimum BOOF score required
+COOLDOWN_MINUTES = 30    # 30-minute cooldown
+LOOKBACK = 80            # Resistance lookback period
+RES_TOL = 0.002          # Resistance tolerance
+MAX_CONFIRM_BARS = 5     # Break confirmation within 5 bars
 
-# Option TP/SL
-OPTION_TP_PCT = 0.40
+# Exit Parameters
+STOP_LOSS = 0.0025       # 0.25% stop loss
+TP1 = 0.005              # 0.50% first target
+TRAIL_STOP = 0.0025      # 0.25% trailing stop
+MAX_HOLD_BARS = 30       # Max hold time
+
+# Expanded Universe (98 symbols)
+SYMBOLS = [
+    # Tech Giants
+    "AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "AMD", "NFLX",
+    # Cloud/SaaS
+    "CRM", "NOW", "SNOW", "PLTR", "DDOG", "MDB", "CRWD", "ZS", "NET", "SHOP",
+    # Software
+    "ADBE", "INTU", "PANW", "TEAM", "HUBS", "UBER", "ABNB", "BKNG", "RBLX", "DASH",
+    # Latin America/E-commerce
+    "MELI", "ETSY",
+    # Financials
+    "JPM", "GS", "MS", "AXP", "SCHW", "BLK", "SPGI",
+    # Healthcare/Biotech
+    "LLY", "NVO", "ISRG", "VRTX", "REGN", "MRNA", "GILD",
+    # Industrial/Defense
+    "GEV", "RTX", "BA", "CAT", "DE", "ETN", "PH", "TT",
+    # Energy
+    "XOM", "CVX", "COP", "SLB", "HAL", "OXY", "EOG", "MPC",
+    # Telecom/Media
+    "TMUS", "ROKU", "SPOT", "PINS", "SNAP", "RDDT", "COIN",
+    # Semiconductor/Hardware
+    "MSTR", "HOOD", "APP", "SMCI", "ARM", "MU", "QCOM", "MRVL", "TSM", "ASML",
+    # Semicap Equipment
+    "AMAT", "LRCX", "KLAC", "MCHP", "ON", "NXPI",
+    # ETFs
+    "SPY", "QQQ", "IWM", "SMH", "SOXX"
+]
+
+def load_cached_data(symbols):
+    """Load 5-minute data from cached files"""
+    all_data = []
+    loaded_symbols = []
+    
+    for symbol in symbols:
+        try:
+            cache_file = f'boof_data/{symbol}_5m_2025-12-01_to_2026-05-31.parquet'
+            
+            if os.path.exists(cache_file):
+                df = pd.read_parquet(cache_file)
+                df['symbol'] = symbol
+                all_data.append(df)
+                loaded_symbols.append(symbol)
+                log.info(f'Loaded {symbol}: {len(df)} bars')
+            else:
+                log.warning(f'No cached data for {symbol}')
+        except Exception as e:
+            log.error(f'Error loading {symbol}: {e}')
+    
+    if all_data:
+        combined_data = pd.concat(all_data, ignore_index=True)
+        log.info(f'Total data loaded: {len(combined_data)} bars from {len(loaded_symbols)} symbols')
+        return combined_data, loaded_symbols
+    
+    return None, []
 OPTION_SL_PCT = 0.10
 DELTA = 0.50
 TP_PCT = OPTION_TP_PCT / DELTA / 100
