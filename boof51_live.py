@@ -870,7 +870,7 @@ def main():
     from alpaca.data.enums import DataFeed
 
     # Data stream — bars
-    data_stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.SIP)
+    data_stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.IEX)
     data_stream.subscribe_bars(on_bar, *SYMBOLS)
     data_stream.subscribe_updated_bars(on_bar, *SYMBOLS)
 
