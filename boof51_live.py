@@ -611,10 +611,8 @@ def _sb_update(s: SymState):
         held = s.bars_held
         pos_str = f" | PUT open @ stock={s.position['entry']:.2f} ({held}b held)"
     # setup_close = level touched, state machine in bounce phase (signal imminent)
-    near_signal = any(
-        v.get("state") in ("bounce", "touch")
-        for v in s.level_states.values()
-    )
+    touched    = any(v.get("state") == "touch"  for v in s.level_states.values())
+    bouncing   = any(v.get("state") == "bounce" for v in s.level_states.values())
     metrics = (f"gap={s.gap_pct*100:.2f}% | "
                f"levels={len(s.levels)} | "
                f"gap_ok={s.gap_ok}"
@@ -623,8 +621,9 @@ def _sb_update(s: SymState):
         "bot":            "BOOF51",
         "symbol":         s.sym,
         "setup_active":   s.opt_position is not None,
-        "setup_close":    s.gap_ok and s.opt_position is None and near_signal,
-        "setup_watching": s.gap_ok and s.opt_position is None and bool(s.levels) and not near_signal,
+        "setup_close":    s.gap_ok and s.opt_position is None and bouncing,
+        "setup_watching": s.gap_ok and s.opt_position is None and bool(s.levels) and not touched and not bouncing,
+        "setup_touched":  s.gap_ok and s.opt_position is None and touched and not bouncing,
         "metrics":        metrics,
         "updated_at":     now.isoformat(),
     }],), daemon=True).start()

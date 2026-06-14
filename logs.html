@@ -461,11 +461,12 @@
           symbol: sym,
           setup_active: r.setup_active,
           setup_close: r.setup_close,
+          setup_touched: r.setup_touched,
           setup_watching: r.setup_watching,
           metrics: r.metrics || '',
         } : {
           symbol: sym,
-          setup_active: false, setup_close: false, setup_watching: false,
+          setup_active: false, setup_close: false, setup_touched: false, setup_watching: false,
           metrics: 'Waiting for bars...',
         };
       });
@@ -549,6 +550,9 @@
             } else if (symbol.setup_close) {
               statusClass = 'status-close';
               statusText = botName === 'BOOF51' ? 'Triggered' : 'Close';
+            } else if (symbol.setup_touched) {
+              statusClass = 'status-close';
+              statusText = 'Close';
             } else if (symbol.setup_watching) {
               statusClass = 'status-watching';
               statusText = 'Watching';
