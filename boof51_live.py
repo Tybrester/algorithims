@@ -66,7 +66,7 @@ GAP_MIN   = 0.005    # gap-up minimum 0.5%
 BOUNCE    = 0.0015   # bounce >= 0.15% off level
 NEAR_PCT  = 0.0015   # within 0.15% = "touching" level
 
-MAX_POSITIONS  = 999     # no limit — trade all signals
+MAX_POSITIONS  = 10      # max 10 concurrent open positions
 MAX_CONSEC_SYM = 2   # consecutive losses before pausing symbol
 MAX_DAILY_LOSS = 8   # daily loss count before stopping bot
 
