@@ -294,7 +294,6 @@ def handle_bar(sym: str, bar: dict):
     bar["vwap"] = vwap
     s.bars.append(bar)
 
-    if t < "09:45" or t > "14:00": return
     if bot_stopped or s.stopped:   return
     if len(s.bars) < 6:            return
 
