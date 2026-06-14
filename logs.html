@@ -508,7 +508,7 @@
                 </div>
                 <div class="stat">
                   <div class="stat-value close">${botData.close_setups}</div>
-                  <div class="stat-label">Close</div>
+                  <div class="stat-label">${botName === 'BOOF51' ? 'Triggered' : 'Close'}</div>
                 </div>
                 <div class="stat">
                   <div class="stat-value" style="color: #2196f3;">${botData.watching_setups || 0}</div>
@@ -548,7 +548,7 @@
               statusText = 'Active';
             } else if (symbol.setup_close) {
               statusClass = 'status-close';
-              statusText = 'Close';
+              statusText = botName === 'BOOF51' ? 'Triggered' : 'Close';
             } else if (symbol.setup_watching) {
               statusClass = 'status-watching';
               statusText = 'Watching';
