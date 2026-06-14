@@ -33,10 +33,10 @@ BOT_ID           = "63b10810-676a-4c0c-b0bd-d9f09af1a849"
 TP_PCT       = 0.005    # kept for signal logic only
 SL_PCT       = 0.0025   # kept for signal logic only
 RISK_PCT     = 0.01     # 1% of account per trade
-MAX_POSITIONS= 3        # max concurrent open option positions
+MAX_POSITIONS= 5        # max concurrent open option positions
 SIGNAL_TF    = "5Min"   # signal timeframe
 EXEC_TF      = "1Min"   # execution timeframe
-COOLDOWN_SEC = 50 * 60  # cooldown per symbol after exit
+COOLDOWN_SEC = 10 * 60  # cooldown per symbol after exit
 
 # ── OPTIONS CONFIG ────────────────────────────────────────────────────
 OPTION_TARGET  = 3.50   # target option mid price
@@ -529,7 +529,7 @@ def run_day():
 
         if now_et < eod_cutoff:
             check_exits()
-            if now_et.second < 5:  # scan once per minute
+            if now_et.second < 30:  # scan once per minute
                 scan_signals()
 
         time.sleep(5)
