@@ -279,7 +279,7 @@ def select_option(sym, side, underlying_price):
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
         OPT_BUDGET      = OPTION_TARGET * 100   # $350 total budget
         MAX_COST        = OPT_BUDGET * 1.5      # hard cap $525 per contract
-        MAX_STRIKE_DIST = 0.10                  # strike must be within 10% of underlying
+        MAX_STRIKE_DIST = 0.20                  # strike must be within 20% of underlying
         chain = []
         for contract in contracts:
             snap = snaps.get(contract.symbol)
