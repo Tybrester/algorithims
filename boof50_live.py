@@ -290,6 +290,16 @@ def handle_bar(sym: str, bar: dict):
 
     if bot_stopped or s.stopped:   return
     if len(s.bars) < 6:            return
+    if t < "09:30":                return   # no signals before RTH open
+    if t >= "15:55" and s.position:         # EOD force close
+        try:
+            api.submit_order(s.position["opt_sym"], CONTRACTS, "sell", "market", "day")
+        except Exception as e:
+            log.error(f"EOD close failed {sym}: {e}")
+        with _lock:
+            s.position.pop("long", None); s.position.pop("short", None)
+        return
+    if t >= "15:00":               return   # no new entries after 15:00
 
     prev = s.bars[-2]; curr = s.bars[-1]
 
