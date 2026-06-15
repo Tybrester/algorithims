@@ -277,18 +277,31 @@ def select_option(sym, side, underlying_price):
             return None
         log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts)")
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
-        best = None; best_diff = float("inf")
+        OPT_BUDGET = OPTION_TARGET * 100   # $350 total budget
+        MAX_COST   = OPT_BUDGET * 1.5      # hard cap $525 per contract
+        chain = []
         for contract in contracts:
             snap = snaps.get(contract.symbol)
             if not snap: continue
-            bid = snap.latest_quote.bid_price
-            ask = snap.latest_quote.ask_price
-            if bid is None or ask is None or bid <= 0: continue
-            mid  = (bid + ask) / 2
-            diff = abs(mid - OPTION_TARGET)
-            if diff < best_diff:
-                best_diff = diff
-                best = {"symbol": contract.symbol, "bid": bid, "ask": ask, "mid": mid}
+            bid = snap.latest_quote.bid_price or 0
+            ask = snap.latest_quote.ask_price or 0
+            if ask <= 0: continue
+            if ask * 100 > MAX_COST: continue      # no deep ITM
+            mid    = (bid + ask) / 2
+            cost_1 = ask * 100
+            cost_2 = ask * 100 * 2
+            diff_1 = abs(cost_1 - OPT_BUDGET)
+            diff_2 = abs(cost_2 - OPT_BUDGET)
+            qty    = 1 if diff_1 <= diff_2 else 2
+            chain.append({"symbol": contract.symbol, "bid": bid, "ask": ask,
+                          "mid": mid, "qty": qty, "diff": min(diff_1, diff_2)})
+        if not chain:
+            log.warning(f"No contracts within budget for {sym} {opt_type}")
+            return None
+        chain.sort(key=lambda x: x["diff"])
+        best = chain[0]
+        log.info(f"  {sym} selected {best['symbol']} ask={best['ask']:.2f} "
+                 f"qty={best['qty']} cost=${best['ask']*100*best['qty']:.0f}")
         return best
     except Exception as e:
         log.error(f"Option chain error {sym}: {e}")
@@ -311,7 +324,8 @@ def place_option_entry(sym, direction, underlying_price):
     opt_sym = contract["symbol"]
     bid = contract["bid"]; ask = contract["ask"]; mid = contract["mid"]
     spread = ask - bid
-    log.info(f"OPTION {sym:5s} {direction:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}")
+    qty    = contract.get("qty", CONTRACTS)
+    log.info(f"OPTION {sym:5s} {direction:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}  qty={qty}")
 
     prices = [
         (round(mid + 0.25 * spread, 2), 5),
@@ -325,7 +339,7 @@ def place_option_entry(sym, direction, underlying_price):
                 try: api.cancel_order(order_id)
                 except Exception: pass
             order = api.submit_order(
-                symbol=opt_sym, qty=CONTRACTS, side="buy",
+                symbol=opt_sym, qty=qty, side="buy",
                 type="limit", time_in_force="day", limit_price=str(limit_px)
             )
             order_id = order.id
@@ -338,22 +352,36 @@ def place_option_entry(sym, direction, underlying_price):
                 sl_price = round(fill * SL_MULT, 2)
                 log.info(f"FILL   {sym:5s} {direction:5s}  {opt_sym} @ {fill:.2f}  TP={tp_price:.2f}  SL={sl_price:.2f}")
                 try:
-                    tp_order = api.submit_order(
-                        symbol=opt_sym, qty=CONTRACTS, side="sell",
-                        type="limit", time_in_force="day",
-                        limit_price=str(tp_price),
-                        order_class="oco",
-                        stop_loss={"stop_price": str(sl_price)},
-                    )
+                    tp_id = None; sl_id = None
+                    try:
+                        tp_ord = api.submit_order(
+                            symbol=opt_sym, qty=qty, side="sell",
+                            type="limit", time_in_force="day",
+                            limit_price=str(tp_price),
+                        )
+                        tp_id = tp_ord.id
+                        log.info(f"  TP order placed: {tp_id}")
+                    except Exception as e:
+                        log.error(f"TP order error {sym}: {e}")
+                    try:
+                        sl_ord = api.submit_order(
+                            symbol=opt_sym, qty=qty, side="sell",
+                            type="stop", time_in_force="day",
+                            stop_price=str(sl_price),
+                        )
+                        sl_id = sl_ord.id
+                        log.info(f"  SL order placed: {sl_id}")
+                    except Exception as e:
+                        log.error(f"SL order error {sym}: {e}")
                     with _lock:
                         open_positions[sym] = {
                             "opt_sym": opt_sym, "entry": fill,
                             "tp": tp_price, "sl": sl_price,
                             "direction": direction,
                             "opened_at": datetime.datetime.now(TZ),
-                            "order_id": tp_order.id,
+                            "tp_id": tp_id, "sl_id": sl_id,
                         }
-                        sb_insert_trade(sym, fill, CONTRACTS, str(tp_order.id), direction)
+                        sb_insert_trade(sym, fill, qty, str(tp_id or ""), direction)
                 except Exception as e:
                     log.error(f"OCO exit error {sym}: {e}")
                 return
