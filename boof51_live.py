@@ -42,8 +42,8 @@ from alpaca_trade_api.stream import Stream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
-API_KEY    = "PKKBY5KRCWS24LU4E23B5JXHT7"
-API_SECRET = "59bDUQNNxidTUdAuPViYtBzJ6jVBLRREe32DqjhLYS1o"
+API_KEY    = "PKFLGIB7WQAWFPIIZJUY2HBYMF"
+API_SECRET = "9aoMxsWBtaR2wN6UTSZ6BaZ2i9x5LJ77s5sJiQq9pNNy"
 PAPER      = True
 
 BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
