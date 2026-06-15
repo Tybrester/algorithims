@@ -38,8 +38,7 @@ from zoneinfo import ZoneInfo
 from collections import defaultdict
 
 import alpaca_trade_api as tradeapi
-from alpaca.data.live import StockDataStream
-from alpaca.data.enums import DataFeed
+from alpaca_trade_api.stream import Stream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
@@ -889,7 +888,7 @@ def main():
     backoff = 5
     while True:
         try:
-            stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.SIP)
+            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
             stream.subscribe_bars(on_bar, *SYMBOLS)
             stream.subscribe_updated_bars(on_bar, *SYMBOLS)
             stream.run()
