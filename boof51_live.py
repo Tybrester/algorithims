@@ -705,6 +705,7 @@ def poll_bars():
                 if seen.get(sym) == ts_str:
                     continue
                 seen[sym] = ts_str
+                log.info(f"BAR {sym} @ {ts_str}  c={bar.close:.2f}")
                 ts = bar.name
                 if hasattr(ts, "to_pydatetime"):
                     ts = ts.to_pydatetime()
