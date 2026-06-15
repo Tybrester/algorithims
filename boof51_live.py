@@ -974,6 +974,7 @@ def backfill_today_gap():
                                            "l": row["low"],  "c": row["close"], "v": row["volume"]})
                     s.levels = build_pivot_levels(s.rth_bars, s.lb, s.wing)
                 log.info(f"  {sym}: {len(s.levels)} level(s) — {[round(l,2) for l in s.levels[:3]]}")
+                s.level_states = {}  # reset SM — only live bars should trigger state changes
                 _sb_update(s)
             except Exception as e:
                 log.warning(f"  {sym}: backfill failed — {e}")
