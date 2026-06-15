@@ -674,7 +674,7 @@ def poll_bars():
             continue
         for sym in SYMBOLS:
             try:
-                bars = api.get_bars(sym, "1Min", limit=2).df
+                bars = api.get_bars(sym, "1Min", limit=2, feed="iex").df
                 if bars.empty:
                     continue
                 bar  = bars.iloc[-1]
@@ -814,6 +814,7 @@ def preseed_daily_data():
             symbol_or_symbols=SYMBOLS,
             timeframe=TimeFrame(1, TimeFrameUnit.Day),
             start=start, end=end,
+            feed="iex",
         )
         bars_df = client.get_stock_bars(req).df
         if bars_df.empty:
