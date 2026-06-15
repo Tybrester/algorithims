@@ -273,8 +273,8 @@ def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float, qty: int = 
     try:
         sl_ord = api.submit_order(
             symbol=opt_sym, qty=qty, side="sell",
-            type="stop", time_in_force="day",
-            stop_price=str(sl_price),
+            type="limit", time_in_force="day",
+            limit_price=str(sl_price),
         )
         sl_id = sl_ord.id
         log.info(f"  SL order placed: {sl_id}")
