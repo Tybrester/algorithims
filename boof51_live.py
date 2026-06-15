@@ -341,6 +341,8 @@ def _select_put(sym: str, underlying_px: float):
         opt_syms = [c.symbol for c in contracts]
         snap_req = OptionSnapshotRequest(symbol_or_symbols=opt_syms)
         snaps    = _opt_data.get_option_snapshot(snap_req)
+        n_snaps  = sum(1 for s in snaps.values() if s and s.latest_quote and (s.latest_quote.ask_price or 0) > 0)
+        log.info(f"OPT {sym}: {len(snaps)} snapshots returned, {n_snaps} with ask>0")
 
         chain = []
         for c in contracts:
@@ -349,12 +351,12 @@ def _select_put(sym: str, underlying_px: float):
                 if not snap: continue
                 greeks = snap.greeks
                 quote  = snap.latest_quote
-                if not greeks or not quote: continue
+                if not quote: continue
                 bid = quote.bid_price or 0
                 ask = quote.ask_price or 0
                 if ask <= 0: continue  # bid can be 0 on illiquid puts
                 mid   = (bid + ask) / 2
-                delta = abs(greeks.delta) if greeks.delta else 0
+                delta = abs(greeks.delta) if greeks and greeks.delta else 0
                 oi    = snap.open_interest or 0
                 chain.append({
                     "opt_sym": c.symbol,
