@@ -259,7 +259,7 @@ def update_level_sm(s: SymState, level: float, bar: dict):
     """
     key = round(level, 4)
     if key not in s.level_states:
-        s.level_states[key] = {"state": "IDLE", "extreme": None, "touch_num": 0, "was_below": False}
+        s.level_states[key] = {"state": "IDLE", "extreme": None, "touch_num": 0, "was_below": False, "broken": False}
     sm = s.level_states[key]
 
     high = bar["h"]; close = bar["c"]
@@ -283,12 +283,14 @@ def update_level_sm(s: SymState, level: float, bar: dict):
             # left the zone — check bounce
             bounced = (sm["extreme"] is not None and
                        (level - sm["extreme"]) / level >= BOUNCE)
-            if bounced and sm["touch_num"] == 1:
+            required_touches = 2 if sm["broken"] else 1
+            if bounced and sm["touch_num"] == required_touches:
                 # signal fires — next bar open is entry
                 sm["state"] = "FIRED"
                 return True
             # no valid bounce or repeat touch → invalidate
-            sm["state"]   = "DEAD"
+            sm["state"]     = "DEAD"
+            sm["broken"]    = True   # level has been broken — needs 2 touches next time
             sm["was_below"] = False  # must go below again before re-arming
     elif sm["state"] == "DEAD":
         if sm["was_below"]:  # price came back below — reset to IDLE for re-test
