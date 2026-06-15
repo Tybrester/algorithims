@@ -314,7 +314,10 @@ def _select_put(sym: str, underlying_px: float):
         from alpaca.data.requests import OptionSnapshotRequest
 
         _trade_client = TradingClient(API_KEY, API_SECRET, paper=True)
-        _opt_data     = OptionHistoricalDataClient(API_KEY, API_SECRET)
+        # Use boof50 keys for options market data — boof51 account lacks options data subscription
+        _DATA_KEY    = "PKUE2IRNMB5ZUCK3ISPE3RIUX4"
+        _DATA_SECRET = "Cb3rxrN6SNSYkpYEbVn96i7FjM5KCBcpR8bLq7hKRciB"
+        _opt_data     = OptionHistoricalDataClient(_DATA_KEY, _DATA_SECRET)
 
         contracts = []
         expiry    = None
