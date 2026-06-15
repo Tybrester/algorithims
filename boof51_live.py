@@ -52,7 +52,7 @@ BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.
 QTY = 1
 
 # Options config
-OPT_CONTRACTS  = 1          # contracts per signal
+OPT_BUDGET     = 300        # target spend per option trade in dollars
 OPT_DELTA_MIN  = 0.40       # minimum delta for put selection
 OPT_DELTA_MAX  = 0.60       # maximum delta for put selection
 OPT_DTE        = 1          # 1 DTE expiry
@@ -378,16 +378,18 @@ def _buy_put(s: SymState):
             if order_id:
                 try: api.cancel_order(order_id)
                 except Exception: pass
+            # size to ~$300 budget: contracts = floor(budget / (price * 100)), min 1
+            contracts = max(1, int(OPT_BUDGET / (limit_px * 100)))
             order = api.submit_order(
                 symbol        = opt_sym,
-                qty           = OPT_CONTRACTS,
+                qty           = contracts,
                 side          = "buy",
                 type          = "limit",
                 time_in_force = "day",
                 limit_price   = str(limit_px),
             )
             order_id = order.id
-            log.info(f"OPT {s.sym}: BUY PUT {opt_sym} @ {limit_px:.2f}  attempt {attempt+1}")
+            log.info(f"OPT {s.sym}: BUY PUT {opt_sym} x{contracts} @ {limit_px:.2f}  (~${contracts*limit_px*100:.0f})  attempt {attempt+1}")
             time.sleep(7)
             o = api.get_order(order_id)
             if o.status == "filled":
@@ -396,7 +398,7 @@ def _buy_put(s: SymState):
                 with _lock:
                     s.opt_position = {
                         "opt_sym":   opt_sym,
-                        "qty":       OPT_CONTRACTS,
+                        "qty":       contracts,
                         "entry_fill": fill,
                         "order_id":  order_id,
                     }
