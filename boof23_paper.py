@@ -340,11 +340,17 @@ def place_option_entry(sym, direction, underlying_price):
             log.info(f"{sym} reserved mid-flight — skipping"); return
         open_positions[sym] = {"opt_sym": opt_sym, "entry": None, "reserved": True}
 
-    prices = [
-        (round(mid + 0.25 * spread, 2), 5),
-        (round(mid + 0.50 * spread, 2), 5),
-        (round(ask, 2),                 5),
-    ]
+    HIGH_VOL = {"TSLA","NVDA","MSTR","COIN","HOOD","UPST","SMCI","AMD","APP","PLTR"}
+    if sym in HIGH_VOL:
+        prices = [
+            (round(mid + 0.25 * spread, 2), 5),
+            (round(mid + 0.50 * spread, 2), 5),
+            (round(ask, 2),                 5),
+        ]
+    else:
+        prices = [
+            (round(mid, 2), 30),  # mid only, 30s then cancel
+        ]
     order_id = None
     for attempt, (limit_px, wait) in enumerate(prices):
         try:
