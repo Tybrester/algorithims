@@ -378,7 +378,7 @@ def scan_signals():
 
         df5 = bars_5m.get(sym)
         df1 = bars_1m.get(sym)
-        if df5 is None or df1 is None or len(df5) < 80:
+        if df5 is None or df1 is None or len(df5) < 20:
             continue
 
         try:
