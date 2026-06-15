@@ -397,12 +397,17 @@ def main():
     log.info(f"Target premium ~${OPTION_TARGET:.2f}  TP={TP_MULT}x  SL={SL_MULT}x")
     log.info(f"MaxPos={MAX_POSITIONS}  MaxLosses/sym={MAX_LOSSES_SYM}  DailyStop={MAX_DAILY_LOSS}")
 
-    stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
-    stream.subscribe_bars(on_minute_bar, *SYMBOLS)
-    stream.subscribe_updated_bars(on_minute_bar, *SYMBOLS)  # pre/post market bars
-    stream.subscribe_trade_updates(on_trade_update)
-    log.info("Streaming — waiting for bars (incl. pre-market)...")
-    stream.run()
+    while True:
+        try:
+            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
+            stream.subscribe_bars(on_minute_bar, *SYMBOLS)
+            stream.subscribe_updated_bars(on_minute_bar, *SYMBOLS)
+            stream.subscribe_trade_updates(on_trade_update)
+            log.info("Streaming — waiting for bars (incl. pre-market)...")
+            stream.run()
+        except Exception as e:
+            log.error(f"Stream error: {e} — reconnecting in 60s")
+            time.sleep(60)
 
 
 if __name__ == "__main__":
