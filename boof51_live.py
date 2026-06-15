@@ -369,25 +369,26 @@ def _select_put(sym: str, underlying_px: float):
             log.warning(f"OPT {sym}: no tradeable puts found for {expiry}")
             return None
 
-        # Sort by distance from underlying (ATM first), puts are below so sort desc
+        # Walk from ATM → ITM (sort by strike descending = closest to price first for puts)
+        # Puts: strike at or just below underlying = ATM, higher strike = ITM
         chain.sort(key=lambda x: abs(x["strike"] - underlying_px))
 
         best = None
         best_diff = float("inf")
 
         for c in chain:
-            ask_total_1 = c["ask"] * 100 * 1   # cost of 1 contract
-            ask_total_2 = c["ask"] * 100 * 2   # cost of 2 contracts
+            ask = c["ask"]
+            cost_1 = ask * 100        # 1 contract
+            cost_2 = ask * 100 * 2    # 2 contracts
 
-            diff_1 = abs(ask_total_1 - OPT_BUDGET)
-            diff_2 = abs(ask_total_2 - OPT_BUDGET)
+            diff_1 = abs(cost_1 - OPT_BUDGET)   # vs $300 target
+            diff_2 = abs(cost_2 - OPT_BUDGET)   # 2x ~$150 each
 
-            if diff_1 <= diff_2:
-                qty  = 1
-                diff = diff_1
-            else:
-                qty  = 2
-                diff = diff_2
+            qty  = 1 if diff_1 <= diff_2 else 2
+            diff = min(diff_1, diff_2)
+
+            log.debug(f"  OPT {sym} strike={c['strike']} ask={ask:.2f} "
+                      f"cost1=${cost_1:.0f} cost2=${cost_2:.0f} -> qty={qty} diff={diff:.0f}")
 
             if diff < best_diff:
                 best_diff = diff
@@ -395,6 +396,7 @@ def _select_put(sym: str, underlying_px: float):
                 best["qty"] = qty
 
         if best is None:
+            log.warning(f"OPT {sym}: no suitable strike found in chain of {len(chain)}")
             return None
 
         log.info(f"OPT {sym}: selected {best['opt_sym']}  strike={best['strike']}  "
