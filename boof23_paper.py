@@ -258,18 +258,24 @@ def get_1dte_expiry():
     return exp.strftime("%Y-%m-%d")
 
 def select_option(sym, side, underlying_price):
+    from alpaca.trading.client import TradingClient as _TC
+    from alpaca.trading.requests import GetOptionContractsRequest as _GOCR
+    from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
+    from alpaca.data.requests import OptionSnapshotRequest as _OSR
     opt_type = "call" if side == "long" else "put"
     expiry   = get_1dte_expiry()
     try:
-        chain = api.get_option_contracts(
-            underlying_symbol=sym,
-            expiration_date=expiry,
-            option_type=opt_type,
-            limit=50,
-        )
+        _tc  = _TC(PAPER_KEY, PAPER_SECRET, paper=True)
+        _odc = _OHDC(PAPER_KEY, PAPER_SECRET)
+        req  = _GOCR(underlying_symbols=[sym], expiration_date=expiry, type=opt_type, limit=50)
+        contracts = _tc.get_option_contracts(req).option_contracts
+        if not contracts:
+            log.warning(f"No contracts for {sym} {opt_type} {expiry}")
+            return None
+        snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
         best = None; best_diff = float("inf")
-        for contract in chain:
-            snap = api.get_option_snapshot(contract.symbol)
+        for contract in contracts:
+            snap = snaps.get(contract.symbol)
             if not snap: continue
             bid = snap.latest_quote.bid_price
             ask = snap.latest_quote.ask_price
