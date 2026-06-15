@@ -662,6 +662,10 @@ def poll_bars():
     """Poll latest 1-min bar for all symbols every 60s via REST."""
     seen: dict = {}   # sym -> last bar timestamp
     log.info("REST polling started — fetching bars every 60s...")
+    from alpaca.data.historical import StockHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+    _client = StockHistoricalDataClient(API_KEY, API_SECRET)
     while True:
         now_et = datetime.now(TZ)
         in_session = (
@@ -672,12 +676,31 @@ def poll_bars():
         if not in_session:
             time.sleep(60)
             continue
+        now_et2 = datetime.now(TZ)
+        req = StockBarsRequest(
+            symbol_or_symbols=SYMBOLS,
+            timeframe=TimeFrame(1, TimeFrameUnit.Minute),
+            start=now_et2 - timedelta(minutes=5),
+            end=now_et2,
+            feed="iex",
+        )
+        try:
+            df = _client.get_stock_bars(req).df
+        except Exception as e:
+            log.error(f"poll_bars fetch failed: {e}")
+            time.sleep(60)
+            continue
         for sym in SYMBOLS:
             try:
-                bars = api.get_bars(sym, "1Min", limit=2, feed="iex").df
-                if bars.empty:
+                if df.empty:
                     continue
-                bar  = bars.iloc[-1]
+                if "symbol" in df.index.names:
+                    sym_df = df.xs(sym, level="symbol") if sym in df.index.get_level_values("symbol") else None
+                else:
+                    sym_df = df[df.index.get_level_values(0) == sym]
+                if sym_df is None or sym_df.empty:
+                    continue
+                bar = sym_df.iloc[-1]
                 ts_str = str(bar.name)
                 if seen.get(sym) == ts_str:
                     continue
@@ -687,11 +710,11 @@ def poll_bars():
                     ts = ts.to_pydatetime()
                 if not hasattr(ts, "astimezone"):
                     ts = datetime.fromtimestamp(float(ts) / 1e9, tz=TZ)
-                hm     = ts.astimezone(TZ).strftime("%H:%M")
-                is_pm  = hm < "09:30"
+                hm    = ts.astimezone(TZ).strftime("%H:%M")
+                is_pm = hm < "09:30"
                 handle_bar(sym, {
-                    "o": bar.open, "h": bar.high,
-                    "l": bar.low,  "c": bar.close, "v": bar.volume,
+                    "o": float(bar.open), "h": float(bar.high),
+                    "l": float(bar.low),  "c": float(bar.close), "v": float(bar.volume),
                 }, is_pm)
             except Exception as e:
                 log.error(f"poll_bars {sym}: {e}")
