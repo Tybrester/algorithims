@@ -187,9 +187,13 @@ class SymState:
         self.opt_position = None   # same as position — kept for _close_put compatibility
 
         # kill switch
-        self.consec_loss = 0
-        self.paused      = False
-        self.last_price  = None  # last bar close
+        self.consec_loss  = 0
+        self.paused       = False
+        self.last_price   = None   # last bar close
+
+        # close tracking for dashboard
+        self.closed_at    = None   # datetime of last close
+        self.close_reason = None   # TP / SL / TIMEOUT / EOD
 
     def reset_day(self):
         self.pm_high       = None
@@ -559,8 +563,10 @@ def close_trade(s: SymState, reason: str):
     """Sell put at market and clear position."""
     _close_put(s, reason)
     with _lock:
-        s.position = None
+        s.position  = None
         s.bars_held = 0
+        s.closed_at = datetime.now(TZ)
+        s.close_reason = reason
 
 
 def on_exit_fill(s: SymState, won: bool, fill_px: float, reason: str):
@@ -568,8 +574,10 @@ def on_exit_fill(s: SymState, won: bool, fill_px: float, reason: str):
     global daily_losses, bot_stopped
     _close_put(s, reason)
     with _lock:
-        s.position  = None
-        s.bars_held = 0
+        s.position     = None
+        s.bars_held    = 0
+        s.closed_at    = datetime.now(TZ)
+        s.close_reason = reason
         if won:
             s.consec_loss = 0
             log.info(f"WIN    {s.sym}  {reason}  stock_px={fill_px:.4f}")
@@ -718,13 +726,15 @@ def _sb_update(s: SymState):
             metrics = f"[{rtype_label}] {gap_str} — no gap{px_str}"
     else:
         metrics = "Waiting for open..."
+    recently_closed = (s.closed_at is not None and (now - s.closed_at).total_seconds() < 300)
     threading.Thread(target=sb_push, args=([{
         "bot":            "BOOF51",
         "symbol":         s.sym,
         "setup_active":   s.position is not None or s.opt_position is not None,
         "setup_close":    s.gap_ok and s.position is None and s.opt_position is None and (bouncing or touched),
-        "setup_watching": s.gap_ok and s.position is None and s.opt_position is None and bool(s.levels) and not touched and not bouncing,
-        "metrics":        metrics,
+        "setup_closed":   recently_closed and s.position is None,
+        "setup_watching": s.gap_ok and s.position is None and s.opt_position is None and bool(s.levels) and not touched and not bouncing and not recently_closed,
+        "metrics":        metrics + (f" | Closed: {s.close_reason}" if recently_closed else ""),
         "updated_at":     now.isoformat(),
     }],), daemon=True).start()
 

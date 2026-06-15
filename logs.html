@@ -274,6 +274,11 @@
       color: #2196f3;
     }
 
+    .status-closed {
+      background: rgba(156, 39, 176, 0.1);
+      color: #9c27b0;
+    }
+
     .traded-tag {
       background: rgba(255, 152, 0, 0.2);
       color: #ff9800;
@@ -434,12 +439,13 @@
           symbol: sym,
           setup_active: r.setup_active,
           setup_close: r.setup_close,
+          setup_closed: r.setup_closed,
           setup_watching: r.setup_watching,
           metrics: r.metrics || '',
         } : {
           symbol: sym,
-          setup_active: false, setup_close: false, setup_watching: false,
-          metrics: 'Waiting for bars...',
+          setup_active: false, setup_close: false, setup_closed: false, setup_watching: false,
+          metrics: '',
         };
       });
       const active   = symbols.filter(s => s.setup_active).length;
@@ -461,13 +467,14 @@
           symbol: sym,
           setup_active: r.setup_active,
           setup_close: r.setup_close,
+          setup_closed: r.setup_closed,
           setup_touched: r.setup_touched,
           setup_watching: r.setup_watching,
           metrics: r.metrics || '',
         } : {
           symbol: sym,
-          setup_active: false, setup_close: false, setup_touched: false, setup_watching: false,
-          metrics: 'Waiting for bars...',
+          setup_active: false, setup_close: false, setup_closed: false, setup_touched: false, setup_watching: false,
+          metrics: '',
         };
       });
       const active   = symbols.filter(s => s.setup_active).length;
@@ -547,12 +554,10 @@
             <div class="symbols-grid">
         `;
 
-        // BOOF50/51 show all symbols; BOOF23 shows only signals/active
-        const relevantSymbols = (botName === 'BOOF50' || botName === 'BOOF51')
-          ? botData.symbols
-          : botData.symbols.filter(symbol =>
-              symbol.setup_active || symbol.setup_close || symbol.setup_watching || symbol.setup_error
-            );
+        // All bots: only show symbols with something happening
+        const relevantSymbols = botData.symbols.filter(symbol =>
+          symbol.setup_active || symbol.setup_close || symbol.setup_watching || symbol.setup_error || symbol.setup_closed
+        );
 
         if (relevantSymbols.length === 0) {
           html += `
@@ -572,6 +577,9 @@
             } else if (symbol.setup_close) {
               statusClass = 'status-close';
               statusText = 'Close';
+            } else if (symbol.setup_closed) {
+              statusClass = 'status-closed';
+              statusText = 'Closed';
             } else if (symbol.setup_watching) {
               statusClass = 'status-watching';
               statusText = 'Watching';
