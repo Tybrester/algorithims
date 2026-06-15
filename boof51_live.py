@@ -286,13 +286,16 @@ def update_level_sm(s: SymState, level: float, bar: dict):
 
 # ── OPTIONS LEG ─────────────────────────────────────────────────────────────────
 
-def _get_1dte_expiry() -> str:
-    """Return next trading day's date as YYYYMMDD (Alpaca option symbol format)."""
+def _next_trading_days(n: int = 7) -> list:
+    """Return next n trading day dates as YYYY-MM-DD strings."""
     now = datetime.now(TZ)
-    exp = now + timedelta(days=1)
-    while exp.weekday() >= 5:   # skip Saturday(5) and Sunday(6)
+    days = []
+    exp  = now + timedelta(days=1)
+    while len(days) < n:
+        if exp.weekday() < 5:
+            days.append(exp.strftime("%Y-%m-%d"))
         exp += timedelta(days=1)
-    return exp.strftime("%Y-%m-%d")
+    return days
 
 
 def _select_put(sym: str, underlying_px: float):
@@ -304,7 +307,6 @@ def _select_put(sym: str, underlying_px: float):
     Whichever combo gets closest to OPT_BUDGET wins.
     Returns dict: {opt_sym, strike, bid, ask, mid, delta, oi, qty} or None.
     """
-    expiry = _get_1dte_expiry()
     try:
         from alpaca.trading.client import TradingClient
         from alpaca.trading.requests import GetOptionContractsRequest
@@ -314,15 +316,22 @@ def _select_put(sym: str, underlying_px: float):
         _trade_client = TradingClient(API_KEY, API_SECRET, paper=True)
         _opt_data     = OptionHistoricalDataClient(API_KEY, API_SECRET)
 
-        req = GetOptionContractsRequest(
-            underlying_symbols=[sym],
-            expiration_date=expiry,
-            type="put",
-            limit=100,
-        )
-        contracts = _trade_client.get_option_contracts(req).option_contracts
+        contracts = []
+        expiry    = None
+        for candidate in _next_trading_days(7):
+            req = GetOptionContractsRequest(
+                underlying_symbols=[sym],
+                expiration_date=candidate,
+                type="put",
+                limit=100,
+            )
+            contracts = _trade_client.get_option_contracts(req).option_contracts
+            if contracts:
+                expiry = candidate
+                log.info(f"OPT {sym}: using expiry {expiry} ({len(contracts)} contracts)")
+                break
         if not contracts:
-            log.warning(f"OPT {sym}: no put contracts found for {expiry}")
+            log.warning(f"OPT {sym}: no put contracts found in next 7 trading days")
             return None
 
         # Fetch snapshots for all contract symbols at once
