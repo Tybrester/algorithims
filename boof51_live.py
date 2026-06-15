@@ -729,12 +729,9 @@ def _sb_update(s: SymState):
             metrics = f"[{rtype_label}] {gap_str} — no gap{px_str}"
     else:
         metrics = "Waiting for open..."
-    recently_closed = (s.closed_at is not None and (now - s.closed_at).total_seconds() < 300)
-    is_active  = s.position is not None or s.opt_position is not None
-    is_close   = s.gap_ok and not is_active and (bouncing or touched)
-    is_watching = s.gap_ok and not is_active and bool(s.levels) and not touched and not bouncing and not recently_closed
-    if recently_closed and not is_active:
-        metrics += f" | CLOSED: {s.close_reason}"
+    is_active   = s.position is not None or s.opt_position is not None
+    is_close    = s.gap_ok and not is_active and (bouncing or touched)
+    is_watching = s.gap_ok and not is_active and bool(s.levels) and not touched and not bouncing
     threading.Thread(target=sb_push, args=([{
         "bot":            "BOOF51",
         "symbol":         s.sym,
