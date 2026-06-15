@@ -63,7 +63,7 @@ def sb_push_status(payload: list):
 QTY = 1
 
 # Options config
-OPT_BUDGET     = 300        # target spend per option trade in dollars
+OPT_BUDGET     = 200        # target spend per option trade in dollars
 OPT_DELTA_MIN  = 0.40       # minimum delta for put selection
 OPT_DELTA_MAX  = 0.60       # maximum delta for put selection
 OPT_DTE        = 1          # 1 DTE expiry

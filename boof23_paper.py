@@ -39,7 +39,7 @@ EXEC_TF      = "1Min"   # execution timeframe
 COOLDOWN_SEC = 10 * 60  # cooldown per symbol after exit
 
 # ── OPTIONS CONFIG ────────────────────────────────────────────────────
-OPTION_TARGET  = 3.50   # target option mid price
+OPTION_TARGET  = 2.00   # target option mid price
 CONTRACTS      = 1
 TP_MULT        = 1.40   # +40%
 SL_MULT        = 0.75   # -25%
@@ -280,8 +280,8 @@ def select_option(sym, side, underlying_price):
             return None
         log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts, strikes {strike_lo}-{strike_hi})")
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
-        OPT_BUDGET      = OPTION_TARGET * 100   # $350 total budget
-        MAX_COST        = OPT_BUDGET * 1.5      # hard cap $525 per contract
+        OPT_BUDGET      = OPTION_TARGET * 100   # $200 total budget
+        MAX_COST        = OPT_BUDGET * 1.5      # hard cap $300 per contract
         MAX_STRIKE_DIST = 0.20                  # strike must be within 20% of underlying
         chain = []
         for contract in contracts:
