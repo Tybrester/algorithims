@@ -887,10 +887,10 @@ def main():
     backoff = 5
     while True:
         try:
-            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
+            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip",
+                            raw_data=False)
             stream.subscribe_bars(on_bar, *SYMBOLS)
             stream.subscribe_updated_bars(on_bar, *SYMBOLS)
-            stream.subscribe_trade_updates(on_trade_update)
             stream.run()
         except Exception as e:
             log.error(f"Stream error: {e} — reconnecting in {backoff}s")
