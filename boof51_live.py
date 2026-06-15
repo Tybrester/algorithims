@@ -653,15 +653,16 @@ def _sb_update(s: SymState):
     if s.position:
         held = s.bars_held
         pos_str = f" | PUT open @ stock={s.position['entry']:.2f} ({held}b held)"
-    # setup_close = level touched, state machine in bounce phase (signal imminent)
-    touched    = any(v.get("state") == "touch"  for v in s.level_states.values())
-    bouncing   = any(v.get("state") == "bounce" for v in s.level_states.values())
+    # setup_close = price is currently touching a level (IN = touching, FIRED = signal just fired)
+    touched    = any(v.get("state") == "IN"    for v in s.level_states.values())
+    bouncing   = any(v.get("state") == "FIRED" for v in s.level_states.values())
     px_str = f" | px=${s.last_price:.2f}" if s.last_price else ""
     if s.gap_pct is not None:
         gap_str = f"Gap: {s.gap_pct*100:+.2f}%"
         if s.gap_ok:
             lvl_str = ", ".join(f"${lv:.2f}" for lv in s.levels[:3]) if s.levels else "none"
-            metrics = f"{gap_str} ✓{px_str} | Levels: {lvl_str}{pos_str}"
+            touch_str = " | ⚡ TOUCHING LEVEL" if touched else (" | 🔥 SIGNAL FIRED" if bouncing else "")
+            metrics = f"{gap_str} ✓{px_str} | Levels: {lvl_str}{touch_str}{pos_str}"
         else:
             metrics = f"{gap_str} — no gap{px_str}"
     else:
