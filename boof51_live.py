@@ -888,7 +888,7 @@ def main():
     backoff = 5
     while True:
         try:
-            stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.SIP)
+            stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.IEX)
             stream.subscribe_bars(on_bar, *SYMBOLS)
             stream.subscribe_updated_bars(on_bar, *SYMBOLS)
             stream.run()
