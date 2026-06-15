@@ -292,6 +292,7 @@ def select_option(sym, side, underlying_price):
             bid = snap.latest_quote.bid_price or 0
             ask = snap.latest_quote.ask_price or 0
             if ask <= 0: continue
+            if bid > 0 and (ask - bid) / ask > 0.15: continue  # skip wide spread > 15%
             if ask * 100 > MAX_COST: continue      # no deep ITM
             mid    = (bid + ask) / 2
             cost_1 = ask * 100

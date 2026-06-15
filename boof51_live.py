@@ -376,7 +376,8 @@ def _select_put(sym: str, underlying_px: float):
                 if not quote: continue
                 bid = quote.bid_price or 0
                 ask = quote.ask_price or 0
-                if ask <= 0: continue  # bid can be 0 on illiquid puts
+                if ask <= 0: continue
+                if bid > 0 and (ask - bid) / ask > 0.15: continue  # skip wide spread > 15%
                 mid   = (bid + ask) / 2
                 delta = abs(greeks.delta) if greeks and greeks.delta else 0
                 oi    = getattr(snap, "open_interest", None) or 0
