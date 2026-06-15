@@ -9,8 +9,8 @@ for sym in SYMBOLS:
     try:
         intra = api.get_bars(sym, '1Min', start='2026-06-15T04:00:00-04:00',
                              end='2026-06-15T09:35:00-04:00', feed='iex').df
-        daily = api.get_bars(sym, '1Day', start='2026-06-13',
-                             end='2026-06-15', feed='iex').df
+        daily = api.get_bars(sym, '1Day', start='2026-06-01',
+                             end='2026-06-14', feed='iex').df
         if intra.empty or len(daily) < 1:
             print(f'{sym:6s}  no data')
             continue
