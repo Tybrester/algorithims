@@ -42,8 +42,8 @@ from alpaca_trade_api.stream import Stream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
-API_KEY    = "PK4NQSTAIEKKAEYRN4IUV4QEP6"
-API_SECRET = "4RjGttmeLa6cWz7UasknWTGHTUrs3pYS2iF2g4bmC2wK"
+API_KEY    = "PKZSW422NEY2R3JZG7KNPBKQ2B"
+API_SECRET = "6ZXwcVY2gnA2geZ54ADXay1mniKPupF1LnPdekrp6wtq"
 PAPER      = True
 
 BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
@@ -885,7 +885,9 @@ def main():
 
     # Stream using proven alpaca_trade_api library (same as boof50)
     log.info("Streaming started — waiting for bars...")
-    backoff = 5
+    log.info("Waiting 30s before first connect to avoid Alpaca rate limit...")
+    time.sleep(30)
+    backoff = 60
     while True:
         try:
             stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
