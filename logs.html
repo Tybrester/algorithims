@@ -582,10 +582,13 @@
 
             let tradedTag = symbol.traded ? `<span class="traded-tag">TRADED: ${symbol.traded_count || 1}</span>` : '';
             
+            const priceMatch = symbol.metrics && symbol.metrics.match(/px=\$([0-9,.]+)/);
+            const priceTag = priceMatch ? `<span style="color:var(--text2);font-size:0.82rem;font-weight:400;margin-left:6px;">$${priceMatch[1]}</span>` : '';
+
             html += `
               <div class="symbol-card">
                 <div class="symbol-header">
-                  <div class="symbol-name">${symbol.symbol}</div>
+                  <div class="symbol-name">${symbol.symbol}${priceTag}</div>
                   <div style="display: flex; align-items: center; gap: 8px;">
                     ${tradedTag}
                     <div class="symbol-status ${statusClass}">${statusText}</div>
