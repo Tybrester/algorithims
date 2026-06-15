@@ -570,6 +570,7 @@ def handle_rth_bar(s: SymState, bar: dict):
     s.rth_bars.append(bar)
 
     if not s.gap_ok:
+        _sb_update(s)
         return
 
     # ── Kill switch checks ────────────────────────────────────────────────────
@@ -640,10 +641,13 @@ def _sb_update(s: SymState):
     # setup_close = level touched, state machine in bounce phase (signal imminent)
     touched    = any(v.get("state") == "touch"  for v in s.level_states.values())
     bouncing   = any(v.get("state") == "bounce" for v in s.level_states.values())
-    metrics = (f"gap={s.gap_pct*100:.2f}% | "
-               f"levels={len(s.levels)} | "
-               f"gap_ok={s.gap_ok}"
-               f"{pos_str}")
+    if s.gap_pct is not None:
+        metrics = (f"gap={s.gap_pct*100:.2f}% | "
+                   f"{'GO' if s.gap_ok else 'NO GAP'}"
+                   + (f" | levels={len(s.levels)}" if s.gap_ok else "")
+                   + pos_str)
+    else:
+        metrics = "Scanning..."
     threading.Thread(target=sb_push, args=([{
         "bot":            "BOOF51",
         "symbol":         s.sym,
