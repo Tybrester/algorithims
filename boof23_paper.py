@@ -46,6 +46,7 @@ SL_MULT        = 0.80   # -20%
 FILL_WAIT_S    = 7      # seconds between limit price bumps
 MAX_LOSSES_SYM = 3      # stop symbol after N consecutive losses
 MAX_DAILY_LOSS = 5      # stop bot after N daily losses
+MIN_5M_BARS    = 30     # min 5-min bars required before scanning a symbol
 
 SYMS = [
     'TOST','HOOD','ORCL','MSFT','V','JPM','SOUN','PODD','ENTG','GE',
@@ -378,7 +379,7 @@ def scan_signals():
 
         df5 = bars_5m.get(sym)
         df1 = bars_1m.get(sym)
-        if df5 is None or df1 is None or len(df5) < 20:
+        if df5 is None or df1 is None or len(df5) < MIN_5M_BARS:
             continue
 
         try:
