@@ -391,41 +391,54 @@ def _buy_put(s: SymState):
         return
 
     opt_sym   = put["opt_sym"]
-    spread    = put["ask"] - put["bid"]
-    limit_px  = round(put["mid"] + 0.25 * spread, 2)
+    bid       = put["bid"]
+    ask       = put["ask"]
+    spread    = ask - bid
+    mid       = put["mid"]
     contracts = put.get("qty", 1)
 
+    prices = [
+        (round(mid + 0.25 * spread, 2), 5),
+        (round(mid + 0.50 * spread, 2), 5),
+        (round(ask, 2),                 5),
+    ]
     order_id = None
-    try:
-        order = api.submit_order(
-            symbol        = opt_sym,
-            qty           = contracts,
-            side          = "buy",
-            type          = "limit",
-            time_in_force = "day",
-            limit_price   = str(limit_px),
-        )
-        order_id = order.id
-        log.info(f"OPT {s.sym}: BUY PUT {opt_sym} x{contracts} @ {limit_px:.2f}  (~${contracts*limit_px*100:.0f})  [mid+25%spread]")
-        time.sleep(7)
-        o = api.get_order(order_id)
-        if o.status == "filled":
-            fill = float(o.filled_avg_price)
-            log.info(f"OPT {s.sym}: PUT FILLED {opt_sym} @ {fill:.2f}")
-            with _lock:
-                s.opt_position = {
-                    "opt_sym":   opt_sym,
-                    "qty":       contracts,
-                    "entry_fill": fill,
-                    "order_id":  order_id,
-                }
+    for attempt, (limit_px, wait) in enumerate(prices):
+        try:
+            if order_id:
+                try: api.cancel_order(order_id)
+                except Exception: pass
+            order = api.submit_order(
+                symbol        = opt_sym,
+                qty           = contracts,
+                side          = "buy",
+                type          = "limit",
+                time_in_force = "day",
+                limit_price   = str(limit_px),
+            )
+            order_id = order.id
+            log.info(f"OPT {s.sym}: attempt {attempt+1} BUY PUT {opt_sym} x{contracts} @ {limit_px:.2f} (wait {wait}s)")
+            time.sleep(wait)
+            o = api.get_order(order_id)
+            if o.status == "filled":
+                fill = float(o.filled_avg_price)
+                log.info(f"OPT {s.sym}: PUT FILLED {opt_sym} x{contracts} @ {fill:.2f}")
+                with _lock:
+                    s.opt_position = {
+                        "opt_sym":    opt_sym,
+                        "qty":        contracts,
+                        "entry_fill": fill,
+                        "order_id":   order_id,
+                    }
+                return
+        except Exception as e:
+            log.error(f"OPT {s.sym}: put entry error attempt {attempt+1} — {e}")
             return
-        # unfilled — cancel
+    # cancel after all attempts (spread exploded)
+    if order_id:
         try: api.cancel_order(order_id)
         except Exception: pass
-        log.warning(f"OPT {s.sym}: put unfilled at {limit_px:.2f} — skipped")
-    except Exception as e:
-        log.error(f"OPT {s.sym}: put entry error — {e}")
+    log.warning(f"OPT {s.sym}: put unfilled after 15s — cancelled")
 
 
 def _close_put(s: SymState, reason: str):

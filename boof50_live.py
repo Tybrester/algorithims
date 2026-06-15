@@ -183,31 +183,42 @@ def place_entry(sym: str, side: str, underlying_price: float):
     mid     = contract["mid"]
     log.info(f"OPTION {sym:5s} {side:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}")
 
-    limit_px = round(mid + 0.25 * spread, 2)
-    log.info(f"OPTION {sym:5s} {side:5s}  {opt_sym}  limit={limit_px:.2f}  [mid+25%spread]")
-    try:
-        order = api.submit_order(
-            symbol        = opt_sym,
-            qty           = CONTRACTS,
-            side          = "buy",
-            type          = "limit",
-            time_in_force = "day",
-            limit_price   = str(limit_px),
-        )
-        order_id = order.id
-        time.sleep(FILL_WAIT_S)
-        o = api.get_order(order_id)
-        if o.status == "filled":
-            fill = float(o.filled_avg_price)
-            log.info(f"FILL   {sym:5s} {side:5s}  {opt_sym} @ {fill:.2f}")
-            _place_oco_exits(sym, side, opt_sym, fill)
+    prices = [
+        (round(mid + 0.25 * spread, 2), 5),
+        (round(mid + 0.50 * spread, 2), 5),
+        (round(ask, 2),                 5),
+    ]
+    order_id = None
+    for attempt, (limit_px, wait) in enumerate(prices):
+        try:
+            if order_id:
+                try: api.cancel_order(order_id)
+                except Exception: pass
+            order = api.submit_order(
+                symbol        = opt_sym,
+                qty           = CONTRACTS,
+                side          = "buy",
+                type          = "limit",
+                time_in_force = "day",
+                limit_price   = str(limit_px),
+            )
+            order_id = order.id
+            log.info(f"  Attempt {attempt+1}: BUY LIMIT {opt_sym} @ {limit_px:.2f} (wait {wait}s)")
+            time.sleep(wait)
+            o = api.get_order(order_id)
+            if o.status == "filled":
+                fill = float(o.filled_avg_price)
+                log.info(f"FILL   {sym:5s} {side:5s}  {opt_sym} @ {fill:.2f}")
+                _place_oco_exits(sym, side, opt_sym, fill)
+                return
+        except Exception as e:
+            log.error(f"Entry order error {sym} attempt {attempt+1}: {e}")
             return
-        # unfilled — cancel and skip
+    # cancel after all attempts (spread exploded)
+    if order_id:
         try: api.cancel_order(order_id)
         except Exception: pass
-        log.warning(f"SKIP   {sym} {side} — unfilled at {limit_px:.2f}")
-    except Exception as e:
-        log.error(f"Entry order error {sym}: {e}")
+    log.warning(f"SKIP   {sym} {side} — unfilled after 15s, cancelled")
 
 
 def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float):

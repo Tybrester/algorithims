@@ -292,47 +292,58 @@ def place_option_entry(sym, direction, underlying_price):
     spread = ask - bid
     log.info(f"OPTION {sym:5s} {direction:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}")
 
-    limit_px = round(mid + 0.25 * spread, 2)
-    log.info(f"  BUY LIMIT {opt_sym} @ {limit_px:.2f}  [mid+25%spread]")
-    try:
-        order = api.submit_order(
-            symbol=opt_sym, qty=CONTRACTS, side="buy",
-            type="limit", time_in_force="day", limit_price=str(limit_px)
-        )
-        order_id = order.id
-        time.sleep(FILL_WAIT_S)
-        o = api.get_order(order_id)
-        if o.status == "filled":
-            fill = float(o.filled_avg_price)
-            tp_price = round(fill * TP_MULT, 2)
-            sl_price = round(fill * SL_MULT, 2)
-            log.info(f"FILL   {sym:5s} {direction:5s}  {opt_sym} @ {fill:.2f}  TP={tp_price:.2f}  SL={sl_price:.2f}")
-            try:
-                tp_order = api.submit_order(
-                    symbol=opt_sym, qty=CONTRACTS, side="sell",
-                    type="limit", time_in_force="day",
-                    limit_price=str(tp_price),
-                    order_class="oco",
-                    stop_loss={"stop_price": str(sl_price)},
-                )
-                with _lock:
-                    open_positions[sym] = {
-                        "opt_sym": opt_sym, "entry": fill,
-                        "tp": tp_price, "sl": sl_price,
-                        "direction": direction,
-                        "opened_at": datetime.datetime.now(TZ),
-                        "order_id": tp_order.id,
-                    }
-                    sb_insert_trade(sym, fill, CONTRACTS, str(tp_order.id), direction)
-            except Exception as e:
-                log.error(f"OCO exit error {sym}: {e}")
+    prices = [
+        (round(mid + 0.25 * spread, 2), 5),
+        (round(mid + 0.50 * spread, 2), 5),
+        (round(ask, 2),                 5),
+    ]
+    order_id = None
+    for attempt, (limit_px, wait) in enumerate(prices):
+        try:
+            if order_id:
+                try: api.cancel_order(order_id)
+                except Exception: pass
+            order = api.submit_order(
+                symbol=opt_sym, qty=CONTRACTS, side="buy",
+                type="limit", time_in_force="day", limit_price=str(limit_px)
+            )
+            order_id = order.id
+            log.info(f"  Attempt {attempt+1}: BUY LIMIT {opt_sym} @ {limit_px:.2f} (wait {wait}s)")
+            time.sleep(wait)
+            o = api.get_order(order_id)
+            if o.status == "filled":
+                fill = float(o.filled_avg_price)
+                tp_price = round(fill * TP_MULT, 2)
+                sl_price = round(fill * SL_MULT, 2)
+                log.info(f"FILL   {sym:5s} {direction:5s}  {opt_sym} @ {fill:.2f}  TP={tp_price:.2f}  SL={sl_price:.2f}")
+                try:
+                    tp_order = api.submit_order(
+                        symbol=opt_sym, qty=CONTRACTS, side="sell",
+                        type="limit", time_in_force="day",
+                        limit_price=str(tp_price),
+                        order_class="oco",
+                        stop_loss={"stop_price": str(sl_price)},
+                    )
+                    with _lock:
+                        open_positions[sym] = {
+                            "opt_sym": opt_sym, "entry": fill,
+                            "tp": tp_price, "sl": sl_price,
+                            "direction": direction,
+                            "opened_at": datetime.datetime.now(TZ),
+                            "order_id": tp_order.id,
+                        }
+                        sb_insert_trade(sym, fill, CONTRACTS, str(tp_order.id), direction)
+                except Exception as e:
+                    log.error(f"OCO exit error {sym}: {e}")
+                return
+        except Exception as e:
+            log.error(f"Entry order error {sym} attempt {attempt+1}: {e}")
             return
-        # unfilled — cancel and skip
+    # cancel after all attempts (spread exploded)
+    if order_id:
         try: api.cancel_order(order_id)
-        except: pass
-        log.info(f"SKIP   {sym} {direction} — unfilled at {limit_px:.2f}")
-    except Exception as e:
-        log.error(f"Entry order error {sym}: {e}")
+        except Exception: pass
+    log.warning(f"SKIP   {sym} {direction} — unfilled after 15s, cancelled")
 
 # ── SIGNAL SCAN ───────────────────────────────────────────────────────
 def scan_signals():
