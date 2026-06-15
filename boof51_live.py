@@ -38,12 +38,11 @@ from zoneinfo import ZoneInfo
 from collections import defaultdict
 
 import alpaca_trade_api as tradeapi
-from alpaca_trade_api.stream import Stream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
-API_KEY    = "PKFLGIB7WQAWFPIIZJUY2HBYMF"
-API_SECRET = "9aoMxsWBtaR2wN6UTSZ6BaZ2i9x5LJ77s5sJiQq9pNNy"
+API_KEY    = "PKWKMWREJIGNRMBOQWORXFRMDS"
+API_SECRET = "7vdjuEeeWhxSSGMUbefFQfjb4Z9rSuEzkASNDS6t74MW"
 PAPER      = True
 
 BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
@@ -657,21 +656,46 @@ def _sb_update(s: SymState):
     }],), daemon=True).start()
 
 
-# ── STREAM HANDLERS ───────────────────────────────────────────────────────────────
+# ── REST POLL LOOP ────────────────────────────────────────────────────────────────
 
-async def on_bar(bar):
-    sym = bar.symbol
-    if sym not in state:
-        return
-    ts = bar.timestamp
-    if isinstance(ts, int):
-        ts = datetime.fromtimestamp(ts / 1e9, tz=TZ)
-    hm = ts.astimezone(TZ).strftime("%H:%M")
-    is_pm = hm < "09:30"
-    handle_bar(sym, {
-        "o": bar.open, "h": bar.high,
-        "l": bar.low,  "c": bar.close, "v": bar.volume,
-    }, is_pm)
+def poll_bars():
+    """Poll latest 1-min bar for all symbols every 60s via REST."""
+    seen: dict = {}   # sym -> last bar timestamp
+    log.info("REST polling started — fetching bars every 60s...")
+    while True:
+        now_et = datetime.now(TZ)
+        in_session = (
+            now_et.weekday() < 5
+            and (now_et.hour > 4 or (now_et.hour == 4 and now_et.minute >= 0))
+            and now_et.hour < 20
+        )
+        if not in_session:
+            time.sleep(60)
+            continue
+        for sym in SYMBOLS:
+            try:
+                bars = api.get_bars(sym, "1Min", limit=2).df
+                if bars.empty:
+                    continue
+                bar  = bars.iloc[-1]
+                ts_str = str(bar.name)
+                if seen.get(sym) == ts_str:
+                    continue
+                seen[sym] = ts_str
+                ts = bar.name
+                if hasattr(ts, "to_pydatetime"):
+                    ts = ts.to_pydatetime()
+                if not hasattr(ts, "astimezone"):
+                    ts = datetime.fromtimestamp(float(ts) / 1e9, tz=TZ)
+                hm     = ts.astimezone(TZ).strftime("%H:%M")
+                is_pm  = hm < "09:30"
+                handle_bar(sym, {
+                    "o": bar.open, "h": bar.high,
+                    "l": bar.low,  "c": bar.close, "v": bar.volume,
+                }, is_pm)
+            except Exception as e:
+                log.error(f"poll_bars {sym}: {e}")
+        time.sleep(60)
 
 
 async def on_trade_update(update):
@@ -886,23 +910,7 @@ def main():
     threading.Thread(target=fetch_pm_snapshots,  daemon=True).start()
     threading.Thread(target=heartbeat,           daemon=True).start()
 
-    # Stream using proven alpaca_trade_api library (same as boof50)
-    log.info("Streaming started — waiting for bars...")
-    log.info("Waiting 30s before first connect to avoid Alpaca rate limit...")
-    time.sleep(30)
-    backoff = 60
-    while True:
-        try:
-            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
-            stream.subscribe_bars(on_bar, *SYMBOLS)
-            stream.subscribe_updated_bars(on_bar, *SYMBOLS)
-            stream.run()
-        except Exception as e:
-            log.error(f"Stream error: {e} — reconnecting in {backoff}s")
-            time.sleep(backoff)
-            backoff = min(backoff * 2, 60)
-        else:
-            backoff = 5
+    poll_bars()
 
 
 if __name__ == "__main__":
