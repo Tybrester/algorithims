@@ -243,11 +243,16 @@ def update_level_sm(s: SymState, level: float, bar: dict):
     """
     key = round(level, 4)
     if key not in s.level_states:
-        s.level_states[key] = {"state": "IDLE", "extreme": None, "touch_num": 0}
+        s.level_states[key] = {"state": "IDLE", "extreme": None, "touch_num": 0, "was_below": False}
     sm = s.level_states[key]
 
     high = bar["h"]; close = bar["c"]
-    touching = high >= level * (1 - NEAR_PCT)
+
+    # gate: price must have closed below the level before a touch counts
+    if close < level:
+        sm["was_below"] = True
+
+    touching = sm["was_below"] and high >= level * (1 - NEAR_PCT)
 
     if sm["state"] == "IDLE":
         if touching:
@@ -256,7 +261,7 @@ def update_level_sm(s: SymState, level: float, bar: dict):
             sm["touch_num"] += 1
 
     elif sm["state"] == "IN":
-        if touching:
+        if high >= level * (1 - NEAR_PCT):
             sm["extreme"] = min(sm["extreme"], close)
         else:
             # left the zone — check bounce
@@ -266,9 +271,15 @@ def update_level_sm(s: SymState, level: float, bar: dict):
                 # signal fires — next bar open is entry
                 sm["state"] = "FIRED"
                 return True
-            # no valid bounce or repeat touch → invalidate this level
-            sm["state"]    = "DEAD"
-    # FIRED / DEAD: no further signals
+            # no valid bounce or repeat touch → invalidate
+            sm["state"]   = "DEAD"
+            sm["was_below"] = False  # must go below again before re-arming
+    elif sm["state"] == "DEAD":
+        if sm["was_below"]:  # price came back below — reset to IDLE for re-test
+            sm["state"]    = "IDLE"
+            sm["extreme"]  = None
+            sm["touch_num"] = 0
+    # FIRED: no further signals
 
     return False
 
