@@ -202,8 +202,8 @@ def place_entry(sym: str, side: str, underlying_price: float):
     with _lock:
         if sum(len(s.position) for s in state.values()) >= MAX_POSITIONS:
             log.info(f"Max positions reached — skipping {sym} {side}"); return
-        if side in state[sym].position:
-            log.info(f"{sym} {side} already open — skipping"); return
+        if state[sym].position:
+            log.info(f"{sym} already has open position — skipping {side}"); return
 
     contract = select_option(sym, side, underlying_price)
     if not contract:
