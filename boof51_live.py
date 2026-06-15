@@ -70,7 +70,7 @@ OPT_DTE        = 1          # 1 DTE expiry
 TRADE_OPTIONS  = True       # set False to disable options leg
 
 TP_PCT    = 0.0050   # 0.50% profit target
-SL_PCT    = 0.0025   # 0.25% stop loss
+SL_PCT    = 0.0050   # 0.50% stop loss
 MAX_BARS  = 60       # max hold in 1m bars
 
 GAP_MIN   = 0.005    # gap-up minimum 0.5%
