@@ -551,20 +551,21 @@ def run_boof23_strict_5sig_1exec(df_1min, symbol, tp_pct=TP_PCT, sl_pct=SL_PCT, 
             atr_bnc = closes5[p] > lows5[p]  + atr_p * cfg['ATR_MULT']
             t = trend[p]
 
-            # Rule 4: cross check on 5-min bars
-            if i5 < 1: continue
-            prev_c = closes5[i5 - 1]; cur_c = closes5[i5]
+            # Rule 4: cross check on 5-min bars — Variant C (touch & reject)
+            # Short: wick up through level, close back below
+            # Long:  wick down through level, close back above
+            cur_h = highs5[i5]; cur_l = lows5[i5]; cur_c = closes5[i5]
 
             if fp and atr_rej and t == 'up':
                 zh = int(zz_high_bar[p])
                 if zh < 0 or abs(p - zh) > cfg['ZZ_PROX_BARS']: continue
-                if not (prev_c >= highs5[p] and cur_c < highs5[p]): continue
+                if not (cur_h >= highs5[p] and cur_c < highs5[p]): continue
                 direction = 'short'; entry_slack = (highs5[p] - closes5[p]) / atr_p
                 chosen_p = p; break
             elif ft and atr_bnc and t == 'down':
                 zl = int(zz_low_bar[p])
                 if zl < 0 or abs(p - zl) > cfg['ZZ_PROX_BARS']: continue
-                if not (prev_c <= lows5[p] and cur_c > lows5[p]): continue
+                if not (cur_l <= lows5[p] and cur_c > lows5[p]): continue
                 direction = 'long'; entry_slack = (closes5[p] - lows5[p]) / atr_p
                 chosen_p = p; break
 
