@@ -271,16 +271,7 @@ def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float, qty: int = 
         log.info(f"  TP order placed: {tp_id}")
     except Exception as e:
         log.error(f"TP order error {sym}: {e}")
-    try:
-        sl_ord = api.submit_order(
-            symbol=opt_sym, qty=qty, side="sell",
-            type="limit", time_in_force="day",
-            limit_price=str(sl_price),
-        )
-        sl_id = sl_ord.id
-        log.info(f"  SL order placed: {sl_id}")
-    except Exception as e:
-        log.error(f"SL order error {sym}: {e}")
+    # SL is monitored in the bar loop — no resting SL order (would be rejected as uncovered by Alpaca)
     # Always record position so dashboard shows active and monitor loop can manage exits
     with _lock:
         state[sym].position[side] = {
@@ -290,7 +281,6 @@ def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float, qty: int = 
             "sl":        sl_price,
             "opened_at": datetime.now(TZ),
             "tp_id":     tp_id,
-            "sl_id":     sl_id,
         }
 
 
@@ -390,13 +380,44 @@ def handle_bar(sym: str, bar: dict):
         "metrics": metrics, "updated_at": datetime.now(TZ).isoformat(),
     }],), daemon=True).start()
 
-    # time exit
+    # SL monitor + time exit
     for side, pos in list(s.position.items()):
         age = (now_et - pos["opened_at"]).seconds / 60
+        opt_sym = pos["opt_sym"]
+        sl_price = pos["sl"]
+        # check current option bid vs SL
+        try:
+            from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
+            from alpaca.data.requests import OptionSnapshotRequest as _OSR
+            _odc = _OHDC(API_KEY, API_SECRET)
+            snap = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[opt_sym])).get(opt_sym)
+            if snap and snap.latest_quote:
+                opt_bid = snap.latest_quote.bid_price or 0
+                opt_ask = snap.latest_quote.ask_price or 0
+                opt_mid = (opt_bid + opt_ask) / 2 if opt_ask else opt_bid
+                if opt_mid > 0 and opt_mid <= sl_price:
+                    log.info(f"SL HIT {sym} {side} opt_mid={opt_mid:.2f} <= sl={sl_price:.2f} — closing")
+                    try:
+                        api.submit_order(opt_sym, pos.get("qty", 1), "sell", "market", "day")
+                        # cancel resting TP
+                        if pos.get("tp_id"):
+                            try: api.cancel_order(pos["tp_id"])
+                            except: pass
+                    except Exception as e:
+                        log.error(f"SL close failed {sym}: {e}")
+                    with _lock:
+                        s.position.pop(side, None)
+                    on_exit_fill(sym, side, opt_mid, False)
+                    continue
+        except Exception:
+            pass
         if age >= MAX_HOLD_MIN:
             log.info(f"TIMEOUT {sym} {side} — market close after {age:.0f} min")
             try:
-                api.submit_order(pos["opt_sym"], CONTRACTS, "sell", "market", "day")
+                api.submit_order(opt_sym, pos.get("qty", 1), "sell", "market", "day")
+                if pos.get("tp_id"):
+                    try: api.cancel_order(pos["tp_id"])
+                    except: pass
             except Exception as e:
                 log.error(f"Timeout close failed {sym}: {e}")
             with _lock:
