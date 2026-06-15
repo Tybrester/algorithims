@@ -250,12 +250,13 @@ bot_stopped     = False
 consec_loss     = {}   # sym -> int
 
 # ── 1DTE OPTION HELPERS ────────────────────────────────────────────────
-def get_1dte_expiry():
+def next_trading_days(n=7):
     now = datetime.datetime.now(TZ)
-    exp = now + timedelta(days=1)
-    while exp.weekday() >= 5:
+    days = []; exp = now + timedelta(days=1)
+    while len(days) < n:
+        if exp.weekday() < 5: days.append(exp.strftime("%Y-%m-%d"))
         exp += timedelta(days=1)
-    return exp.strftime("%Y-%m-%d")
+    return days
 
 def select_option(sym, side, underlying_price):
     from alpaca.trading.client import TradingClient as _TC
@@ -263,15 +264,18 @@ def select_option(sym, side, underlying_price):
     from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
     from alpaca.data.requests import OptionSnapshotRequest as _OSR
     opt_type = "call" if side == "long" else "put"
-    expiry   = get_1dte_expiry()
     try:
         _tc  = _TC(PAPER_KEY, PAPER_SECRET, paper=True)
         _odc = _OHDC(PAPER_KEY, PAPER_SECRET)
-        req  = _GOCR(underlying_symbols=[sym], expiration_date=expiry, type=opt_type, limit=50)
-        contracts = _tc.get_option_contracts(req).option_contracts
+        contracts = []; expiry = None
+        for candidate in next_trading_days(7):
+            req = _GOCR(underlying_symbols=[sym], expiration_date=candidate, type=opt_type, limit=50)
+            contracts = _tc.get_option_contracts(req).option_contracts
+            if contracts: expiry = candidate; break
         if not contracts:
-            log.warning(f"No contracts for {sym} {opt_type} {expiry}")
+            log.warning(f"No contracts for {sym} {opt_type} in next 7 days")
             return None
+        log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts)")
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
         best = None; best_diff = float("inf")
         for contract in contracts:

@@ -136,15 +136,21 @@ def select_option(sym: str, side: str, underlying_price: float):
     from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
     from alpaca.data.requests import OptionSnapshotRequest as _OSR
     opt_type = "call" if side == "long" else "put"
-    expiry   = get_1dte_expiry()
     try:
         _tc  = _TC(API_KEY, API_SECRET, paper=True)
         _odc = _OHDC(API_KEY, API_SECRET)
-        req  = _GOCR(underlying_symbols=[sym], expiration_date=expiry, type=opt_type, limit=50)
-        contracts = _tc.get_option_contracts(req).option_contracts
+        _now = datetime.now(ZoneInfo("America/New_York"))
+        _candidates = [(_now + timedelta(days=i)).strftime("%Y-%m-%d")
+                       for i in range(1, 10) if (_now + timedelta(days=i)).weekday() < 5][:7]
+        contracts = []; expiry = None
+        for candidate in _candidates:
+            req = _GOCR(underlying_symbols=[sym], expiration_date=candidate, type=opt_type, limit=50)
+            contracts = _tc.get_option_contracts(req).option_contracts
+            if contracts: expiry = candidate; break
         if not contracts:
-            log.warning(f"No contracts for {sym} {opt_type} {expiry}")
+            log.warning(f"No contracts for {sym} {opt_type} in next 7 days")
             return None
+        log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts)")
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
         best = None; best_diff = float("inf")
         for contract in contracts:
