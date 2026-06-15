@@ -20,8 +20,8 @@ from datetime import timedelta
 from zoneinfo import ZoneInfo
 
 # ── KEYS ──────────────────────────────────────────────────────────────
-PAPER_KEY    = os.environ.get("ALPACA_PAPER_KEY",    "PK7N52NHGPS2GBVZU64BCUEDNO")
-PAPER_SECRET = os.environ.get("ALPACA_PAPER_SECRET", "B3uwbzRDHZeDwt5riUd3G4U9oxnELTukfCKGovZx9K9E")
+PAPER_KEY    = os.environ.get("ALPACA_PAPER_KEY",    "PK22C5W5QQLOX2NLK3LDFVKCHW")
+PAPER_SECRET = os.environ.get("ALPACA_PAPER_SECRET", "F8TBURaRyCVY3ekXEhJ7RkF3QXJbohRxDBxPg5LiS9nX")
 BASE_URL     = "https://paper-api.alpaca.markets"
 
 SUPABASE_URL     = "https://isanhutzyctcjygjhzbn.supabase.co"
