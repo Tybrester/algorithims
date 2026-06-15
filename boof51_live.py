@@ -657,14 +657,18 @@ def _sb_update(s: SymState):
     touched    = any(v.get("state") == "IN"    for v in s.level_states.values())
     bouncing   = any(v.get("state") == "FIRED" for v in s.level_states.values())
     px_str = f" | px=${s.last_price:.2f}" if s.last_price else ""
+    lb = s.lb
+    rtype_label = {"PMH": "PMH", "PDH": "PDH"}.get(s.rtype) or (
+        "10m" if lb == 10 else "30m" if lb == 30 else "2H" if lb == 120 else "4H" if lb == 240 else "Daily" if lb == 390 else s.rtype
+    )
     if s.gap_pct is not None:
         gap_str = f"Gap: {s.gap_pct*100:+.2f}%"
         if s.gap_ok:
             lvl_str = ", ".join(f"${lv:.2f}" for lv in s.levels[:3]) if s.levels else "none"
             touch_str = " | ⚡ TOUCHING LEVEL" if touched else (" | 🔥 SIGNAL FIRED" if bouncing else "")
-            metrics = f"{gap_str} ✓{px_str} | Levels: {lvl_str}{touch_str}{pos_str}"
+            metrics = f"[{rtype_label}] {gap_str} ✓{px_str} | Levels: {lvl_str}{touch_str}{pos_str}"
         else:
-            metrics = f"{gap_str} — no gap{px_str}"
+            metrics = f"[{rtype_label}] {gap_str} — no gap{px_str}"
     else:
         metrics = "Waiting for open..."
     threading.Thread(target=sb_push, args=([{
