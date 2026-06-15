@@ -571,6 +571,9 @@ def handle_rth_bar(s: SymState, bar: dict):
             if s.pm_high:
                 s.levels = [s.pm_high]
                 log.info(f"{s.sym}: PMH level={s.pm_high:.4f}")
+            elif s.pdh:
+                s.levels = [s.pdh]
+                log.info(f"{s.sym}: PMH unavailable — falling back to PDH={s.pdh:.4f}")
         elif rtype == "PDH":
             if s.pdh:
                 s.levels = [s.pdh]
@@ -968,6 +971,10 @@ def backfill_today_gap():
                 if rtype == "PMH":
                     if s.pm_high:
                         s.levels = [s.pm_high]
+                        log.info(f"  {sym}: PMH level={s.pm_high:.4f}")
+                    elif s.pdh:
+                        s.levels = [s.pdh]
+                        log.info(f"  {sym}: PMH unavailable — falling back to PDH={s.pdh:.4f}")
                 elif rtype == "PDH":
                     if s.pdh:
                         s.levels = [s.pdh]
