@@ -42,7 +42,7 @@ from alpaca_trade_api.stream import Stream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
-API_KEY    = "PKD7DJJ6KII4NGGBNDW4LPURC7"
+API_KEY    = "PKKBY5KRCWS24LU4E23B5JXHT7"
 API_SECRET = "59bDUQNNxidTUdAuPViYtBzJ6jVBLRREe32DqjhLYS1o"
 PAPER      = True
 
