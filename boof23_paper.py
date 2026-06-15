@@ -327,6 +327,12 @@ def place_option_entry(sym, direction, underlying_price):
     qty    = contract.get("qty", CONTRACTS)
     log.info(f"OPTION {sym:5s} {direction:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}  qty={qty}")
 
+    # Reserve slot immediately — prevents re-entry loop if exit order fails later
+    with _lock:
+        if sym in open_positions:
+            log.info(f"{sym} reserved mid-flight — skipping"); return
+        open_positions[sym] = {"opt_sym": opt_sym, "entry": None, "reserved": True}
+
     prices = [
         (round(mid + 0.25 * spread, 2), 5),
         (round(mid + 0.50 * spread, 2), 5),
@@ -393,6 +399,9 @@ def place_option_entry(sym, direction, underlying_price):
         try: api.cancel_order(order_id)
         except Exception: pass
     log.warning(f"SKIP   {sym} {direction} — unfilled after 15s, cancelled")
+    with _lock:
+        if open_positions.get(sym, {}).get("reserved"):
+            open_positions.pop(sym, None)
 
 # ── SIGNAL SCAN ───────────────────────────────────────────────────────
 def scan_signals():
