@@ -583,12 +583,11 @@
             let tradedTag = symbol.traded ? `<span class="traded-tag">TRADED: ${symbol.traded_count || 1}</span>` : '';
             
             const priceMatch = symbol.metrics && symbol.metrics.match(/px=\$([0-9,.]+)/);
-            const priceTag = priceMatch ? `<span style="color:var(--text2);font-size:0.82rem;font-weight:400;margin-left:6px;">$${priceMatch[1]}</span>` : '';
 
             html += `
-              <div class="symbol-card">
+              <div class="symbol-card" data-sym="${symbol.symbol}">
                 <div class="symbol-header">
-                  <div class="symbol-name">${symbol.symbol}${priceTag}</div>
+                  <div class="symbol-name">${symbol.symbol}<span class="live-px" id="px-${symbol.symbol}" style="color:var(--text2);font-size:0.82rem;font-weight:400;margin-left:6px;">${priceMatch ? '$'+priceMatch[1] : ''}</span></div>
                   <div style="display: flex; align-items: center; gap: 8px;">
                     ${tradedTag}
                     <div class="symbol-status ${statusClass}">${statusText}</div>
@@ -609,7 +608,34 @@
       container.innerHTML = html;
       document.getElementById('last-update').innerHTML = 
         `Last Update: ${new Date(data.last_update).toLocaleString()}`;
+      fetchLivePrices();
     }
+
+    // ── Live prices from Yahoo Finance ──────────────────────────────────────
+    async function fetchLivePrices() {
+      const els = document.querySelectorAll('[data-sym]');
+      const syms = [...new Set([...els].map(e => e.dataset.sym))];
+      if (!syms.length) return;
+      const joined = syms.join(',');
+      try {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${joined}&range=1d&interval=1m`,
+          { headers: { 'Accept': 'application/json' } }
+        );
+        if (!r.ok) return;
+        const json = await r.json();
+        const result = json?.spark?.result || [];
+        for (const item of result) {
+          const sym = item.symbol;
+          const closes = item?.response?.[0]?.meta?.regularMarketPrice;
+          if (closes == null) continue;
+          const el = document.getElementById('px-' + sym);
+          if (el) el.textContent = '$' + closes.toFixed(2);
+        }
+      } catch(e) { /* silently ignore */ }
+    }
+
+    setInterval(fetchLivePrices, 15000);
 
     function refreshData() {
       document.getElementById('loading').style.display = 'block';
