@@ -349,7 +349,7 @@ def _select_put(sym: str, underlying_px: float):
                 if not greeks or not quote: continue
                 bid = quote.bid_price or 0
                 ask = quote.ask_price or 0
-                if bid <= 0 or ask <= 0: continue
+                if ask <= 0: continue  # bid can be 0 on illiquid puts
                 mid   = (bid + ask) / 2
                 delta = abs(greeks.delta) if greeks.delta else 0
                 oi    = snap.open_interest or 0
