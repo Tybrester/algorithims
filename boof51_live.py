@@ -438,10 +438,14 @@ def _select_put(sym: str, underlying_px: float):
         return None
 
 
+HIGH_VOL_SYMS = {"TSLA","NVDA","MSTR","COIN","HOOD","UPST","SMCI","AMD","APP","PLTR"}
+
+
 def _buy_put(s: SymState):
     """
     Buy 1DTE ATM put alongside stock short signal.
-    Uses adaptive limit: mid -> mid+25% spread -> mid+50% spread (ask).
+    High-vol: mid+25% -> mid+50% -> ask (5s each).
+    Low-vol:  mid only, cancel after 30s if unfilled.
     """
     if not TRADE_OPTIONS:
         return
@@ -460,11 +464,16 @@ def _buy_put(s: SymState):
     mid       = put["mid"]
     contracts = put.get("qty", 1)
 
-    prices = [
-        (round(mid + 0.25 * spread, 2), 5),
-        (round(mid + 0.50 * spread, 2), 5),
-        (round(ask, 2),                 5),
-    ]
+    if s.sym in HIGH_VOL_SYMS:
+        prices = [
+            (round(mid + 0.25 * spread, 2), 5),
+            (round(mid + 0.50 * spread, 2), 5),
+            (round(ask, 2),                 5),
+        ]
+    else:
+        prices = [
+            (round(mid, 2), 30),  # mid only, 30s then cancel
+        ]
     order_id = None
     for attempt, (limit_px, wait) in enumerate(prices):
         try:

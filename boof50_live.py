@@ -217,11 +217,17 @@ def place_entry(sym: str, side: str, underlying_price: float):
     qty      = contract.get("qty", CONTRACTS)
     log.info(f"OPTION {sym:5s} {side:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}  qty={qty}")
 
-    prices = [
-        (round(mid + 0.25 * spread, 2), 5),
-        (round(mid + 0.50 * spread, 2), 5),
-        (round(ask, 2),                 5),
-    ]
+    HIGH_VOL = {"TSLA","NVDA","MSTR","COIN","HOOD","UPST","SMCI","AMD","APP","PLTR"}
+    if sym in HIGH_VOL:
+        prices = [
+            (round(mid + 0.25 * spread, 2), 5),
+            (round(mid + 0.50 * spread, 2), 5),
+            (round(ask, 2),                 5),
+        ]
+    else:
+        prices = [
+            (round(mid, 2), 30),  # mid only, 30s then cancel
+        ]
     order_id = None
     for attempt, (limit_px, wait) in enumerate(prices):
         try:
