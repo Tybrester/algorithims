@@ -447,6 +447,37 @@ async def on_trade_update(update):
                 return
 
 
+# ── EOD force-close scheduler ──────────────────────────────────────────────────
+
+def _eod_close_all():
+    """Force-close all open positions at 15:54 ET via background thread."""
+    from zoneinfo import ZoneInfo as _ZI
+    import time as _time
+    _TZ = _ZI("America/New_York")
+    while True:
+        now = datetime.now(_TZ)
+        target = now.replace(hour=15, minute=54, second=0, microsecond=0)
+        if now >= target:
+            target = target.replace(day=target.day + 1)
+        secs = (target - now).total_seconds()
+        _time.sleep(secs)
+        log.info("EOD CLOSE — force-closing all positions at 15:54 ET")
+        for sym, s in list(state.items()):
+            for side, pos in list(s.position.items()):
+                opt_sym = pos.get("opt_sym")
+                qty     = pos.get("qty", 1)
+                try:
+                    api.submit_order(opt_sym, qty, "sell", "market", "day")
+                    log.info(f"EOD closed {sym} {side} {opt_sym}")
+                    if pos.get("tp_id"):
+                        try: api.cancel_order(pos["tp_id"])
+                        except: pass
+                except Exception as e:
+                    log.error(f"EOD close failed {sym} {side}: {e}")
+                with _lock:
+                    s.position.pop(side, None)
+
+
 # ── Daily reset ────────────────────────────────────────────────────────────────
 
 def reset_daily():
@@ -501,6 +532,7 @@ def main():
     log.info(f"Target premium ~${OPTION_TARGET:.2f}  TP={TP_MULT}x  SL={SL_MULT}x")
     log.info(f"MaxPos={MAX_POSITIONS}  MaxLosses/sym={MAX_LOSSES_SYM}  DailyStop={MAX_DAILY_LOSS}")
     reconcile_positions()
+    threading.Thread(target=_eod_close_all, daemon=True).start()
 
     while True:
         try:

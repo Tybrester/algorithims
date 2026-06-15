@@ -884,6 +884,20 @@ def end_of_day_reset():
     log.info("RESET  End-of-day state cleared, prev_close and PDH saved")
 
 
+def schedule_eod_close():
+    """Force-close all open positions at 15:54 ET so nothing is held overnight."""
+    while True:
+        now = datetime.now(TZ)
+        target = now.replace(hour=15, minute=54, second=0, microsecond=0)
+        if now >= target:
+            target += timedelta(days=1)
+        time.sleep((target - now).total_seconds())
+        log.info("EOD CLOSE 15:54 — force-closing all open positions")
+        for s in list(state.values()):
+            if s.opt_position or s.position:
+                close_trade(s, "EOD")
+
+
 def schedule_eod_reset():
     """Sleep until 16:05 ET then trigger reset."""
     while True:
@@ -1147,6 +1161,7 @@ def main():
     _reconcile_positions()
 
     # Start background threads
+    threading.Thread(target=schedule_eod_close,  daemon=True).start()
     threading.Thread(target=schedule_eod_reset,  daemon=True).start()
     threading.Thread(target=fetch_pm_snapshots,  daemon=True).start()
     threading.Thread(target=heartbeat,           daemon=True).start()
