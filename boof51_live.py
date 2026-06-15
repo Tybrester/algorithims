@@ -47,6 +47,18 @@ PAPER      = True
 
 BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
 
+SUPABASE_URL = "https://isanhutzyctcjygjhzbn.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0"
+_SB_HEADERS  = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"}
+
+def sb_push_status(payload: list):
+    try:
+        _requests.post(f"{SUPABASE_URL}/rest/v1/bot_status",
+                       headers=_SB_HEADERS, json=payload, timeout=5)
+    except Exception as e:
+        log.debug(f"Supabase push failed: {e}")
+
 # Shares per trade (1 share = minimal risk for paper testing)
 QTY = 1
 
@@ -361,7 +373,7 @@ def _select_put(sym: str, underlying_px: float):
                 if ask <= 0: continue  # bid can be 0 on illiquid puts
                 mid   = (bid + ask) / 2
                 delta = abs(greeks.delta) if greeks and greeks.delta else 0
-                oi    = snap.open_interest or 0
+                oi    = getattr(snap, "open_interest", None) or 0
                 chain.append({
                     "opt_sym": c.symbol,
                     "strike":  float(c.strike_price),
@@ -371,7 +383,8 @@ def _select_put(sym: str, underlying_px: float):
                     "delta":   delta,
                     "oi":      oi,
                 })
-            except Exception:
+            except Exception as ex:
+                log.debug(f"OPT {sym} chain item error: {ex}")
                 continue
 
         if not chain:
