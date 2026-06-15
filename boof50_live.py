@@ -249,34 +249,42 @@ def place_entry(sym: str, side: str, underlying_price: float):
 
 
 def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float, qty: int = 1):
-    """Place sell limit (TP) and sell stop (SL) as OCO after fill."""
+    """Place sell limit (TP) + sell stop (SL) as two separate orders after fill."""
     tp_price = round(fill * TP_MULT, 2)
     sl_price = round(fill * SL_MULT, 2)
-    log.info(f"OCO    {sym:5s} {side:5s}  TP={tp_price:.2f}  SL={sl_price:.2f}")
+    log.info(f"EXIT   {sym:5s} {side:5s}  TP={tp_price:.2f}  SL={sl_price:.2f}")
+    tp_id = None; sl_id = None
     try:
-        # Alpaca OCO: submit as OTO or two linked orders
-        # Submit TP as limit
-        tp_order = api.submit_order(
-            symbol        = opt_sym,
-            qty           = qty,
-            side          = "sell",
-            type          = "limit",
-            time_in_force = "day",
-            limit_price   = str(tp_price),
-            order_class   = "oco",
-            stop_loss     = {"stop_price": str(sl_price)},
+        tp_ord = api.submit_order(
+            symbol=opt_sym, qty=qty, side="sell",
+            type="limit", time_in_force="day",
+            limit_price=str(tp_price),
         )
-        with _lock:
-            state[sym].position[side] = {
-                "opt_sym":    opt_sym,
-                "entry":      fill,
-                "tp":         tp_price,
-                "sl":         sl_price,
-                "opened_at":  datetime.now(TZ),
-                "order_id":   tp_order.id,
-            }
+        tp_id = tp_ord.id
+        log.info(f"  TP order placed: {tp_id}")
     except Exception as e:
-        log.error(f"OCO exit error {sym}: {e}")
+        log.error(f"TP order error {sym}: {e}")
+    try:
+        sl_ord = api.submit_order(
+            symbol=opt_sym, qty=qty, side="sell",
+            type="stop", time_in_force="day",
+            stop_price=str(sl_price),
+        )
+        sl_id = sl_ord.id
+        log.info(f"  SL order placed: {sl_id}")
+    except Exception as e:
+        log.error(f"SL order error {sym}: {e}")
+    # Always record position so dashboard shows active and monitor loop can manage exits
+    with _lock:
+        state[sym].position[side] = {
+            "opt_sym":   opt_sym,
+            "entry":     fill,
+            "tp":        tp_price,
+            "sl":        sl_price,
+            "opened_at": datetime.now(TZ),
+            "tp_id":     tp_id,
+            "sl_id":     sl_id,
+        }
 
 
 # ── Fill/close tracking ────────────────────────────────────────────────────────
