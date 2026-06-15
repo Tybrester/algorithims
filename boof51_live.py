@@ -1104,16 +1104,18 @@ def _reconcile_positions():
             qty   = int(float(p.qty))
             tp_px = round(entry * (1 - TP_PCT), 4)
             sl_px = round(entry * (1 + SL_PCT), 4)
+            pos_dict = {
+                "entry":      entry,
+                "tp":         tp_px,
+                "sl":         sl_px,
+                "opt_sym":    sym_raw,
+                "qty":        qty,
+                "opened_at":  datetime.now(TZ),
+            }
             with _lock:
-                s.position = {
-                    "entry":      entry,
-                    "tp":         tp_px,
-                    "sl":         sl_px,
-                    "opt_sym":    sym_raw,
-                    "qty":        qty,
-                    "opened_at":  datetime.now(TZ),
-                }
-                s.closed_at    = None   # clear any stale close state
+                s.position     = pos_dict
+                s.opt_position = pos_dict   # _close_put checks opt_position
+                s.closed_at    = None       # clear any stale close state
                 s.close_reason = None
             log.info(f"RECONCILE {underlying} {sym_raw} @ {entry}  TP={tp_px}  SL={sl_px}")
     except Exception as e:
