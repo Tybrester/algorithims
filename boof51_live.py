@@ -287,9 +287,11 @@ def _get_1dte_expiry() -> str:
 def _select_put(sym: str, underlying_px: float):
     """
     Fetch 1DTE put chain for sym.
-    Find strikes where delta is between OPT_DELTA_MIN and OPT_DELTA_MAX.
-    Among those, pick the one with highest open_interest (volume proxy).
-    Returns dict: {opt_sym, strike, bid, ask, mid, delta, volume} or None.
+    Walk from ATM outward (descending strike) and pick the strike where:
+      - 1 contract ask*100 is closest to $300, OR
+      - 2 contracts ask*100*2 is closest to $300 (i.e. ask*100 ~$150)
+    Whichever combo gets closest to OPT_BUDGET wins.
+    Returns dict: {opt_sym, strike, bid, ask, mid, delta, oi, qty} or None.
     """
     expiry = _get_1dte_expiry()
     try:
@@ -303,26 +305,22 @@ def _select_put(sym: str, underlying_px: float):
             log.warning(f"OPT {sym}: no put contracts found for {expiry}")
             return None
 
-        candidates = []
+        # Build full chain with quotes, sorted by strike descending (ATM first)
+        chain = []
         for c in contracts:
             try:
-                snap = api.get_option_snapshot(c.symbol)
-                if not snap:
-                    continue
+                snap  = api.get_option_snapshot(c.symbol)
+                if not snap: continue
                 greeks = snap.greeks
                 quote  = snap.latest_quote
-                if not greeks or not quote:
-                    continue
+                if not greeks or not quote: continue
+                bid = quote.bid_price or 0
+                ask = quote.ask_price or 0
+                if bid <= 0 or ask <= 0: continue
+                mid   = (bid + ask) / 2
                 delta = abs(greeks.delta) if greeks.delta else 0
-                bid   = quote.bid_price or 0
-                ask   = quote.ask_price or 0
-                if bid <= 0 or ask <= 0:
-                    continue
-                if not (OPT_DELTA_MIN <= delta <= OPT_DELTA_MAX):
-                    continue
-                mid  = (bid + ask) / 2
-                oi   = snap.open_interest or 0
-                candidates.append({
+                oi    = snap.open_interest or 0
+                chain.append({
                     "opt_sym": c.symbol,
                     "strike":  float(c.strike_price),
                     "bid":     bid,
@@ -334,14 +332,41 @@ def _select_put(sym: str, underlying_px: float):
             except Exception:
                 continue
 
-        if not candidates:
-            log.warning(f"OPT {sym}: no puts in delta {OPT_DELTA_MIN}-{OPT_DELTA_MAX} for {expiry}")
+        if not chain:
+            log.warning(f"OPT {sym}: no tradeable puts found for {expiry}")
             return None
 
-        # pick highest open interest (volume proxy) among valid delta strikes
-        best = max(candidates, key=lambda x: x["oi"])
+        # Sort by distance from underlying (ATM first), puts are below so sort desc
+        chain.sort(key=lambda x: abs(x["strike"] - underlying_px))
+
+        best = None
+        best_diff = float("inf")
+
+        for c in chain:
+            ask_total_1 = c["ask"] * 100 * 1   # cost of 1 contract
+            ask_total_2 = c["ask"] * 100 * 2   # cost of 2 contracts
+
+            diff_1 = abs(ask_total_1 - OPT_BUDGET)
+            diff_2 = abs(ask_total_2 - OPT_BUDGET)
+
+            if diff_1 <= diff_2:
+                qty  = 1
+                diff = diff_1
+            else:
+                qty  = 2
+                diff = diff_2
+
+            if diff < best_diff:
+                best_diff = diff
+                best = dict(c)
+                best["qty"] = qty
+
+        if best is None:
+            return None
+
         log.info(f"OPT {sym}: selected {best['opt_sym']}  strike={best['strike']}  "
-                 f"delta={best['delta']:.2f}  mid={best['mid']:.2f}  OI={best['oi']}")
+                 f"ask={best['ask']:.2f}  qty={best['qty']}  "
+                 f"cost~${best['ask']*100*best['qty']:.0f}  delta={best['delta']:.2f}")
         return best
 
     except Exception as e:
@@ -378,8 +403,8 @@ def _buy_put(s: SymState):
             if order_id:
                 try: api.cancel_order(order_id)
                 except Exception: pass
-            # size to ~$300 budget: contracts = floor(budget / (price * 100)), min 1
-            contracts = max(1, int(OPT_BUDGET / (limit_px * 100)))
+            # qty determined by _select_put (1 contract ~$300 or 2 contracts ~$150 each)
+            contracts = put.get("qty", 1)
             order = api.submit_order(
                 symbol        = opt_sym,
                 qty           = contracts,
