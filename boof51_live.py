@@ -39,6 +39,7 @@ from collections import defaultdict
 
 import alpaca_trade_api as tradeapi
 from alpaca.data.live import StockDataStream
+from alpaca.data.enums import DataFeed
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
@@ -887,7 +888,7 @@ def main():
     backoff = 5
     while True:
         try:
-            stream = StockDataStream(API_KEY, API_SECRET, feed="sip")
+            stream = StockDataStream(API_KEY, API_SECRET, feed=DataFeed.SIP)
             stream.subscribe_bars(on_bar, *SYMBOLS)
             stream.subscribe_updated_bars(on_bar, *SYMBOLS)
             stream.run()
