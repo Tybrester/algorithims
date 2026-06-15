@@ -377,7 +377,7 @@ def _select_put(sym: str, underlying_px: float):
                 bid = quote.bid_price or 0
                 ask = quote.ask_price or 0
                 if ask <= 0: continue
-                if bid > 0 and (ask - bid) / ask > 0.15: continue  # skip wide spread > 15%
+                if bid > 0 and (ask - bid) / ask > 0.10: continue  # skip wide spread > 10%
                 mid   = (bid + ask) / 2
                 delta = abs(greeks.delta) if greeks and greeks.delta else 0
                 oi    = getattr(snap, "open_interest", None) or 0
@@ -466,13 +466,12 @@ def _buy_put(s: SymState):
 
     if s.sym in HIGH_VOL_SYMS:
         prices = [
-            (round(mid + 0.25 * spread, 2), 5),
-            (round(mid + 0.50 * spread, 2), 5),
-            (round(ask, 2),                 5),
+            (round(mid, 2),                15),  # mid, 15s
+            (round(mid + 0.50 * spread, 2), 15),  # mid+50%, 15s then cancel
         ]
     else:
         prices = [
-            (round(mid, 2), 30),  # mid only, 30s then cancel
+            (round(bid + 0.10 * spread, 2), 30),  # near bid, 30s then cancel
         ]
     order_id = None
     for attempt, (limit_px, wait) in enumerate(prices):

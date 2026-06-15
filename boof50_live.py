@@ -167,7 +167,7 @@ def select_option(sym: str, side: str, underlying_price: float):
             bid = snap.latest_quote.bid_price or 0
             ask = snap.latest_quote.ask_price or 0
             if ask <= 0: continue                  # need at least an ask
-            if bid > 0 and (ask - bid) / ask > 0.15: continue  # skip wide spread > 15%
+            if bid > 0 and (ask - bid) / ask > 0.10: continue  # skip wide spread > 10%
             if ask * 100 > MAX_COST: continue      # hard cap — no deep ITM
             mid  = (bid + ask) / 2
             cost_1 = ask * 100
@@ -220,13 +220,12 @@ def place_entry(sym: str, side: str, underlying_price: float):
     HIGH_VOL = {"TSLA","NVDA","MSTR","COIN","HOOD","UPST","SMCI","AMD","APP","PLTR"}
     if sym in HIGH_VOL:
         prices = [
-            (round(mid + 0.25 * spread, 2), 5),
-            (round(mid + 0.50 * spread, 2), 5),
-            (round(ask, 2),                 5),
+            (round(mid, 2),                15),  # mid, 15s
+            (round(mid + 0.50 * spread, 2), 15),  # mid+50%, 15s then cancel
         ]
     else:
         prices = [
-            (round(mid, 2), 30),  # mid only, 30s then cancel
+            (round(bid + 0.10 * spread, 2), 30),  # near bid, 30s then cancel
         ]
     order_id = None
     for attempt, (limit_px, wait) in enumerate(prices):
