@@ -440,11 +440,41 @@ def reset_daily():
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 
+def reconcile_positions():
+    """On startup, re-register any open Alpaca option positions into state."""
+    try:
+        positions = api.list_positions()
+        for p in positions:
+            sym_raw = p.symbol  # e.g. TSLA260617P00395000
+            # Find underlying from our symbol list
+            underlying = next((s for s in SYMBOLS if sym_raw.startswith(s)), None)
+            if not underlying:
+                continue
+            side = "short" if "P" in sym_raw[len(underlying):] else "long"
+            entry = float(p.avg_entry_price)
+            qty   = int(float(p.qty))
+            tp_price = round(entry * TP_MULT, 2)
+            sl_price = round(entry * SL_MULT, 2)
+            with _lock:
+                state[underlying].position[side] = {
+                    "opt_sym":   sym_raw,
+                    "entry":     entry,
+                    "tp":        tp_price,
+                    "sl":        sl_price,
+                    "qty":       qty,
+                    "opened_at": datetime.now(TZ),
+                }
+            log.info(f"RECONCILE {underlying} {side} {sym_raw} @ {entry}  TP={tp_price}  SL={sl_price}")
+    except Exception as e:
+        log.error(f"Reconcile error: {e}")
+
+
 def main():
     log.info(f"BOOF50 1DTE Options Bot  {'[PAPER]' if PAPER else '[LIVE]'}")
     log.info(f"Universe : {', '.join(SYMBOLS)}")
     log.info(f"Target premium ~${OPTION_TARGET:.2f}  TP={TP_MULT}x  SL={SL_MULT}x")
     log.info(f"MaxPos={MAX_POSITIONS}  MaxLosses/sym={MAX_LOSSES_SYM}  DailyStop={MAX_DAILY_LOSS}")
+    reconcile_positions()
 
     while True:
         try:
