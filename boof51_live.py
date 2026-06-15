@@ -697,9 +697,9 @@ def _sb_update(s: SymState):
     threading.Thread(target=sb_push, args=([{
         "bot":            "BOOF51",
         "symbol":         s.sym,
-        "setup_active":   s.opt_position is not None,
-        "setup_close":    s.gap_ok and s.opt_position is None and (bouncing or touched),
-        "setup_watching": s.gap_ok and s.opt_position is None and bool(s.levels) and not touched and not bouncing,
+        "setup_active":   s.position is not None or s.opt_position is not None,
+        "setup_close":    s.gap_ok and s.position is None and s.opt_position is None and (bouncing or touched),
+        "setup_watching": s.gap_ok and s.position is None and s.opt_position is None and bool(s.levels) and not touched and not bouncing,
         "metrics":        metrics,
         "updated_at":     now.isoformat(),
     }],), daemon=True).start()
