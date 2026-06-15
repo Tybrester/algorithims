@@ -642,12 +642,14 @@ def _sb_update(s: SymState):
     touched    = any(v.get("state") == "touch"  for v in s.level_states.values())
     bouncing   = any(v.get("state") == "bounce" for v in s.level_states.values())
     if s.gap_pct is not None:
-        metrics = (f"gap={s.gap_pct*100:.2f}% | "
-                   f"{'GO' if s.gap_ok else 'NO GAP'}"
-                   + (f" | levels={len(s.levels)}" if s.gap_ok else "")
-                   + pos_str)
+        gap_str = f"Gap: {s.gap_pct*100:+.2f}%"
+        if s.gap_ok:
+            lvl_str = ", ".join(f"${lv:.2f}" for lv in s.levels[:3]) if s.levels else "none"
+            metrics = f"{gap_str} ✓ | Levels: {lvl_str}{pos_str}"
+        else:
+            metrics = f"{gap_str} — no gap, skipping"
     else:
-        metrics = "Scanning..."
+        metrics = "Waiting for open..."
     threading.Thread(target=sb_push, args=([{
         "bot":            "BOOF51",
         "symbol":         s.sym,
