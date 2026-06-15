@@ -42,8 +42,8 @@ from alpaca_trade_api.stream import Stream
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
-API_KEY    = "PKZSW422NEY2R3JZG7KNPBKQ2B"
-API_SECRET = "6ZXwcVY2gnA2geZ54ADXay1mniKPupF1LnPdekrp6wtq"
+API_KEY    = "PKD7DJJ6KII4NGGBNDW4LPURC7"
+API_SECRET = "59bDUQNNxidTUdAuPViYtBzJ6jVBLRREe32DqjhLYS1o"
 PAPER      = True
 
 BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
@@ -893,7 +893,7 @@ def main():
     backoff = 60
     while True:
         try:
-            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="iex")
+            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
             stream.subscribe_bars(on_bar, *SYMBOLS)
             stream.subscribe_updated_bars(on_bar, *SYMBOLS)
             stream.run()
