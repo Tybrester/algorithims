@@ -143,14 +143,17 @@ def select_option(sym: str, side: str, underlying_price: float):
         _candidates = [(_now + timedelta(days=i)).strftime("%Y-%m-%d")
                        for i in range(1, 10) if (_now + timedelta(days=i)).weekday() < 5][:7]
         contracts = []; expiry = None
+        strike_lo = round(underlying_price * 0.80, 2)
+        strike_hi = round(underlying_price * 1.20, 2)
         for candidate in _candidates:
-            req = _GOCR(underlying_symbols=[sym], expiration_date=candidate, type=opt_type, limit=50)
+            req = _GOCR(underlying_symbols=[sym], expiration_date=candidate, type=opt_type,
+                        strike_price_gte=str(strike_lo), strike_price_lte=str(strike_hi), limit=50)
             contracts = _tc.get_option_contracts(req).option_contracts
             if contracts: expiry = candidate; break
         if not contracts:
             log.warning(f"No contracts for {sym} {opt_type} in next 7 days")
             return None
-        log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts)")
+        log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts, strikes {strike_lo}-{strike_hi})")
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
         OPT_BUDGET  = OPTION_TARGET * 100   # $350 total budget
         MAX_COST    = OPT_BUDGET * 1.5      # hard cap $525 per contract

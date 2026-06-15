@@ -321,17 +321,21 @@ def _select_put(sym: str, underlying_px: float):
 
         contracts = []
         expiry    = None
+        strike_lo = round(underlying_px * 0.80, 2)
+        strike_hi = round(underlying_px * 1.20, 2)
         for candidate in _next_trading_days(7):
             req = GetOptionContractsRequest(
                 underlying_symbols=[sym],
                 expiration_date=candidate,
                 type="put",
-                limit=100,
+                strike_price_gte=str(strike_lo),
+                strike_price_lte=str(strike_hi),
+                limit=50,
             )
             contracts = _trade_client.get_option_contracts(req).option_contracts
             if contracts:
                 expiry = candidate
-                log.info(f"OPT {sym}: using expiry {expiry} ({len(contracts)} contracts)")
+                log.info(f"OPT {sym}: using expiry {expiry} ({len(contracts)} contracts, strikes {strike_lo}-{strike_hi})")
                 break
         if not contracts:
             log.warning(f"OPT {sym}: no put contracts found in next 7 trading days")
