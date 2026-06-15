@@ -476,11 +476,33 @@
       return { total_symbols: 20, active_setups: active, close_setups: close, watching_setups: watching, symbols };
     }
 
+    async function fetchBOOF23Status() {
+      const res = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF23&order=symbol.asc`, {
+        headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
+      });
+      const rows = await res.json();
+      const allSyms = rows.map(r => ({
+        symbol: r.symbol,
+        setup_active: r.setup_active,
+        setup_close: r.setup_close,
+        setup_watching: r.setup_watching,
+        metrics: r.metrics || '',
+      }));
+      const symbols = allSyms.filter(s => s.setup_active || s.setup_close || s.setup_watching);
+      return {
+        total_symbols: 46,
+        active_setups:  symbols.filter(s => s.setup_active).length,
+        close_setups:   symbols.filter(s => s.setup_close).length,
+        watching_setups: symbols.filter(s => s.setup_watching).length,
+        symbols
+      };
+    }
+
     function fetchBotData() {
-      return Promise.all([fetchBOOF50Status(), fetchBOOF51Status()]).then(([boof50Data, boof51Data]) => ({
+      return Promise.all([fetchBOOF23Status(), fetchBOOF50Status(), fetchBOOF51Status()]).then(([boof23Data, boof50Data, boof51Data]) => ({
         last_update: new Date().toISOString(),
         bots: {
-          'BOOF23': { total_symbols: 46, active_setups: 0, close_setups: 0, watching_setups: 0, symbols: [] },
+          'BOOF23': boof23Data,
           'BOOF50': boof50Data,
           'BOOF51': boof51Data,
         }
@@ -525,7 +547,7 @@
             <div class="symbols-grid">
         `;
 
-        // For BOOF50 and BOOF51 show all symbols; for others only active/close/watching
+        // BOOF50/51 show all symbols; BOOF23 shows only signals/active
         const relevantSymbols = (botName === 'BOOF50' || botName === 'BOOF51')
           ? botData.symbols
           : botData.symbols.filter(symbol =>

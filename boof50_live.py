@@ -320,14 +320,17 @@ def handle_bar(sym: str, bar: dict):
                 del s.confirm[side]
 
     # push status to Supabase every bar
-    confirm_str = ", ".join(f"{sd}:{cnt}/{CONFIRM_BARS}" for sd, cnt in s.confirm.items())
-    pos_str     = ", ".join(f"{sd}@{p['entry']:.2f}" for sd, p in s.position.items())
-    setup_active   = len(s.position) > 0
-    setup_close    = any(v >= CONFIRM_BARS - 1 for v in s.confirm.values())
+    pos_str      = ", ".join(f"{sd}@{p['entry']:.2f}" for sd, p in s.position.items())
+    setup_active = len(s.position) > 0
+    setup_close  = any(v >= CONFIRM_BARS - 1 for v in s.confirm.values())
     setup_watching = bool(s.confirm) and not setup_close
     metrics = f"VWAP: {curr['vwap']:.2f} | Price: {curr['c']:.2f}"
-    if confirm_str: metrics += f" | Confirm: {confirm_str}"
-    if pos_str:     metrics += f" | Position: {pos_str}"
+    if pos_str: metrics += f" | Position: {pos_str}"
+    # show signal info if watching/close (confirm in progress)
+    if s.confirm:
+        sig_side = next(iter(s.confirm))
+        sig_cnt  = s.confirm[sig_side]
+        metrics += f" | Confirm: {sig_side.upper()} {sig_cnt}/{CONFIRM_BARS} @ {t}"
     threading.Thread(target=sb_push_status, args=([{
         "bot": "BOOF50", "symbol": sym,
         "setup_active": setup_active, "setup_close": setup_close,

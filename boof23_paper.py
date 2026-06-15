@@ -87,6 +87,16 @@ def sb_insert_trade(symbol, entry_px, shares, order_id, direction="long"):
         log.warning(f"  [Supabase] Insert error {symbol}: {e}")
     return None
 
+_SB_STATUS_HEADERS = {
+    "apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"
+}
+def sb_push_status(payload: list):
+    try:
+        _requests.post(f"{SUPABASE_URL}/rest/v1/bot_status",
+                       headers=_SB_STATUS_HEADERS, json=payload, timeout=5)
+    except Exception: pass
+
 def sb_close_trade(trade_id, exit_px, entry_px, shares, direction="long"):
     if not trade_id: return
     pnl = (exit_px - entry_px) * shares if direction == "long" else (entry_px - exit_px) * shares
@@ -391,6 +401,18 @@ def scan_signals():
         except Exception as e:
             log.warning(f"  {sym} signal error: {e}")
 
+    # push inactive status for all symbols that had no signal
+    signal_syms = {s[0] for s in signals}
+    inactive_payload = [{
+        "bot": "BOOF23", "symbol": sym,
+        "setup_active": sym in open_positions,
+        "setup_close": False, "setup_watching": False,
+        "metrics": f"In position" if sym in open_positions else "No setup",
+        "updated_at": now_et.isoformat(),
+    } for sym in SYMS if sym not in signal_syms]
+    if inactive_payload:
+        threading.Thread(target=sb_push_status, args=(inactive_payload,), daemon=True).start()
+
     if not signals:
         log.info("No signals this scan.")
         return
@@ -403,13 +425,24 @@ def scan_signals():
         log.info(f"At max positions ({MAX_POSITIONS}) — skipping all signals")
         return
 
+    signal_payload = []
     for sym, direction, price, trade_info in signals[:available]:
         price = get_latest_price(sym) or price
         if price <= 0:
             continue
+        sig_time = trade_info.get("signal_time")
+        ts_str = sig_time.strftime("%H:%M") if sig_time else now_et.strftime("%H:%M")
+        signal_payload.append({
+            "bot": "BOOF23", "symbol": sym,
+            "setup_active": False, "setup_close": True, "setup_watching": False,
+            "metrics": f"Signal: {direction.upper()} @ {ts_str} ET | Price: {price:.2f}",
+            "updated_at": now_et.isoformat(),
+        })
         threading.Thread(
             target=place_option_entry, args=(sym, direction, price), daemon=True
         ).start()
+    if signal_payload:
+        threading.Thread(target=sb_push_status, args=(signal_payload,), daemon=True).start()
 
 # ── TP/SL MONITOR ─────────────────────────────────────────────────────
 def check_exits():
