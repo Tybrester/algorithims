@@ -43,8 +43,8 @@ from alpaca.data.enums import DataFeed
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
-API_KEY    = "PKVREDKPQKHNODDKQ42QU2ZO6Q"
-API_SECRET = "F7fYMNMXN8JPw9UzgCVFdvqGuFJtDqHbkzVsD6GS3dBW"
+API_KEY    = "PKZRKACO4Q3H47IOXP4UC3J64L"
+API_SECRET = "9Ppk3LRAMFeqeRqXGAJWeQxrzdyE94kmNTK1qbW11ceo"
 PAPER      = True
 
 BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
