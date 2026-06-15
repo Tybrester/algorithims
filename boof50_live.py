@@ -329,10 +329,12 @@ def handle_bar(sym: str, bar: dict):
     if len(s.bars) < 6:            return
     if t < "09:30":                return   # no signals before RTH open
     if t >= "15:55" and s.position:         # EOD force close
-        try:
-            api.submit_order(s.position["opt_sym"], CONTRACTS, "sell", "market", "day")
-        except Exception as e:
-            log.error(f"EOD close failed {sym}: {e}")
+        for _side, _pos in list(s.position.items()):
+            try:
+                api.submit_order(_pos["opt_sym"], _pos.get("qty", 1), "sell", "market", "day")
+                log.info(f"EOD bar-close {sym} {_side} {_pos['opt_sym']}")
+            except Exception as e:
+                log.error(f"EOD close failed {sym}: {e}")
         with _lock:
             s.position.pop("long", None); s.position.pop("short", None)
         return
@@ -463,7 +465,7 @@ def _eod_close_all():
         now = datetime.now(_TZ)
         target = now.replace(hour=15, minute=54, second=0, microsecond=0)
         if now >= target:
-            target = target.replace(day=target.day + 1)
+            target += timedelta(days=1)
         secs = (target - now).total_seconds()
         _time.sleep(secs)
         log.info("EOD CLOSE — force-closing all positions at 15:54 ET")

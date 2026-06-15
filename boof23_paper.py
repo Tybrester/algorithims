@@ -381,16 +381,7 @@ def place_option_entry(sym, direction, underlying_price):
                         log.info(f"  TP order placed: {tp_id}")
                     except Exception as e:
                         log.error(f"TP order error {sym}: {e}")
-                    try:
-                        sl_ord = api.submit_order(
-                            symbol=opt_sym, qty=qty, side="sell",
-                            type="limit", time_in_force="day",
-                            limit_price=str(sl_price),
-                        )
-                        sl_id = sl_ord.id
-                        log.info(f"  SL order placed: {sl_id}")
-                    except Exception as e:
-                        log.error(f"SL order error {sym}: {e}")
+                    sl_id = None  # SL monitored in check_exits via mid price — no resting order
                     with _lock:
                         open_positions[sym] = {
                             "opt_sym": opt_sym, "entry": fill,
@@ -506,12 +497,40 @@ def scan_signals():
 
 # ── TP/SL MONITOR ─────────────────────────────────────────────────────
 def check_exits():
-    """OCO exits are handled by Alpaca automatically. This checks for timed-out positions."""
+    """Monitor SL via mid price and timeout positions."""
+    from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
+    from alpaca.data.requests import OptionSnapshotRequest as _OSR
     now_et = datetime.datetime.now(TZ)
     to_close = []
+    opt_syms = [pos["opt_sym"] for pos in open_positions.values() if "opt_sym" in pos]
+    snaps = {}
+    if opt_syms:
+        try:
+            _odc = _OHDC(PAPER_KEY, PAPER_SECRET)
+            snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=opt_syms))
+        except Exception: pass
     for sym, pos in list(open_positions.items()):
         if "opened_at" not in pos: continue
         age_min = (now_et - pos["opened_at"]).total_seconds() / 60
+        # SL monitor via mid price
+        opt_sym = pos.get("opt_sym")
+        sl_price = pos.get("sl", 0)
+        snap = snaps.get(opt_sym)
+        if snap and snap.latest_quote:
+            bid = snap.latest_quote.bid_price or 0
+            ask = snap.latest_quote.ask_price or 0
+            mid = (bid + ask) / 2 if ask else bid
+            if mid > 0 and mid <= sl_price:
+                log.info(f"SL HIT {sym} mid={mid:.2f} <= sl={sl_price:.2f} — closing")
+                try:
+                    api.submit_order(opt_sym, pos.get("qty", CONTRACTS), "sell", "market", "day")
+                    if pos.get("tp_id"):
+                        try: api.cancel_order(pos["tp_id"])
+                        except: pass
+                except Exception as e:
+                    log.error(f"SL close failed {sym}: {e}")
+                to_close.append(sym)
+                continue
         if age_min >= 120:  # 2hr max hold
             log.info(f"TIMEOUT {sym} — closing after {age_min:.0f} min")
             try:
@@ -527,10 +546,24 @@ def check_exits():
 def close_all_eod():
     """Force-close all open Boof 23 option positions at end of day."""
     log.info("EOD: closing all open positions...")
+    from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
+    from alpaca.data.requests import OptionSnapshotRequest as _OSR
+    opt_syms = [p["opt_sym"] for p in open_positions.values() if "opt_sym" in p]
+    snaps = {}
+    if opt_syms:
+        try: snaps = _OHDC(PAPER_KEY, PAPER_SECRET).get_option_snapshot(_OSR(symbol_or_symbols=opt_syms))
+        except: pass
     for sym, pos in list(open_positions.items()):
+        opt_sym = pos["opt_sym"]
+        qty     = pos.get("qty", CONTRACTS)
+        snap    = snaps.get(opt_sym)
+        bid     = snap.latest_quote.bid_price if snap and snap.latest_quote else 0
         try:
-            api.submit_order(pos["opt_sym"], CONTRACTS, "sell", "market", "day")
-            log.info(f"  EOD closed {sym} {pos['opt_sym']}")
+            if bid and bid > 0.01:
+                api.submit_order(opt_sym, qty, "sell", "limit", "day", limit_price=str(round(bid, 2)))
+            else:
+                api.submit_order(opt_sym, qty, "sell", "market", "day")
+            log.info(f"  EOD closed {sym} {opt_sym}")
         except Exception as e:
             log.error(f"  EOD close failed {sym}: {e}")
     open_positions.clear()
