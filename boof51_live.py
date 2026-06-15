@@ -890,7 +890,7 @@ def main():
     backoff = 60
     while True:
         try:
-            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
+            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="iex")
             stream.subscribe_bars(on_bar, *SYMBOLS)
             stream.subscribe_updated_bars(on_bar, *SYMBOLS)
             stream.run()
