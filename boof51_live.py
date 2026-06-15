@@ -41,8 +41,8 @@ import alpaca_trade_api as tradeapi
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────────
 
-API_KEY    = "PKWKMWREJIGNRMBOQWORXFRMDS"
-API_SECRET = "7vdjuEeeWhxSSGMUbefFQfjb4Z9rSuEzkASNDS6t74MW"
+API_KEY    = "PKAO2RIVXJ5IQFX2ABCX4NQG7N"
+API_SECRET = "3vewcCYWvNzuPXXRp5VPWenpfPB83ZahRj1Xy6ZYxUdY"
 PAPER      = True
 
 BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
@@ -333,8 +333,8 @@ def _select_put(sym: str, underlying_px: float):
 
         _trade_client = TradingClient(API_KEY, API_SECRET, paper=True)
         # Use boof50 keys for options market data — boof51 account lacks options data subscription
-        _DATA_KEY    = "PKUE2IRNMB5ZUCK3ISPE3RIUX4"
-        _DATA_SECRET = "Cb3rxrN6SNSYkpYEbVn96i7FjM5KCBcpR8bLq7hKRciB"
+        _DATA_KEY    = "PKKPME54QJA3KBPAJ3QZZOJXDF"
+        _DATA_SECRET = "J4GMmrbXWozxgx5FoY6kZmeNj9tCG6kmDGmyEvnXrb1Y"
         _opt_data     = OptionHistoricalDataClient(_DATA_KEY, _DATA_SECRET)
 
         contracts = []
