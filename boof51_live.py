@@ -663,7 +663,10 @@ async def on_bar(bar):
     sym = bar.symbol
     if sym not in state:
         return
-    hm = bar.timestamp.astimezone(TZ).strftime("%H:%M")
+    ts = bar.timestamp
+    if isinstance(ts, int):
+        ts = datetime.fromtimestamp(ts / 1e9, tz=TZ)
+    hm = ts.astimezone(TZ).strftime("%H:%M")
     is_pm = hm < "09:30"
     handle_bar(sym, {
         "o": bar.open, "h": bar.high,
