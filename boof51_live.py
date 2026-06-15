@@ -1116,6 +1116,8 @@ def _reconcile_positions():
                     "qty":        qty,
                     "opened_at":  datetime.now(TZ),
                 }
+                s.closed_at    = None   # clear any stale close state
+                s.close_reason = None
             log.info(f"RECONCILE {underlying} {sym_raw} @ {entry}  TP={tp_px}  SL={sl_px}")
     except Exception as e:
         log.error(f"Reconcile error: {e}")
