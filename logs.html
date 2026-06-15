@@ -439,7 +439,7 @@
           symbol: sym,
           setup_active: r.setup_active,
           setup_close: r.setup_close,
-          setup_closed: r.setup_closed,
+          setup_closed: !r.setup_active && !r.setup_close && (r.metrics||'').includes('CLOSED:'),
           setup_watching: r.setup_watching,
           metrics: r.metrics || '',
         } : {
@@ -467,7 +467,7 @@
           symbol: sym,
           setup_active: r.setup_active,
           setup_close: r.setup_close,
-          setup_closed: r.setup_closed,
+          setup_closed: !r.setup_active && !r.setup_close && (r.metrics||'').includes('CLOSED:'),
           setup_touched: r.setup_touched,
           setup_watching: r.setup_watching,
           metrics: r.metrics || '',
