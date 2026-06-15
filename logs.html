@@ -594,7 +594,7 @@
                     <div class="symbol-status ${statusClass}">${statusText}</div>
                   </div>
                 </div>
-                <div class="symbol-metrics">${symbol.metrics}</div>
+                <div class="symbol-metrics">${(symbol.metrics || '').replace(/\s*\|\s*px=\$[0-9,.]+/, '')}</div>
               </div>
             `;
           }
