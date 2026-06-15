@@ -465,7 +465,12 @@ def reconcile_positions():
     """On startup, re-register any open Alpaca option positions into state."""
     try:
         positions = api.list_positions()
+        open_orders = api.list_orders(status='open')
+        closing_syms = {o.symbol for o in open_orders if o.side == 'sell'}
         for p in positions:
+            if p.symbol in closing_syms:
+                log.info(f"RECONCILE skip {p.symbol} — already has open sell order")
+                continue
             sym_raw = p.symbol  # e.g. TSLA260617P00395000
             # Find underlying from our symbol list
             underlying = next((s for s in SYMBOLS if sym_raw.startswith(s)), None)
