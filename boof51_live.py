@@ -1088,6 +1088,35 @@ def fetch_pm_snapshots():
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────────
 
+def _reconcile_positions():
+    """On startup re-register any open Alpaca option positions into SymState."""
+    try:
+        api_r = tradeapi.REST(API_KEY, API_SECRET, BASE_URL)
+        positions = api_r.list_positions()
+        for p in positions:
+            sym_raw = p.symbol
+            underlying = next((k for k in state if sym_raw.startswith(k)), None)
+            if not underlying:
+                continue
+            s = state[underlying]
+            entry = float(p.avg_entry_price)
+            qty   = int(float(p.qty))
+            tp_px = round(entry * (1 - TP_PCT), 4)
+            sl_px = round(entry * (1 + SL_PCT), 4)
+            with _lock:
+                s.position = {
+                    "entry":      entry,
+                    "tp":         tp_px,
+                    "sl":         sl_px,
+                    "opt_sym":    sym_raw,
+                    "qty":        qty,
+                    "opened_at":  datetime.now(TZ),
+                }
+            log.info(f"RECONCILE {underlying} {sym_raw} @ {entry}  TP={tp_px}  SL={sl_px}")
+    except Exception as e:
+        log.error(f"Reconcile error: {e}")
+
+
 def main():
     log.info(f"BOOF51 Live Bot  {'[PAPER]' if PAPER else '[LIVE]'}")
     log.info(f"Universe ({len(SYMBOLS)}): {', '.join(SYMBOLS)}")
@@ -1109,6 +1138,8 @@ def main():
     preseed_daily_data()
     # Recover today's gap/levels if restarted mid-day
     backfill_today_gap()
+    # Re-attach any open Alpaca positions orphaned by previous restart
+    _reconcile_positions()
 
     # Start background threads
     threading.Thread(target=schedule_eod_reset,  daemon=True).start()
