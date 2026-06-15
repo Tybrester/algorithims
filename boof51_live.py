@@ -177,6 +177,7 @@ class SymState:
         # kill switch
         self.consec_loss = 0
         self.paused      = False
+        self.last_price  = None  # last bar close
 
     def reset_day(self):
         self.pm_high       = None
@@ -568,6 +569,7 @@ def handle_rth_bar(s: SymState, bar: dict):
     # ── Always append bar ─────────────────────────────────────────────────────
     s.today_bars.append(bar)
     s.rth_bars.append(bar)
+    s.last_price = bar["c"]
 
     if not s.gap_ok:
         _sb_update(s)
@@ -641,13 +643,14 @@ def _sb_update(s: SymState):
     # setup_close = level touched, state machine in bounce phase (signal imminent)
     touched    = any(v.get("state") == "touch"  for v in s.level_states.values())
     bouncing   = any(v.get("state") == "bounce" for v in s.level_states.values())
+    px_str = f" | px=${s.last_price:.2f}" if s.last_price else ""
     if s.gap_pct is not None:
         gap_str = f"Gap: {s.gap_pct*100:+.2f}%"
         if s.gap_ok:
             lvl_str = ", ".join(f"${lv:.2f}" for lv in s.levels[:3]) if s.levels else "none"
-            metrics = f"{gap_str} ✓ | Levels: {lvl_str}{pos_str}"
+            metrics = f"{gap_str} ✓{px_str} | Levels: {lvl_str}{pos_str}"
         else:
-            metrics = f"{gap_str} — no gap, skipping"
+            metrics = f"{gap_str} — no gap{px_str}"
     else:
         metrics = "Waiting for open..."
     threading.Thread(target=sb_push, args=([{
