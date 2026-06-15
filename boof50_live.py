@@ -152,18 +152,32 @@ def select_option(sym: str, side: str, underlying_price: float):
             return None
         log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts)")
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
-        best = None; best_diff = float("inf")
+        OPT_BUDGET = OPTION_TARGET * 100   # $350 total budget
+        MAX_COST   = OPT_BUDGET * 1.5      # hard cap $525 per contract
+        chain = []
         for contract in contracts:
             snap = snaps.get(contract.symbol)
             if not snap: continue
-            bid = snap.latest_quote.bid_price
-            ask = snap.latest_quote.ask_price
-            if bid is None or ask is None or bid <= 0: continue
+            bid = snap.latest_quote.bid_price or 0
+            ask = snap.latest_quote.ask_price or 0
+            if ask <= 0: continue                  # need at least an ask
+            if ask * 100 > MAX_COST: continue      # hard cap — no deep ITM
             mid  = (bid + ask) / 2
-            diff = abs(mid - OPTION_TARGET)
-            if diff < best_diff:
-                best_diff = diff
-                best = {"symbol": contract.symbol, "bid": bid, "ask": ask, "mid": mid}
+            cost_1 = ask * 100
+            cost_2 = ask * 100 * 2
+            diff_1 = abs(cost_1 - OPT_BUDGET)
+            diff_2 = abs(cost_2 - OPT_BUDGET)
+            qty  = 1 if diff_1 <= diff_2 else 2
+            diff = min(diff_1, diff_2)
+            chain.append({"symbol": contract.symbol, "bid": bid, "ask": ask,
+                          "mid": mid, "qty": qty, "diff": diff})
+        if not chain:
+            log.warning(f"No contracts within budget for {sym} {opt_type}")
+            return None
+        chain.sort(key=lambda x: x["diff"])
+        best = chain[0]
+        log.info(f"  {sym} selected {best['symbol']} ask={best['ask']:.2f} "
+                 f"qty={best['qty']} cost=${best['ask']*100*best['qty']:.0f}")
         return best
     except Exception as e:
         log.error(f"Option chain error {sym}: {e}")
@@ -188,12 +202,13 @@ def place_entry(sym: str, side: str, underlying_price: float):
     if not contract:
         log.warning(f"No suitable option found for {sym} {side}"); return
 
-    opt_sym = contract["symbol"]
-    bid     = contract["bid"]
-    ask     = contract["ask"]
-    spread  = ask - bid
-    mid     = contract["mid"]
-    log.info(f"OPTION {sym:5s} {side:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}")
+    opt_sym  = contract["symbol"]
+    bid      = contract["bid"]
+    ask      = contract["ask"]
+    spread   = ask - bid
+    mid      = contract["mid"]
+    qty      = contract.get("qty", CONTRACTS)
+    log.info(f"OPTION {sym:5s} {side:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}  qty={qty}")
 
     prices = [
         (round(mid + 0.25 * spread, 2), 5),
@@ -208,7 +223,7 @@ def place_entry(sym: str, side: str, underlying_price: float):
                 except Exception: pass
             order = api.submit_order(
                 symbol        = opt_sym,
-                qty           = CONTRACTS,
+                qty           = qty,
                 side          = "buy",
                 type          = "limit",
                 time_in_force = "day",
@@ -221,7 +236,7 @@ def place_entry(sym: str, side: str, underlying_price: float):
             if o.status == "filled":
                 fill = float(o.filled_avg_price)
                 log.info(f"FILL   {sym:5s} {side:5s}  {opt_sym} @ {fill:.2f}")
-                _place_oco_exits(sym, side, opt_sym, fill)
+                _place_oco_exits(sym, side, opt_sym, fill, qty)
                 return
         except Exception as e:
             log.error(f"Entry order error {sym} attempt {attempt+1}: {e}")
@@ -233,7 +248,7 @@ def place_entry(sym: str, side: str, underlying_price: float):
     log.warning(f"SKIP   {sym} {side} — unfilled after 15s, cancelled")
 
 
-def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float):
+def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float, qty: int = 1):
     """Place sell limit (TP) and sell stop (SL) as OCO after fill."""
     tp_price = round(fill * TP_MULT, 2)
     sl_price = round(fill * SL_MULT, 2)
@@ -243,7 +258,7 @@ def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float):
         # Submit TP as limit
         tp_order = api.submit_order(
             symbol        = opt_sym,
-            qty           = CONTRACTS,
+            qty           = qty,
             side          = "sell",
             type          = "limit",
             time_in_force = "day",
