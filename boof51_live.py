@@ -648,9 +648,8 @@ def _sb_update(s: SymState):
         "bot":            "BOOF51",
         "symbol":         s.sym,
         "setup_active":   s.opt_position is not None,
-        "setup_close":    s.gap_ok and s.opt_position is None and bouncing,
+        "setup_close":    s.gap_ok and s.opt_position is None and (bouncing or touched),
         "setup_watching": s.gap_ok and s.opt_position is None and bool(s.levels) and not touched and not bouncing,
-        "setup_touched":  s.gap_ok and s.opt_position is None and touched and not bouncing,
         "metrics":        metrics,
         "updated_at":     now.isoformat(),
     }],), daemon=True).start()
