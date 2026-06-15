@@ -877,6 +877,93 @@ def preseed_daily_data():
         log.error(f"Pre-seed daily data failed: {e}")
 
 
+# ── BACKFILL TODAY'S GAP (mid-day restart recovery) ──────────────────────────────
+
+def backfill_today_gap():
+    """
+    If bot starts mid-day (after 09:30), fetch today's 1-min bars to recover:
+      - rth_open (first bar open at 09:30)
+      - pm_high  (max high from 04:00–09:30 bars)
+      - gap_pct / gap_ok
+      - levels for each symbol
+    Safe to call any time — skips symbols already initialised.
+    """
+    now_et = datetime.now(TZ)
+    if now_et.hour < 9 or (now_et.hour == 9 and now_et.minute < 31):
+        return  # too early, normal open will handle it
+    if now_et.weekday() >= 5:
+        return  # weekend
+
+    log.info("Backfilling today's gap / levels for mid-day restart...")
+    from alpaca.data.historical import StockHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
+
+    try:
+        client  = StockHistoricalDataClient(API_KEY, API_SECRET)
+        today   = now_et.date()
+        start   = datetime(today.year, today.month, today.day, 4, 0, tzinfo=TZ)
+        end     = now_et
+        req = StockBarsRequest(
+            symbol_or_symbols=SYMBOLS,
+            timeframe=TimeFrame(1, TimeFrameUnit.Minute),
+            start=start, end=end,
+            feed="iex",
+        )
+        df = client.get_stock_bars(req).df
+        if df.empty:
+            log.warning("Backfill: no bars returned")
+            return
+
+        for sym in SYMBOLS:
+            s = state[sym]
+            if s.gap_ok:
+                continue  # already initialised
+            try:
+                sym_df = df.xs(sym, level="symbol") if sym in df.index.get_level_values("symbol") else None
+                if sym_df is None or sym_df.empty:
+                    continue
+                # convert index to ET
+                sym_df = sym_df.copy()
+                sym_df.index = sym_df.index.tz_convert(TZ)
+                hm = sym_df.index.strftime("%H:%M")
+                # PM high
+                pm_bars = sym_df[hm < "09:30"]
+                if not pm_bars.empty:
+                    s.pm_high = float(pm_bars["high"].max())
+                # RTH open = first bar at/after 09:30
+                rth_bars = sym_df[hm >= "09:30"]
+                if rth_bars.empty:
+                    continue
+                s.rth_open = float(rth_bars.iloc[0]["open"])
+                if s.prev_close and s.rth_open:
+                    s.gap_pct = (s.rth_open - s.prev_close) / s.prev_close
+                    s.gap_ok  = s.gap_pct > GAP_MIN
+                    log.info(f"  {sym}: backfill gap={s.gap_pct*100:.2f}%  {'GO' if s.gap_ok else 'SKIP'}")
+                if not s.gap_ok:
+                    continue
+                # Build levels
+                rtype = s.rtype
+                if rtype == "PMH":
+                    if s.pm_high:
+                        s.levels = [s.pm_high]
+                elif rtype == "PDH":
+                    if s.pdh:
+                        s.levels = [s.pdh]
+                elif rtype == "PIV":
+                    # seed rth_bars into s.rth_bars for pivot builder
+                    for _, row in rth_bars.iterrows():
+                        s.rth_bars.append({"o": row["open"], "h": row["high"],
+                                           "l": row["low"],  "c": row["close"], "v": row["volume"]})
+                    s.levels = build_pivot_levels(s.rth_bars, s.lb, s.wing)
+                log.info(f"  {sym}: {len(s.levels)} level(s) — {[round(l,2) for l in s.levels[:3]]}")
+                _sb_update(s)
+            except Exception as e:
+                log.warning(f"  {sym}: backfill failed — {e}")
+    except Exception as e:
+        log.error(f"Backfill today gap failed: {e}")
+
+
 # ── PREMARKET DATA FETCH (REST snapshot for PM high at 09:25) ─────────────────────
 
 def fetch_pm_snapshots():
@@ -934,6 +1021,8 @@ def main():
 
     # Pre-seed prev_close / PDH / PDL before stream starts
     preseed_daily_data()
+    # Recover today's gap/levels if restarted mid-day
+    backfill_today_gap()
 
     # Start background threads
     threading.Thread(target=schedule_eod_reset,  daemon=True).start()
