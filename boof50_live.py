@@ -152,12 +152,15 @@ def select_option(sym: str, side: str, underlying_price: float):
             return None
         log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts)")
         snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
-        OPT_BUDGET = OPTION_TARGET * 100   # $350 total budget
-        MAX_COST   = OPT_BUDGET * 1.5      # hard cap $525 per contract
+        OPT_BUDGET  = OPTION_TARGET * 100   # $350 total budget
+        MAX_COST    = OPT_BUDGET * 1.5      # hard cap $525 per contract
+        MAX_STRIKE_DIST = 0.10              # strike must be within 10% of underlying
         chain = []
         for contract in contracts:
             snap = snaps.get(contract.symbol)
             if not snap: continue
+            strike = float(contract.strike_price)
+            if abs(strike - underlying_price) / underlying_price > MAX_STRIKE_DIST: continue
             bid = snap.latest_quote.bid_price or 0
             ask = snap.latest_quote.ask_price or 0
             if ask <= 0: continue                  # need at least an ask
