@@ -295,21 +295,34 @@ def _select_put(sym: str, underlying_px: float):
     """
     expiry = _get_1dte_expiry()
     try:
-        contracts = api.get_option_contracts(
-            underlying_symbol=sym,
+        from alpaca.trading.client import TradingClient
+        from alpaca.trading.requests import GetOptionContractsRequest
+        from alpaca.data.historical.option import OptionHistoricalDataClient
+        from alpaca.data.requests import OptionSnapshotRequest
+
+        _trade_client = TradingClient(API_KEY, API_SECRET, paper=True)
+        _opt_data     = OptionHistoricalDataClient(API_KEY, API_SECRET)
+
+        req = GetOptionContractsRequest(
+            underlying_symbols=[sym],
             expiration_date=expiry,
-            option_type="put",
+            type="put",
             limit=100,
         )
+        contracts = _trade_client.get_option_contracts(req).option_contracts
         if not contracts:
             log.warning(f"OPT {sym}: no put contracts found for {expiry}")
             return None
 
-        # Build full chain with quotes, sorted by strike descending (ATM first)
+        # Fetch snapshots for all contract symbols at once
+        opt_syms = [c.symbol for c in contracts]
+        snap_req = OptionSnapshotRequest(symbol_or_symbols=opt_syms)
+        snaps    = _opt_data.get_option_snapshot(snap_req)
+
         chain = []
         for c in contracts:
             try:
-                snap  = api.get_option_snapshot(c.symbol)
+                snap = snaps.get(c.symbol)
                 if not snap: continue
                 greeks = snap.greeks
                 quote  = snap.latest_quote
