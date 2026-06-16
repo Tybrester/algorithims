@@ -525,12 +525,13 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         });
         console.log(`[BOOF55] Stock leg: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} — EOD exit`);
 
-        // ── LEG 2: ATM Call — 30min exit ──
+        // ── LEG 2: 1-ITM Call — 30min exit ──
         const spot         = b55.price;
         const strikeInt    = spot > 500 ? 5 : spot > 50 ? 2.5 : 1;
         const atmStrike    = Math.round(spot / strikeInt) * strikeInt;
+        const itmStrike    = atmStrike - strikeInt; // 1 ITM for call (strike below spot)
         const optExpDate   = nearestFriday();
-        const optSymbol    = formatOptionSymbol(symbol, optExpDate, 'call', atmStrike);
+        const optSymbol    = formatOptionSymbol(symbol, optExpDate, 'call', itmStrike);
         const optQty       = 1;
         const exitAt30min  = Date.now() + 30 * 60 * 1000;
 
@@ -547,19 +548,19 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           if (optOrder.ok) {
             await supabase.from('options_trades').insert({
               bot_id: bot.id, user_id: bot.user_id, symbol,
-              option_type: 'call', strike: atmStrike,
+              option_type: 'call', strike: itmStrike,
               expiration_date: optExpDate,
               premium_per_contract: liveQ.mid, entry_price: liveQ.mid,
               total_cost: liveQ.mid * optQty * 100, contracts: optQty,
               status: 'open', created_at: new Date().toISOString(),
-              reason: `${b55.reason} [ATM call 30min]`, entry_slack: 1,
+              reason: `${b55.reason} [1-ITM call 30min]`, entry_slack: 1,
               signal_version: 'boof55_call', broker: bot.broker || 'alpaca_paper',
               mode: `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
               signal: 'buy',
               take_profit_pct: exitAt30min, // unix ms — 30min exit deadline
               stop_loss_pct: null,
             });
-            console.log(`[BOOF55] Call leg: ${optSymbol} ${optQty}x @ $${liveQ.mid.toFixed(2)} — 30min exit`);
+            console.log(`[BOOF55] Call leg (1-ITM): ${optSymbol} ${optQty}x @ $${liveQ.mid.toFixed(2)} strike=$${itmStrike} — 30min exit`);
           } else {
             const e: any = await optOrder.json();
             console.error(`[BOOF55] Call order failed ${optSymbol}:`, e.message);
