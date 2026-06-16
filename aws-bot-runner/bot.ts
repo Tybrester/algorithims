@@ -1186,9 +1186,9 @@ async function runTpSlDaemon(): Promise<void> {
       const minutesHeld = (now.getTime() - entryTime.getTime()) / (1000 * 60);
       const tradeCandles = candleCache.get(open.symbol) ?? [];
       const tradeInChop = isChoppy(tradeCandles);
-      const timeExitMins = tradeInChop ? 20 : 30;
+      const timeExitMins = 60;
       const shouldTimeExit1DTE = is1dte && minutesHeld >= timeExitMins;
-      const shouldTimeExit0DTE = is0dte && minutesHeld >= 20; // 20-min max hold for 0DTEs
+      const shouldTimeExit0DTE = is0dte && minutesHeld >= 60;
       const shouldEOD = shouldEOD_0dte || shouldEOD_1dte || shouldTimeExit1DTE || shouldTimeExit0DTE || shouldEOD_universal;
 
       const shouldTP = pctChange >= takeProfitPct;
