@@ -493,14 +493,15 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           .limit(1);
         if (openTrades55 && openTrades55.length > 0) { openPositions.add(posKey); continue; }
 
-        // Size: split 5% equity 50/50 — half stock, half ATM call
+        // Size: 5% equity for stock, fixed $750 for option leg
         const acctRes = await fetch(`${BASE_URL}/v2/account`, { headers: alpacaHeaders() });
         const acct: any = await acctRes.json();
-        const equity    = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
-        const halfRisk  = equity * 0.025; // 2.5% each leg
-        const shares    = Math.max(1, Math.floor(halfRisk / b55.price));
+        const equity     = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
+        const stockRisk  = equity * 0.05;
+        const shares     = Math.max(1, Math.floor(stockRisk / b55.price));
+        const OPT_BUDGET = 750; // fixed $750 option leg budget
 
-        console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} halfRisk=$${halfRisk.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
+        console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} stockRisk=$${stockRisk.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
 
         openPositions.add(posKey);
 
@@ -525,48 +526,72 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         });
         console.log(`[BOOF55] Stock leg: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} — EOD exit`);
 
-        // ── LEG 2: 1-ITM Call — 30min exit ──
-        const spot         = b55.price;
-        const strikeInt    = spot > 500 ? 5 : spot > 50 ? 2.5 : 1;
-        const atmStrike    = Math.round(spot / strikeInt) * strikeInt;
-        const itmStrike    = atmStrike - strikeInt; // 1 ITM for call (strike below spot)
-        const optExpDate   = nearestFriday();
-        const optSymbol    = formatOptionSymbol(symbol, optExpDate, 'call', itmStrike);
-        const optQty       = 1;
-        const exitAt30min  = Date.now() + 30 * 60 * 1000;
+        // ── LEG 2: Call — $750 budget, walk OTM if too expensive, ITM/more qty if cheap ──
+        {
+          const spot      = b55.price;
+          const strikeInt = spot > 500 ? 5 : spot > 50 ? 2.5 : 1;
+          const atmStrike = Math.round(spot / strikeInt) * strikeInt;
+          const optExpDate = nearestFriday();
+          const exitAt30min = Date.now() + 30 * 60 * 1000;
 
-        const liveQ = await fetchLiveQuote(optSymbol);
-        if (liveQ && liveQ.mid > 0) {
-          const optOrder = await fetch(`${BASE_URL}/v2/orders`, {
-            method: 'POST', headers: alpacaHeaders(),
-            body: JSON.stringify({
-              symbol: optSymbol, qty: String(optQty), side: 'buy',
-              type: 'limit', limit_price: liveQ.ask.toFixed(2),
-              time_in_force: 'day',
-            }),
-          });
-          if (optOrder.ok) {
-            await supabase.from('options_trades').insert({
-              bot_id: bot.id, user_id: bot.user_id, symbol,
-              option_type: 'call', strike: itmStrike,
-              expiration_date: optExpDate,
-              premium_per_contract: liveQ.mid, entry_price: liveQ.mid,
-              total_cost: liveQ.mid * optQty * 100, contracts: optQty,
-              status: 'open', created_at: new Date().toISOString(),
-              reason: `${b55.reason} [1-ITM call 30min]`, entry_slack: 1,
-              signal_version: 'boof55_call', broker: bot.broker || 'alpaca_paper',
-              mode: `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
-              signal: 'buy',
-              take_profit_pct: exitAt30min, // unix ms — 30min exit deadline
-              stop_loss_pct: -50,           // -50% disaster stop
-            });
-            console.log(`[BOOF55] Call leg (1-ITM): ${optSymbol} ${optQty}x @ $${liveQ.mid.toFixed(2)} strike=$${itmStrike} — 30min exit`);
-          } else {
-            const e: any = await optOrder.json();
-            console.error(`[BOOF55] Call order failed ${optSymbol}:`, e.message);
+          // Start at 1-ITM, walk OTM up to 5 strikes if too expensive, walk ITM if too cheap
+          let chosenStrike = atmStrike - strikeInt; // 1-ITM start
+          let chosenQty    = 1;
+          let chosenQ: any = null;
+          let chosenSym    = '';
+
+          // Walk OTM if 1-contract cost > budget
+          for (let otmStep = -1; otmStep <= 4; otmStep++) {
+            const testStrike = atmStrike + (otmStep * strikeInt); // -1=1ITM, 0=ATM, 1=1OTM...
+            const testSym    = formatOptionSymbol(symbol, optExpDate, 'call', testStrike);
+            const q          = await fetchLiveQuote(testSym);
+            if (!q || q.mid <= 0) continue;
+            const costPer = q.ask * 100; // cost for 1 contract
+            if (costPer <= OPT_BUDGET) {
+              chosenStrike = testStrike;
+              chosenQ      = q;
+              chosenSym    = testSym;
+              // How many contracts fit in budget?
+              chosenQty = Math.max(1, Math.floor(OPT_BUDGET / costPer));
+              // Cap at 10 contracts
+              chosenQty = Math.min(chosenQty, 10);
+              break;
+            }
           }
-        } else {
-          console.log(`[BOOF55] No quote for ${optSymbol} — skipping call leg`);
+
+          if (chosenQ && chosenQ.mid > 0) {
+            const optOrder = await fetch(`${BASE_URL}/v2/orders`, {
+              method: 'POST', headers: alpacaHeaders(),
+              body: JSON.stringify({
+                symbol: chosenSym, qty: String(chosenQty), side: 'buy',
+                type: 'limit', limit_price: chosenQ.ask.toFixed(2),
+                time_in_force: 'day',
+              }),
+            });
+            if (optOrder.ok) {
+              await supabase.from('options_trades').insert({
+                bot_id: bot.id, user_id: bot.user_id, symbol,
+                option_type: 'call', strike: chosenStrike,
+                expiration_date: optExpDate,
+                premium_per_contract: chosenQ.mid, entry_price: chosenQ.mid,
+                total_cost: chosenQ.mid * chosenQty * 100, contracts: chosenQty,
+                status: 'open', created_at: new Date().toISOString(),
+                reason: `${b55.reason} [call 30min $${OPT_BUDGET}]`, entry_slack: 1,
+                signal_version: 'boof55_call', broker: bot.broker || 'alpaca_paper',
+                mode: `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
+                signal: 'buy',
+                take_profit_pct: exitAt30min, // unix ms — 30min exit deadline
+                stop_loss_pct: -50,           // -50% disaster stop
+              });
+              const itmLabel = chosenStrike < atmStrike ? `${((atmStrike - chosenStrike)/strikeInt).toFixed(0)}-ITM` : chosenStrike === atmStrike ? 'ATM' : `${((chosenStrike-atmStrike)/strikeInt).toFixed(0)}-OTM`;
+              console.log(`[BOOF55] Call leg (${itmLabel}): ${chosenSym} ${chosenQty}x @ $${chosenQ.mid.toFixed(2)} cost=$${(chosenQ.ask*chosenQty*100).toFixed(0)} — 30min exit`);
+            } else {
+              const e: any = await optOrder.json();
+              console.error(`[BOOF55] Call order failed ${chosenSym}:`, e.message);
+            }
+          } else {
+            console.log(`[BOOF55] No viable call quote for ${symbol} within budget — skipping call leg`);
+          }
         }
 
         bot.daily_trade_count = (bot.daily_trade_count ?? 0) + 1;
