@@ -580,10 +580,11 @@
     }
 
     function fetchBotData() {
-      return Promise.all([fetchBOOF23Status(), fetchBOOF51Status(), fetchBOOF55Status()]).then(([boof23Data, boof51Data, boof55Data]) => ({
+      return Promise.all([fetchBOOF23Status(), fetchBOOF50Status(), fetchBOOF51Status(), fetchBOOF55Status()]).then(([boof23Data, boof50Data, boof51Data, boof55Data]) => ({
         last_update: new Date().toISOString(),
         bots: {
           'BOOF23': boof23Data,
+          'BOOF50': boof50Data,
           'BOOF51': boof51Data,
           'BOOF55 — Gap Breakout': boof55Data,
         }
