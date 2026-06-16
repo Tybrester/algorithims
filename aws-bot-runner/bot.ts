@@ -938,6 +938,52 @@ async function runTpSlDaemon(): Promise<void> {
       const bot = (open as any).options_bots;
       const botSignal = bot?.bot_signal || 'boof23';
 
+      // ── BOOF55 STOCK EXIT (separate path — no options pricing) ──
+      if (botSignal === 'boof55' || (open as any).option_type === 'stock') {
+        const candles   = candleCache.get(open.symbol) ?? [];
+        const currPrice = candles.length ? candles[candles.length - 1].close : 0;
+        if (!currPrice) continue;
+
+        const entryPrice  = Number(open.entry_price ?? open.premium_per_contract);
+        const stopPrice   = Number(open.stop_loss_pct);   // stored as hard stop price
+        const holdUntil   = Number(open.take_profit_pct); // stored as unix ms deadline
+        const shares      = Number(open.contracts);
+        const totalCost   = entryPrice * shares;
+        const pnl         = (currPrice - entryPrice) * shares;
+        const pctChange   = (currPrice - entryPrice) / entryPrice * 100;
+
+        const utcH = now.getUTCHours(), utcM = now.getUTCMinutes();
+        // 15:59 ET = 20:59 UTC (EST) or 19:59 UTC (EDT) — use 20:59 as safe EOD
+        const isEOD      = (utcH === 20 && utcM >= 59) || utcH > 20 || (utcH === 19 && utcM >= 59);
+        const is2hrHold  = holdUntil > 0 && Date.now() >= holdUntil;
+        const isStop     = stopPrice > 0 && currPrice <= stopPrice;
+
+        const shouldExit = isStop || is2hrHold || isEOD;
+        const exitReason = isStop ? 'stop_loss' : is2hrHold ? '2hr_hold' : 'eod_close';
+
+        console.log(`[BOOF55] ${open.symbol}: price=$${currPrice.toFixed(2)} entry=$${entryPrice.toFixed(2)} stop=$${stopPrice.toFixed(2)} pct=${pctChange.toFixed(2)}% isStop=${isStop} is2hr=${is2hrHold} isEOD=${isEOD}`);
+
+        if (!shouldExit) continue;
+
+        console.log(`[BOOF55] ✓ CLOSING ${open.symbol}: ${exitReason} pnl=$${pnl.toFixed(2)}`);
+        const sellRes = await fetch(`${BASE_URL}/v2/orders`, {
+          method: 'POST', headers: alpacaHeaders(),
+          body: JSON.stringify({ symbol: open.symbol, qty: String(shares), side: 'sell', type: 'market', time_in_force: 'day' }),
+        });
+        if (!sellRes.ok) {
+          const e: any = await sellRes.json();
+          console.error(`[BOOF55] Sell failed ${open.symbol}:`, e.message);
+          continue;
+        }
+        openPositions.delete(`${open.bot_id}:${open.symbol}`);
+        await supabase.from('options_trades').update({
+          status: 'closed', pnl, exit_price: currPrice,
+          closed_at: now.toISOString(), exit_reason: exitReason, exit_type: exitReason,
+        }).eq('id', open.id);
+        console.log(`[BOOF55] Closed ${open.symbol} @ $${currPrice.toFixed(2)} pnl=$${pnl.toFixed(2)}`);
+        continue;
+      }
+
       // Use per-trade ATR TP/SL for boof22, else bot-level settings
       // For 22.5/23.5 bots in CHOP mode: use tighter -8% stop loss
       const isHalfVariant = ['boof22_5', 'boof23_5'].includes(botSignal);
