@@ -491,7 +491,7 @@
       const rowMap = {};
       for (const r of rows) rowMap[r.symbol] = r;
 
-      // Fetch prev close + today's snapshot for all 28 symbols in one call
+      // Fetch snapshots for all 28 symbols in one call
       let snapMap = {};
       try {
         const symsParam = BOOF55_SYMS.join(',');
@@ -499,8 +499,18 @@
         if (snapRes.ok) snapMap = await snapRes.json();
       } catch(e) {}
 
+      // Fetch previous day bars for PDH
+      let prevBarsMap = {};
+      try {
+        const symsParam = BOOF55_SYMS.join(',');
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+        const yStr = yesterday.toISOString().slice(0,10);
+        const pbRes = await fetch(`${DATA_URL}/v2/stocks/bars?symbols=${symsParam}&timeframe=1Day&start=${yStr}&limit=2&feed=iex`, { headers: ALPACA_HEADERS });
+        if (pbRes.ok) { const j = await pbRes.json(); prevBarsMap = j.bars || {}; }
+      } catch(e) {}
+
       const symbols = BOOF55_SYMS.map(sym => {
-        const r   = rowMap[sym];
+        const r    = rowMap[sym];
         const snap = snapMap[sym];
 
         // If bot pushed a live status use it
@@ -508,18 +518,27 @@
           return { symbol: sym, setup_active: true, setup_close: false, setup_watching: false, metrics: r.metrics || '' };
         }
 
-        // Build gap info from snapshot
+        // Build metrics from snapshot
         let metrics = '';
         let gapped  = false;
         if (snap) {
-          const prevClose  = snap.prevDailyBar?.c;
-          const todayOpen  = snap.dailyBar?.o ?? snap.latestTrade?.p;
+          const prevClose   = snap.prevDailyBar?.c;
+          const todayOpen   = snap.dailyBar?.o ?? snap.latestTrade?.p;
           const latestPrice = snap.latestTrade?.p ?? snap.dailyBar?.c;
+          const todayVol    = snap.dailyBar?.v ?? 0;
+          const prevVol     = snap.prevDailyBar?.v ?? 0;
+          const rvol        = prevVol > 0 ? (todayVol / prevVol) : 0;
+
+          // PDH from prevDailyBar high
+          const pdh = snap.prevDailyBar?.h ?? 0;
+
           if (prevClose && todayOpen) {
-            const gapPct = ((todayOpen - prevClose) / prevClose * 100).toFixed(2);
+            const gapPct   = ((todayOpen - prevClose) / prevClose * 100).toFixed(2);
             gapped = parseFloat(gapPct) > 1.0;
+            const rvolStr  = rvol > 0 ? ` | RVOL: ${rvol.toFixed(2)}x${rvol >= 1.5 ? ' ✓' : ''}` : '';
+            const pdhStr   = pdh > 0 ? ` | PDH: $${pdh.toFixed(2)}` : '';
             const priceStr = latestPrice ? ` | Price: $${latestPrice.toFixed(2)}` : '';
-            metrics = `Gap: ${gapPct > 0 ? '+' : ''}${gapPct}%${priceStr} | Prev: $${prevClose.toFixed(2)}`;
+            metrics = `Gap: ${parseFloat(gapPct) > 0 ? '+' : ''}${gapPct}%${priceStr}${rvolStr}${pdhStr}`;
           }
         }
 
@@ -527,7 +546,7 @@
           symbol: sym,
           setup_active:   r?.setup_active   ?? false,
           setup_close:    r?.setup_close     ?? false,
-          setup_watching: gapped,   // show as WATCHING if gapped >1%
+          setup_watching: gapped,
           metrics,
         };
       });
