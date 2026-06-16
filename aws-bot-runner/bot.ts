@@ -526,7 +526,7 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         });
         console.log(`[BOOF55] Stock leg: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} — EOD exit`);
 
-        // ── LEG 2: Call — $750 budget, walk OTM if too expensive, ITM/more qty if cheap ──
+        // ── LEG 2: ATM Call — $750 budget, walk OTM if too expensive, max contracts ──
         {
           const spot      = b55.price;
           const strikeInt = spot > 500 ? 5 : spot > 50 ? 2.5 : 1;
@@ -534,15 +534,15 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           const optExpDate = nearestFriday();
           const exitAt30min = Date.now() + 30 * 60 * 1000;
 
-          // Start at 1-ITM, walk OTM up to 5 strikes if too expensive, walk ITM if too cheap
-          let chosenStrike = atmStrike - strikeInt; // 1-ITM start
+          // Start at ATM, walk OTM up to 5 strikes if too expensive
+          let chosenStrike = atmStrike;
           let chosenQty    = 1;
           let chosenQ: any = null;
           let chosenSym    = '';
 
           // Walk OTM if 1-contract cost > budget
-          for (let otmStep = -1; otmStep <= 4; otmStep++) {
-            const testStrike = atmStrike + (otmStep * strikeInt); // -1=1ITM, 0=ATM, 1=1OTM...
+          for (let otmStep = 0; otmStep <= 5; otmStep++) {
+            const testStrike = atmStrike + (otmStep * strikeInt); // 0=ATM, 1=1OTM...
             const testSym    = formatOptionSymbol(symbol, optExpDate, 'call', testStrike);
             const q          = await fetchLiveQuote(testSym);
             if (!q || q.mid <= 0) continue;
