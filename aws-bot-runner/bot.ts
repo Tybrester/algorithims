@@ -1061,7 +1061,7 @@ async function runTpSlDaemon(): Promise<void> {
 let activeWs: InstanceType<typeof WS> | null = null;
 
 function connectStream(symbols: string[]): void {
-  const WS_URL = 'wss://stream.data.alpaca.markets/v2/sip';
+  const WS_URL = IS_PAPER ? 'wss://stream.data.alpaca.markets/v2/iex' : 'wss://stream.data.alpaca.markets/v2/sip';
   const ws = new WS(WS_URL);
   activeWs = ws;
 
