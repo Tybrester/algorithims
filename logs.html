@@ -561,12 +561,12 @@
     }
 
     function fetchBotData() {
-      return Promise.all([fetchBOOF55Status(), fetchBOOF23Status(), fetchBOOF51Status()]).then(([boof55Data, boof23Data, boof51Data]) => ({
+      return Promise.all([fetchBOOF23Status(), fetchBOOF51Status(), fetchBOOF55Status()]).then(([boof23Data, boof51Data, boof55Data]) => ({
         last_update: new Date().toISOString(),
         bots: {
-          'BOOF55 — Gap Breakout': boof55Data,
           'BOOF23': boof23Data,
           'BOOF51': boof51Data,
+          'BOOF55 — Gap Breakout': boof55Data,
         }
       }));
     }
