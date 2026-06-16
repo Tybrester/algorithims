@@ -425,11 +425,11 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           .limit(1);
         if (openTrades55 && openTrades55.length > 0) { openPositions.add(posKey); continue; }
 
-        // Size: 10% equity risk / 1% stop = 10x equity in notional, capped at 4x equity
+        // Size: 5% equity risk / 1% stop, capped at 4x equity
         const acctRes = await fetch(`${BASE_URL}/v2/account`, { headers: alpacaHeaders() });
         const acct: any = await acctRes.json();
         const equity    = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
-        const riskUsd   = equity * 0.10;
+        const riskUsd   = equity * 0.05;
         const stopPct   = 0.01;
         const maxUsd    = equity * 4;
         const posUsd    = Math.min(riskUsd / stopPct, maxUsd);
