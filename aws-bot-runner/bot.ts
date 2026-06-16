@@ -18,6 +18,7 @@ if (typeof (globalThis as any).WebSocket === 'undefined') {
 import { getBoof22Signal } from './src/signals/boof22';
 import { getBoof23Signal } from './src/signals/boof23';
 import { getBoof25Signal } from './src/signals/boof25';
+import { getBoof55Signal, BOOF55_UNIVERSE } from './src/signals/boof55';
 
 // ─────────────────────────────────────────────
 // CLIENTS
@@ -407,6 +408,75 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         console.log(`[Chop] ${bot.name} ${symbol}: ADX<20 chop detected — using chop sizing`);
       }
 
+      // ── BOOF55: Stock gap breakout — separate execution path (no options) ──
+      if (sig === 'boof55') {
+        const b55 = getBoof55Signal(sigCandles as any);
+        console.log(`[SignalDebug] ${bot.name} ${symbol}: signal=${b55.signal}, reason=${b55.reason}`);
+        if (b55.signal !== 'buy') continue;
+
+        // Position guard
+        if (openPositions.has(posKey)) continue;
+        const { data: openTrades55 } = await supabase
+          .from('options_trades')
+          .select('id')
+          .eq('bot_id', bot.id)
+          .eq('symbol', symbol)
+          .eq('status', 'open')
+          .limit(1);
+        if (openTrades55 && openTrades55.length > 0) { openPositions.add(posKey); continue; }
+
+        // Size: 10% equity risk / 1% stop = 10x equity in notional, capped at 4x equity
+        const acctRes = await fetch(`${BASE_URL}/v2/account`, { headers: alpacaHeaders() });
+        const acct: any = await acctRes.json();
+        const equity    = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
+        const riskUsd   = equity * 0.10;
+        const stopPct   = 0.01;
+        const maxUsd    = equity * 4;
+        const posUsd    = Math.min(riskUsd / stopPct, maxUsd);
+        const shares    = Math.max(1, Math.floor(posUsd / b55.price));
+
+        console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} risk=$${riskUsd.toFixed(0)} pos=$${posUsd.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
+
+        openPositions.add(posKey);
+        const stockOrder = await fetch(`${BASE_URL}/v2/orders`, {
+          method: 'POST', headers: alpacaHeaders(),
+          body: JSON.stringify({ symbol, qty: String(shares), side: 'buy', type: 'market', time_in_force: 'day' }),
+        });
+        const stockOrderJson: any = await stockOrder.json();
+        if (!stockOrder.ok) {
+          console.error(`[BOOF55] Order failed ${symbol}:`, stockOrderJson.message);
+          openPositions.delete(posKey); continue;
+        }
+
+        const entryPrice = b55.price;
+        await supabase.from('options_trades').insert({
+          bot_id:               bot.id,
+          user_id:              bot.user_id,
+          symbol,
+          option_type:          'stock',
+          strike:               entryPrice,
+          expiration_date:      new Date().toISOString().slice(0, 10),
+          premium_per_contract: entryPrice,
+          entry_price:          entryPrice,
+          total_cost:           entryPrice * shares,
+          contracts:            shares,
+          status:               'open',
+          created_at:           new Date().toISOString(),
+          reason:               b55.reason,
+          entry_slack:          1,
+          signal_version:       'boof55',
+          broker:               bot.broker || 'alpaca_paper',
+          mode:                 `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
+          signal:               'buy',
+          // store stop + hold expiry in take_profit_pct / stop_loss_pct fields
+          take_profit_pct:      b55.holdUntil,   // unix ms — 2hr hold deadline
+          stop_loss_pct:        b55.stopPrice,   // hard stop price
+        });
+        console.log(`[BOOF55] Trade logged: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} stop=$${b55.stopPrice.toFixed(2)}`);
+        bot.daily_trade_count = (bot.daily_trade_count ?? 0) + 1;
+        continue;  // skip options logic below
+      }
+
       // ── RUN BOOF22 / BOOF23 / BOOF25 SIGNAL MATH ──
       let result: any = null;
       if (sig === 'boof22' || sig === 'boof22_5') {
@@ -783,6 +853,7 @@ function getScanList(mode: string): string[] {
     scan_boof5_with_etf:    ['NVDA','AAPL','META','GOOG','MSFT','AMZN','AMD','QQQ','SPY'],
     scan_boofinator:        ['SPY','QQQ','TSLA','NVDA','COIN','PLTR','AMD','AAPL','AMZN','META','GOOG'],
     scan_boofinator_stocks: ['TSLA','NVDA','COIN','PLTR','AMD','AAPL','AMZN','META','GOOG'],
+    scan_boof55:            [...BOOF55_UNIVERSE],
     scan_boof24:            ['NVDA','AAPL','META','MSFT','AMZN','GOOG','AVGO','TSLA','LLY','PLTR'],
     scan_boof_noetf:        ['NVDA','AAPL','MSFT','AMZN','GOOG','AVGO','META','TSLA','LLY'],
     scan_boof_etf:          ['NVDA','AAPL','MSFT','AMZN','GOOG','AVGO','META','TSLA','LLY','QQQ','SPY'],
