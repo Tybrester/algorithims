@@ -65,6 +65,74 @@ function alpacaHeaders() {
   };
 }
 
+// ── Smart limit order: mid → mid+25%spread → ask ────────────────────────────
+async function placeLimitOrder(symbol: string, qty: number, side: 'buy'|'sell'): Promise<{ ok: boolean; orderId?: string; fillPrice?: number }> {
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+  // Fetch live quote
+  const qRes = await fetch(`${DATA_URL}/v2/stocks/${symbol}/quotes/latest?feed=iex`, { headers: alpacaHeaders() });
+  const qJson: any = await qRes.json();
+  const bid = parseFloat(qJson?.quote?.bp ?? qJson?.quote?.bid_price ?? '0');
+  const ask = parseFloat(qJson?.quote?.ap ?? qJson?.quote?.ask_price ?? '0');
+
+  if (!bid || !ask || ask <= bid) {
+    console.log(`[LimitOrder] ${symbol}: bad quote bid=${bid} ask=${ask}, falling back to market`);
+    const mRes = await fetch(`${BASE_URL}/v2/orders`, {
+      method: 'POST', headers: alpacaHeaders(),
+      body: JSON.stringify({ symbol, qty: String(qty), side, type: 'market', time_in_force: 'day' }),
+    });
+    return { ok: mRes.ok };
+  }
+
+  const spread  = ask - bid;
+  const mid     = parseFloat((bid + spread / 2).toFixed(2));
+  const midPlus = parseFloat((mid + spread * 0.25).toFixed(2));
+  const askLim  = parseFloat(ask.toFixed(2));
+
+  const tryLimit = async (price: number, label: string): Promise<string | null> => {
+    console.log(`[LimitOrder] ${symbol}: ${label} limit @ $${price.toFixed(2)} qty=${qty}`);
+    const res = await fetch(`${BASE_URL}/v2/orders`, {
+      method: 'POST', headers: alpacaHeaders(),
+      body: JSON.stringify({ symbol, qty: String(qty), side, type: 'limit', limit_price: price.toFixed(2), time_in_force: 'day', extended_hours: false }),
+    });
+    const j: any = await res.json();
+    if (!res.ok) { console.error(`[LimitOrder] ${symbol}: ${label} rejected:`, j.message); return null; }
+    return j.id;
+  };
+
+  const cancelOrder = async (id: string) => {
+    await fetch(`${BASE_URL}/v2/orders/${id}`, { method: 'DELETE', headers: alpacaHeaders() });
+  };
+
+  const checkFilled = async (id: string): Promise<boolean> => {
+    const res = await fetch(`${BASE_URL}/v2/orders/${id}`, { headers: alpacaHeaders() });
+    const j: any = await res.json();
+    return j.status === 'filled' || j.status === 'partially_filled';
+  };
+
+  // Step 1: try mid
+  let orderId = await tryLimit(mid, 'mid');
+  if (!orderId) return { ok: false };
+  await sleep(10000); // wait 10s
+  if (await checkFilled(orderId)) { console.log(`[LimitOrder] ${symbol}: filled at mid $${mid}`); return { ok: true, orderId, fillPrice: mid }; }
+
+  // Step 2: cancel and try mid + 25% spread
+  await cancelOrder(orderId);
+  await sleep(500);
+  orderId = await tryLimit(midPlus, 'mid+25%');
+  if (!orderId) return { ok: false };
+  await sleep(20000); // wait 20s
+  if (await checkFilled(orderId)) { console.log(`[LimitOrder] ${symbol}: filled at mid+25% $${midPlus}`); return { ok: true, orderId, fillPrice: midPlus }; }
+
+  // Step 3: cancel and go ask
+  await cancelOrder(orderId);
+  await sleep(500);
+  orderId = await tryLimit(askLim, 'ask');
+  if (!orderId) return { ok: false };
+  console.log(`[LimitOrder] ${symbol}: last resort ask $${askLim}`);
+  return { ok: true, orderId, fillPrice: askLim };
+}
+
 async function fetchCandles(symbol: string, timeframe: string, limit = 150): Promise<Candle[]> {
   const tf = timeframe.replace(/^(\d+)m$/, '$1Min').replace(/^(\d+)h$/, '$1Hour');
   const url = `${DATA_URL}/v2/stocks/${symbol}/bars?timeframe=${tf}&limit=${limit}&adjustment=raw&feed=sip`;
@@ -438,13 +506,9 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} risk=$${riskUsd.toFixed(0)} pos=$${posUsd.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
 
         openPositions.add(posKey);
-        const stockOrder = await fetch(`${BASE_URL}/v2/orders`, {
-          method: 'POST', headers: alpacaHeaders(),
-          body: JSON.stringify({ symbol, qty: String(shares), side: 'buy', type: 'market', time_in_force: 'day' }),
-        });
-        const stockOrderJson: any = await stockOrder.json();
+        const stockOrder = await placeLimitOrder(symbol, shares, 'buy');
         if (!stockOrder.ok) {
-          console.error(`[BOOF55] Order failed ${symbol}:`, stockOrderJson.message);
+          console.error(`[BOOF55] Order failed ${symbol}`);
           openPositions.delete(posKey); continue;
         }
 
