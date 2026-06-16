@@ -493,7 +493,7 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           .limit(1);
         if (openTrades55 && openTrades55.length > 0) { openPositions.add(posKey); continue; }
 
-        // Size: 5% of equity per trade, capped at 4x equity (no stop — pure 2hr hold)
+        // Size: 5% of equity per trade, capped at 4x equity (no stop — EOD hold)
         const acctRes = await fetch(`${BASE_URL}/v2/account`, { headers: alpacaHeaders() });
         const acct: any = await acctRes.json();
         const equity  = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
@@ -529,11 +529,10 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           broker:               bot.broker || 'alpaca_paper',
           mode:                 `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
           signal:               'buy',
-          // store stop + hold expiry in take_profit_pct / stop_loss_pct fields
-          take_profit_pct:      b55.holdUntil,   // unix ms — 2hr hold deadline
-          stop_loss_pct:        null,            // no stop — pure 2hr hold
+          take_profit_pct:      null,            // EOD hold — no fixed time exit
+          stop_loss_pct:        null,            // no stop — pure EOD hold
         });
-        console.log(`[BOOF55] Trade logged: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} hold until ${new Date(b55.holdUntil).toISOString()}`);
+        console.log(`[BOOF55] Trade logged: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} — EOD exit`);
         bot.daily_trade_count = (bot.daily_trade_count ?? 0) + 1;
         continue;  // skip options logic below
       }
@@ -948,20 +947,18 @@ async function runTpSlDaemon(): Promise<void> {
         if (!currPrice) continue;
 
         const entryPrice  = Number(open.entry_price ?? open.premium_per_contract);
-        const holdUntil   = Number(open.take_profit_pct); // stored as unix ms deadline
         const shares      = Number(open.contracts);
         const pnl         = (currPrice - entryPrice) * shares;
         const pctChange   = (currPrice - entryPrice) / entryPrice * 100;
 
         const utcH = now.getUTCHours(), utcM = now.getUTCMinutes();
         // 15:59 ET = 20:59 UTC (EST) or 19:59 UTC (EDT)
-        const isEOD     = (utcH === 20 && utcM >= 59) || utcH > 20 || (utcH === 19 && utcM >= 59);
-        const is2hrHold = holdUntil > 0 && Date.now() >= holdUntil;
+        const isEOD = (utcH === 20 && utcM >= 59) || utcH > 20 || (utcH === 19 && utcM >= 59);
 
-        const shouldExit = is2hrHold || isEOD;
-        const exitReason = is2hrHold ? '2hr_hold' : 'eod_close';
+        const shouldExit = isEOD;
+        const exitReason = 'eod_close';
 
-        console.log(`[BOOF55] ${open.symbol}: price=$${currPrice.toFixed(2)} entry=$${entryPrice.toFixed(2)} pct=${pctChange.toFixed(2)}% is2hr=${is2hrHold} isEOD=${isEOD}`);
+        console.log(`[BOOF55] ${open.symbol}: price=$${currPrice.toFixed(2)} entry=$${entryPrice.toFixed(2)} pct=${pctChange.toFixed(2)}% isEOD=${isEOD}`);
 
         if (!shouldExit) continue;
 
