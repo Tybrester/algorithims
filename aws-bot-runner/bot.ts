@@ -182,6 +182,15 @@ function nearestFriday(): string {
   return et.toISOString().slice(0, 10);
 }
 
+function nextTradingDay(): string {
+  const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  et.setDate(et.getDate() + 1);
+  // Skip Saturday (6) -> Monday, Sunday (0) -> Monday
+  if (et.getDay() === 6) et.setDate(et.getDate() + 2);
+  if (et.getDay() === 0) et.setDate(et.getDate() + 1);
+  return et.toISOString().slice(0, 10);
+}
+
 function thirdFriday(): string {
   const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const year = et.getFullYear();
@@ -643,7 +652,7 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         Math.max(c.high - c.low, Math.abs(c.high - sigCandles[i-1].close), Math.abs(c.low - sigCandles[i-1].close)));
       const atr     = atrVals.slice(-14).reduce((a, b) => a + b) / 14;
 
-      const expDate   = nearestFriday(); // 0DTE/1DTE - tomorrow's expiration
+      const expDate   = nextTradingDay(); // 1DTE — next trading day expiration
       const T         = Math.max(0, (new Date(expDate).getTime() - Date.now()) / (365 * 24 * 3600 * 1000));
       const strikeInterval = spot > 500 ? 5 : spot > 50 ? 2.5 : 1;
 
