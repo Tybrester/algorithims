@@ -493,46 +493,81 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           .limit(1);
         if (openTrades55 && openTrades55.length > 0) { openPositions.add(posKey); continue; }
 
-        // Size: 5% of equity per trade, capped at 4x equity (no stop — EOD hold)
+        // Size: split 5% equity 50/50 — half stock, half ATM call
         const acctRes = await fetch(`${BASE_URL}/v2/account`, { headers: alpacaHeaders() });
         const acct: any = await acctRes.json();
-        const equity  = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
-        const posUsd  = Math.min(equity * 0.05, equity * 4);
-        const shares  = Math.max(1, Math.floor(posUsd / b55.price));
+        const equity    = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
+        const halfRisk  = equity * 0.025; // 2.5% each leg
+        const shares    = Math.max(1, Math.floor(halfRisk / b55.price));
 
-        console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} pos=$${posUsd.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
+        console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} halfRisk=$${halfRisk.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
 
         openPositions.add(posKey);
+
+        // ── LEG 1: Stock — EOD exit ──
         const stockOrder = await placeLimitOrder(symbol, shares, 'buy');
         if (!stockOrder.ok) {
-          console.error(`[BOOF55] Order failed ${symbol}`);
+          console.error(`[BOOF55] Stock order failed ${symbol}`);
           openPositions.delete(posKey); continue;
         }
-
         const entryPrice = b55.price;
         await supabase.from('options_trades').insert({
-          bot_id:               bot.id,
-          user_id:              bot.user_id,
-          symbol,
-          option_type:          'stock',
-          strike:               entryPrice,
-          expiration_date:      new Date().toISOString().slice(0, 10),
-          premium_per_contract: entryPrice,
-          entry_price:          entryPrice,
-          total_cost:           entryPrice * shares,
-          contracts:            shares,
-          status:               'open',
-          created_at:           new Date().toISOString(),
-          reason:               b55.reason,
-          entry_slack:          1,
-          signal_version:       'boof55',
-          broker:               bot.broker || 'alpaca_paper',
-          mode:                 `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
-          signal:               'buy',
-          take_profit_pct:      null,            // EOD hold — no fixed time exit
-          stop_loss_pct:        null,            // no stop — pure EOD hold
+          bot_id: bot.id, user_id: bot.user_id, symbol,
+          option_type: 'stock', strike: entryPrice,
+          expiration_date: new Date().toISOString().slice(0, 10),
+          premium_per_contract: entryPrice, entry_price: entryPrice,
+          total_cost: entryPrice * shares, contracts: shares,
+          status: 'open', created_at: new Date().toISOString(),
+          reason: b55.reason, entry_slack: 1, signal_version: 'boof55',
+          broker: bot.broker || 'alpaca_paper',
+          mode: `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
+          signal: 'buy', take_profit_pct: null, stop_loss_pct: null,
         });
-        console.log(`[BOOF55] Trade logged: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} — EOD exit`);
+        console.log(`[BOOF55] Stock leg: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} — EOD exit`);
+
+        // ── LEG 2: ATM Call — 30min exit ──
+        const spot         = b55.price;
+        const strikeInt    = spot > 500 ? 5 : spot > 50 ? 2.5 : 1;
+        const atmStrike    = Math.round(spot / strikeInt) * strikeInt;
+        const optExpDate   = nearestFriday();
+        const optSymbol    = formatOptionSymbol(symbol, optExpDate, 'call', atmStrike);
+        const optQty       = 1;
+        const exitAt30min  = Date.now() + 30 * 60 * 1000;
+
+        const liveQ = await fetchLiveQuote(optSymbol);
+        if (liveQ && liveQ.mid > 0) {
+          const optOrder = await fetch(`${BASE_URL}/v2/orders`, {
+            method: 'POST', headers: alpacaHeaders(),
+            body: JSON.stringify({
+              symbol: optSymbol, qty: String(optQty), side: 'buy',
+              type: 'limit', limit_price: liveQ.ask.toFixed(2),
+              time_in_force: 'day',
+            }),
+          });
+          if (optOrder.ok) {
+            await supabase.from('options_trades').insert({
+              bot_id: bot.id, user_id: bot.user_id, symbol,
+              option_type: 'call', strike: atmStrike,
+              expiration_date: optExpDate,
+              premium_per_contract: liveQ.mid, entry_price: liveQ.mid,
+              total_cost: liveQ.mid * optQty * 100, contracts: optQty,
+              status: 'open', created_at: new Date().toISOString(),
+              reason: `${b55.reason} [ATM call 30min]`, entry_slack: 1,
+              signal_version: 'boof55_call', broker: bot.broker || 'alpaca_paper',
+              mode: `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
+              signal: 'buy',
+              take_profit_pct: exitAt30min, // unix ms — 30min exit deadline
+              stop_loss_pct: null,
+            });
+            console.log(`[BOOF55] Call leg: ${optSymbol} ${optQty}x @ $${liveQ.mid.toFixed(2)} — 30min exit`);
+          } else {
+            const e: any = await optOrder.json();
+            console.error(`[BOOF55] Call order failed ${optSymbol}:`, e.message);
+          }
+        } else {
+          console.log(`[BOOF55] No quote for ${optSymbol} — skipping call leg`);
+        }
+
         bot.daily_trade_count = (bot.daily_trade_count ?? 0) + 1;
         continue;  // skip options logic below
       }
@@ -940,32 +975,51 @@ async function runTpSlDaemon(): Promise<void> {
       const bot = (open as any).options_bots;
       const botSignal = bot?.bot_signal || 'boof23';
 
-      // ── BOOF55 STOCK EXIT (separate path — no options pricing) ──
-      if (botSignal === 'boof55' || (open as any).option_type === 'stock') {
-        const candles   = candleCache.get(open.symbol) ?? [];
-        const currPrice = candles.length ? candles[candles.length - 1].close : 0;
+      // ── BOOF55 EXIT (stock = EOD, call = 30min) ──
+      if (botSignal === 'boof55' || botSignal === 'boof55_call' || (open as any).option_type === 'stock') {
+        const isCallLeg   = (open as any).signal_version === 'boof55_call';
+        const candles     = candleCache.get(open.symbol) ?? [];
+        const currPrice   = candles.length ? candles[candles.length - 1].close : 0;
         if (!currPrice) continue;
 
         const entryPrice  = Number(open.entry_price ?? open.premium_per_contract);
-        const shares      = Number(open.contracts);
-        const pnl         = (currPrice - entryPrice) * shares;
-        const pctChange   = (currPrice - entryPrice) / entryPrice * 100;
-
+        const contracts   = Number(open.contracts);
         const utcH = now.getUTCHours(), utcM = now.getUTCMinutes();
-        // 15:59 ET = 20:59 UTC (EST) or 19:59 UTC (EDT)
         const isEOD = (utcH === 20 && utcM >= 59) || utcH > 20 || (utcH === 19 && utcM >= 59);
 
-        const shouldExit = isEOD;
-        const exitReason = 'eod_close';
+        let shouldExit = false;
+        let exitReason = 'eod_close';
+        let pnl = 0;
+        let exitSymbol = open.symbol;
 
-        console.log(`[BOOF55] ${open.symbol}: price=$${currPrice.toFixed(2)} entry=$${entryPrice.toFixed(2)} pct=${pctChange.toFixed(2)}% isEOD=${isEOD}`);
+        if (isCallLeg) {
+          // Call leg: exit at 30min deadline stored in take_profit_pct
+          const exitDeadline = Number(open.take_profit_pct);
+          const is30min = exitDeadline > 0 && Date.now() >= exitDeadline;
+          shouldExit = is30min || isEOD;
+          exitReason = is30min ? '30min_exit' : 'eod_close';
+          // Get live option price
+          const optPrice = await fetchRealOptionPrice(open.symbol, open.strike, open.expiration_date, open.option_type, candles);
+          const totalCost = Number(open.total_cost) || (entryPrice * contracts * 100);
+          pnl = optPrice ? (optPrice * contracts * 100) - totalCost : 0;
+          exitSymbol = formatOptionSymbol(open.symbol, open.expiration_date?.slice(0,10), 'call', Number(open.strike));
+          console.log(`[BOOF55 CALL] ${open.symbol}: optPrice=$${(optPrice||0).toFixed(2)} is30min=${is30min} isEOD=${isEOD}`);
+        } else {
+          // Stock leg: EOD only
+          const shares = contracts;
+          pnl = (currPrice - entryPrice) * shares;
+          shouldExit = isEOD;
+          console.log(`[BOOF55 STK] ${open.symbol}: price=$${currPrice.toFixed(2)} entry=$${entryPrice.toFixed(2)} pct=${((currPrice-entryPrice)/entryPrice*100).toFixed(2)}% isEOD=${isEOD}`);
+        }
 
         if (!shouldExit) continue;
 
-        console.log(`[BOOF55] ✓ CLOSING ${open.symbol}: ${exitReason} pnl=$${pnl.toFixed(2)}`);
+        console.log(`[BOOF55] ✓ CLOSING ${exitSymbol}: ${exitReason} pnl=$${pnl.toFixed(2)}`);
+        const orderSym = isCallLeg ? exitSymbol : open.symbol;
+        const orderQty = isCallLeg ? String(contracts) : String(contracts);
         const sellRes = await fetch(`${BASE_URL}/v2/orders`, {
           method: 'POST', headers: alpacaHeaders(),
-          body: JSON.stringify({ symbol: open.symbol, qty: String(shares), side: 'sell', type: 'market', time_in_force: 'day' }),
+          body: JSON.stringify({ symbol: orderSym, qty: orderQty, side: 'sell', type: 'market', time_in_force: 'day' }),
         });
         if (!sellRes.ok) {
           const e: any = await sellRes.json();
