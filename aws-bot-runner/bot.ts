@@ -349,7 +349,7 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
 
   for (const bot of botsForSymbol) {
     try {
-      if (bot.max_daily_trades && bot.daily_trade_count >= bot.max_daily_trades) {
+      if (bot.bot_signal !== 'boof55' && bot.max_daily_trades && bot.daily_trade_count >= bot.max_daily_trades) {
         console.log(`[TradeLimit] ${bot.name}: Hit daily limit ${bot.daily_trade_count}/${bot.max_daily_trades}`);
         continue;
       }
