@@ -478,26 +478,60 @@
     }
 
     async function fetchBOOF55Status() {
-      const res = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF55&order=symbol.asc`, {
+      const ALPACA_KEY    = 'PKKPME54QJA3KBPAJ3QZZOJXDF';
+      const ALPACA_SECRET = 'J4GMmrbXWozxgx5FoY6kZmeNj9tCG6kmDGmyEvnXrb1Y';
+      const ALPACA_HEADERS = { 'APCA-API-KEY-ID': ALPACA_KEY, 'APCA-API-SECRET-KEY': ALPACA_SECRET };
+      const DATA_URL = 'https://data.alpaca.markets';
+
+      // Pull bot_status rows (active positions during market hours)
+      const sbRes = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF55&order=symbol.asc`, {
         headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
       });
-      const rows = await res.json();
+      const rows = await sbRes.json();
       const rowMap = {};
       for (const r of rows) rowMap[r.symbol] = r;
+
+      // Fetch prev close + today's snapshot for all 28 symbols in one call
+      let snapMap = {};
+      try {
+        const symsParam = BOOF55_SYMS.join(',');
+        const snapRes = await fetch(`${DATA_URL}/v2/stocks/snapshots?symbols=${symsParam}&feed=iex`, { headers: ALPACA_HEADERS });
+        if (snapRes.ok) snapMap = await snapRes.json();
+      } catch(e) {}
+
       const symbols = BOOF55_SYMS.map(sym => {
-        const r = rowMap[sym];
-        return r ? {
+        const r   = rowMap[sym];
+        const snap = snapMap[sym];
+
+        // If bot pushed a live status use it
+        if (r && r.setup_active) {
+          return { symbol: sym, setup_active: true, setup_close: false, setup_watching: false, metrics: r.metrics || '' };
+        }
+
+        // Build gap info from snapshot
+        let metrics = '';
+        let gapped  = false;
+        if (snap) {
+          const prevClose  = snap.prevDailyBar?.c;
+          const todayOpen  = snap.dailyBar?.o ?? snap.latestTrade?.p;
+          const latestPrice = snap.latestTrade?.p ?? snap.dailyBar?.c;
+          if (prevClose && todayOpen) {
+            const gapPct = ((todayOpen - prevClose) / prevClose * 100).toFixed(2);
+            gapped = parseFloat(gapPct) > 1.0;
+            const priceStr = latestPrice ? ` | Price: $${latestPrice.toFixed(2)}` : '';
+            metrics = `Gap: ${gapPct > 0 ? '+' : ''}${gapPct}%${priceStr} | Prev: $${prevClose.toFixed(2)}`;
+          }
+        }
+
+        return {
           symbol: sym,
-          setup_active:   r.setup_active,
-          setup_close:    r.setup_close,
-          setup_watching: r.setup_watching,
-          metrics: r.metrics || '',
-        } : {
-          symbol: sym,
-          setup_active: false, setup_close: false, setup_watching: false,
-          metrics: '',
+          setup_active:   r?.setup_active   ?? false,
+          setup_close:    r?.setup_close     ?? false,
+          setup_watching: gapped,   // show as WATCHING if gapped >1%
+          metrics,
         };
       });
+
       const active   = symbols.filter(s => s.setup_active).length;
       const close    = symbols.filter(s => s.setup_close).length;
       const watching = symbols.filter(s => s.setup_watching).length;
