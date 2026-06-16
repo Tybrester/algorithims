@@ -839,11 +839,43 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         continue;
       }
 
-      // Recalc symbol after potential ITM walk updated strike
-      const finalOptSymbol = formatOptionSymbol(symbol, expDate, optType, strike);
-      const finalQty = 1; // Always 1 contract — ATM/ITM only
-      console.log(`[Order] Final: ${finalOptSymbol} strike=${strike} optType=${optType} exp=${expDate} mid=$${midPrice.toFixed(2)} qty=${finalQty} budget=$${amount}`);
-      console.log(`[OrderDebug] About to place order: symbol=${symbol} optType=${optType} strike=${strike} expDate=${expDate} finalOptSymbol=${finalOptSymbol}`);
+      // ── BOOF55-style sizing: $750 budget, ATM start, walk OTM if too expensive, max contracts ──
+      const OPT_BUDGET_23 = 750;
+      let finalStrike  = strike;
+      let finalMid     = midPrice;
+      let finalAsk     = blindAsk ?? midPrice;
+      let finalOptSymbol = formatOptionSymbol(symbol, expDate, optType, strike);
+
+      // Walk OTM up to 5 strikes until 1 contract fits in budget
+      if (finalAsk * 100 > OPT_BUDGET_23) {
+        let found = false;
+        for (let step = 1; step <= 5; step++) {
+          const otmStrike = optType === 'call'
+            ? finalStrike + step * strikeInterval
+            : finalStrike - step * strikeInterval;
+          const otmSym = formatOptionSymbol(symbol, expDate, optType, otmStrike);
+          const otmQ   = await fetchLiveQuote(otmSym);
+          if (!otmQ || otmQ.mid < 1.00) continue;
+          if (otmQ.ask * 100 <= OPT_BUDGET_23) {
+            finalStrike    = otmStrike;
+            finalMid       = otmQ.mid;
+            finalAsk       = otmQ.ask;
+            finalOptSymbol = otmSym;
+            found = true;
+            console.log(`[OTMWalk] ${symbol}: walked ${step} OTM to $${otmStrike} mid=$${finalMid.toFixed(2)}`);
+            break;
+          }
+        }
+        if (!found) {
+          console.log(`[OTMWalk] ${symbol}: no strike fits $${OPT_BUDGET_23} budget — skipping`);
+          continue;
+        }
+      }
+
+      // How many contracts fit in budget (cap at 10)
+      const finalQty = Math.min(10, Math.max(1, Math.floor(OPT_BUDGET_23 / (finalAsk * 100))));
+      console.log(`[Order] Final: ${finalOptSymbol} strike=${finalStrike} ${optType} exp=${expDate} mid=$${finalMid.toFixed(2)} qty=${finalQty} cost=$${(finalAsk*finalQty*100).toFixed(0)} budget=$${OPT_BUDGET_23}`);
+      console.log(`[OrderDebug] About to place order: symbol=${symbol} optType=${optType} strike=${finalStrike} expDate=${expDate} finalOptSymbol=${finalOptSymbol}`);
 
       // ── GLOBAL POSITION LIMIT: Max 3 simultaneous positions per bot ──
       const globalOpenCount = Array.from(openPositions).filter(k => k.startsWith(`${bot.id}:`)).length;
@@ -854,10 +886,10 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
 
       // ── FIRE LIMIT ORDER AT MID (better fill than ask) ──
       openPositions.add(posKey); // lock immediately before order fires
-      const orderResult = await placeProtectedOrder(finalOptSymbol, 'buy', finalQty, midPrice, midPrice, bot.id, bot.user_id);
+      const orderResult = await placeProtectedOrder(finalOptSymbol, 'buy', finalQty, finalMid, finalAsk, bot.id, bot.user_id);
       if (!orderResult) { openPositions.delete(posKey); continue; }
 
-      const fillPremium = orderResult.fillPrice ?? midPrice;
+      const fillPremium = orderResult.fillPrice ?? finalMid;
       const totalCost   = fillPremium * finalQty * 100;
 
       // ── LOG TO SUPABASE ──
@@ -867,7 +899,7 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           user_id:              bot.user_id,
           symbol,
           option_type:          optType,
-          strike,
+          strike:               finalStrike,
           expiration_date:      expDate,
           premium_per_contract: fillPremium,
           entry_price:          fillPremium,
