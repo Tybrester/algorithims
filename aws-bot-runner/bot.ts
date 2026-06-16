@@ -493,17 +493,14 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           .limit(1);
         if (openTrades55 && openTrades55.length > 0) { openPositions.add(posKey); continue; }
 
-        // Size: 5% equity risk / 1% stop, capped at 4x equity
+        // Size: 5% of equity per trade, capped at 4x equity (no stop — pure 2hr hold)
         const acctRes = await fetch(`${BASE_URL}/v2/account`, { headers: alpacaHeaders() });
         const acct: any = await acctRes.json();
-        const equity    = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
-        const riskUsd   = equity * 0.05;
-        const stopPct   = 0.01;
-        const maxUsd    = equity * 4;
-        const posUsd    = Math.min(riskUsd / stopPct, maxUsd);
-        const shares    = Math.max(1, Math.floor(posUsd / b55.price));
+        const equity  = parseFloat(acct.equity ?? acct.paper_balance ?? '3000');
+        const posUsd  = Math.min(equity * 0.05, equity * 4);
+        const shares  = Math.max(1, Math.floor(posUsd / b55.price));
 
-        console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} risk=$${riskUsd.toFixed(0)} pos=$${posUsd.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
+        console.log(`[BOOF55] ${symbol}: equity=$${equity.toFixed(0)} pos=$${posUsd.toFixed(0)} shares=${shares} @ $${b55.price.toFixed(2)} | ${b55.reason}`);
 
         openPositions.add(posKey);
         const stockOrder = await placeLimitOrder(symbol, shares, 'buy');
@@ -534,9 +531,9 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
           signal:               'buy',
           // store stop + hold expiry in take_profit_pct / stop_loss_pct fields
           take_profit_pct:      b55.holdUntil,   // unix ms — 2hr hold deadline
-          stop_loss_pct:        b55.stopPrice,   // hard stop price
+          stop_loss_pct:        null,            // no stop — pure 2hr hold
         });
-        console.log(`[BOOF55] Trade logged: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} stop=$${b55.stopPrice.toFixed(2)}`);
+        console.log(`[BOOF55] Trade logged: ${symbol} ${shares}sh @ $${entryPrice.toFixed(2)} hold until ${new Date(b55.holdUntil).toISOString()}`);
         bot.daily_trade_count = (bot.daily_trade_count ?? 0) + 1;
         continue;  // skip options logic below
       }
@@ -951,23 +948,20 @@ async function runTpSlDaemon(): Promise<void> {
         if (!currPrice) continue;
 
         const entryPrice  = Number(open.entry_price ?? open.premium_per_contract);
-        const stopPrice   = Number(open.stop_loss_pct);   // stored as hard stop price
         const holdUntil   = Number(open.take_profit_pct); // stored as unix ms deadline
         const shares      = Number(open.contracts);
-        const totalCost   = entryPrice * shares;
         const pnl         = (currPrice - entryPrice) * shares;
         const pctChange   = (currPrice - entryPrice) / entryPrice * 100;
 
         const utcH = now.getUTCHours(), utcM = now.getUTCMinutes();
-        // 15:59 ET = 20:59 UTC (EST) or 19:59 UTC (EDT) — use 20:59 as safe EOD
-        const isEOD      = (utcH === 20 && utcM >= 59) || utcH > 20 || (utcH === 19 && utcM >= 59);
-        const is2hrHold  = holdUntil > 0 && Date.now() >= holdUntil;
-        const isStop     = stopPrice > 0 && currPrice <= stopPrice;
+        // 15:59 ET = 20:59 UTC (EST) or 19:59 UTC (EDT)
+        const isEOD     = (utcH === 20 && utcM >= 59) || utcH > 20 || (utcH === 19 && utcM >= 59);
+        const is2hrHold = holdUntil > 0 && Date.now() >= holdUntil;
 
-        const shouldExit = isStop || is2hrHold || isEOD;
-        const exitReason = isStop ? 'stop_loss' : is2hrHold ? '2hr_hold' : 'eod_close';
+        const shouldExit = is2hrHold || isEOD;
+        const exitReason = is2hrHold ? '2hr_hold' : 'eod_close';
 
-        console.log(`[BOOF55] ${open.symbol}: price=$${currPrice.toFixed(2)} entry=$${entryPrice.toFixed(2)} stop=$${stopPrice.toFixed(2)} pct=${pctChange.toFixed(2)}% isStop=${isStop} is2hr=${is2hrHold} isEOD=${isEOD}`);
+        console.log(`[BOOF55] ${open.symbol}: price=$${currPrice.toFixed(2)} entry=$${entryPrice.toFixed(2)} pct=${pctChange.toFixed(2)}% is2hr=${is2hrHold} isEOD=${isEOD}`);
 
         if (!shouldExit) continue;
 
