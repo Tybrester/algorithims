@@ -1136,6 +1136,8 @@ async function runTpSlDaemon(): Promise<void> {
       const utcMinute = now.getUTCMinutes();
       const shouldEOD_0dte = is0dte && (utcHour > 18 || (utcHour === 18 && utcMinute >= 0));
       const shouldEOD_1dte = is1dte && (utcHour === 19 && utcMinute >= 59);
+      // Universal EOD: close ALL trades by 15:55 ET (20:55 UTC EST / 19:55 UTC EDT)
+      const shouldEOD_universal = (utcHour === 20 && utcMinute >= 55) || utcHour > 20 || (utcHour === 19 && utcMinute >= 55);
       const entryTime  = new Date(open.created_at || now);
       const minutesHeld = (now.getTime() - entryTime.getTime()) / (1000 * 60);
       const tradeCandles = candleCache.get(open.symbol) ?? [];
@@ -1143,7 +1145,7 @@ async function runTpSlDaemon(): Promise<void> {
       const timeExitMins = tradeInChop ? 20 : 30;
       const shouldTimeExit1DTE = is1dte && minutesHeld >= timeExitMins;
       const shouldTimeExit0DTE = is0dte && minutesHeld >= 20; // 20-min max hold for 0DTEs
-      const shouldEOD = shouldEOD_0dte || shouldEOD_1dte || shouldTimeExit1DTE || shouldTimeExit0DTE;
+      const shouldEOD = shouldEOD_0dte || shouldEOD_1dte || shouldTimeExit1DTE || shouldTimeExit0DTE || shouldEOD_universal;
 
       const shouldTP = pctChange >= takeProfitPct;
       const shouldSL = pctChange <= slThreshold;
