@@ -196,9 +196,9 @@ function thirdFriday(): string {
 }
 
 function pickStrike(spot: number, type: 'call'|'put', atr: number): number {
-  // 0.3 ATR OTM = closer to ATM for better delta and win rate
-  // 0.5 ATR was too far OTM for expensive stocks, causing lottery tickets
-  const rawStrike = spot + (type === 'call' ? atr * 0.3 : -atr * 0.3);
+  // Start ATM — round spot to nearest strike interval
+  // Only walk OTM later if ATM is too expensive for budget
+  const rawStrike = spot;
   // Round to valid strike intervals
   // - Stocks > $500: $5 intervals (LLY, etc)
   // - Stocks $50-$500: $2.50 intervals (AAPL, MSFT, etc)
@@ -684,21 +684,11 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
       // Update amount for rest of logic
       amount = finalAmount;
 
-      // Pick initial strike (0.5 ATR OTM - affordable but not lottery ticket)
+      // Start ATM, always buy 1 contract, walk ITM if needed
       let strike = pickStrike(spot, optType, atr);
-      let midPrice = 0;
-      // Limit OTM walking to max 3 strikes to prevent buying deep lottery tickets
-      for (let i = 0; i < 3; i++) {
-        const p = blackScholes(spot, strike, T, R, sigma, optType);
-        midPrice = p < 0.05 ? 0.05 : p;
-        if (midPrice * 100 <= amount) break;
-        strike = optType === 'call' ? strike + strikeInterval : strike - strikeInterval;
-      }
-      if (midPrice * 100 > amount) {
-        console.log(`[Skip] ${bot.name} ${symbol}: no affordable strike within 3 steps OTM (budget $${amount})`);
-        continue;
-      }
-      const qty       = Math.max(1, Math.floor(amount / (midPrice * 100)));
+      const qty = 1;
+      const p = blackScholes(spot, strike, T, R, sigma, optType);
+      let midPrice = p < 0.05 ? 0.05 : p;
       const optSymbol = formatOptionSymbol(symbol, expDate, optType, strike);
 
       console.log(`[Signal] ${bot.name} → ${signal.toUpperCase()} ${symbol} ${optType} $${strike} exp=${expDate} mid=$${midPrice.toFixed(2)} qty=${qty} | ${result.reason}`);
@@ -740,29 +730,17 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
       
       let liveQ = await fetchLiveQuote(optSymbol);
       
-      // Fallback: if initial strike fails, search extensively in BOTH directions until finding target range
+      // Fallback: if no quote at ATM, walk ITM only until we get a valid quote
       if (!liveQ) {
-        console.log(`[Quote] Initial strike ${strike} failed, searching extensively for valid strikes...`);
-        // Search up to 50 strikes in both directions until we find one in target range
-        for (let offset = 1; offset <= 50; offset++) {
-          // Try ITM (in-the-money direction) - closer to ATM, usually more liquid
+        console.log(`[Quote] ATM strike ${strike} no quote, walking ITM...`);
+        for (let offset = 1; offset <= 20; offset++) {
           const itmStrike = strike + (optType === 'call' ? -offset * strikeInterval : offset * strikeInterval);
           const itmSym = formatOptionSymbol(symbol, expDate, optType, itmStrike);
           const itmQ = await fetchLiveQuote(itmSym);
-          if (itmQ && itmQ.mid >= dynamicMin && itmQ.mid <= dynamicMax) {
-            console.log(`[Quote] Found target ITM strike ${itmStrike} with mid=$${itmQ.mid} (walk=${offset})`);
+          if (itmQ && itmQ.mid > 0) {
+            console.log(`[Quote] Found ITM strike ${itmStrike} mid=$${itmQ.mid} (walk=${offset})`);
             liveQ = itmQ;
             strike = itmStrike;
-            break;
-          }
-          // Try OTM (out-of-the-money direction)
-          const otmStrike = strike + (optType === 'call' ? offset * strikeInterval : -offset * strikeInterval);
-          const otmSym = formatOptionSymbol(symbol, expDate, optType, otmStrike);
-          const otmQ = await fetchLiveQuote(otmSym);
-          if (otmQ && otmQ.mid >= dynamicMin && otmQ.mid <= dynamicMax) {
-            console.log(`[Quote] Found target OTM strike ${otmStrike} with mid=$${otmQ.mid} (walk=${offset})`);
-            liveQ = otmQ;
-            strike = otmStrike;
             break;
           }
         }
@@ -773,48 +751,21 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         midPrice = liveQ.mid;
         console.log(`[Quote] Initial ask=$${blindAsk} mid=$${midPrice} for ${optSymbol}, targets=[$${dynamicMin.toFixed(2)}-$${dynamicMax.toFixed(2)}]`);
 
-        // If too cheap (< dynamicMin), walk strike back toward ATM (ITM direction)
-        if (midPrice < dynamicMin) {
+        // If no valid price, walk ITM until we get a liquid quote
+        if (midPrice < 0.10) {
           let walkStrike = strike;
-          for (let w = 0; w < 50; w++) {
+          for (let w = 0; w < 20; w++) {
             walkStrike = optType === 'call' ? walkStrike - strikeInterval : walkStrike + strikeInterval;
             const walkSym = formatOptionSymbol(symbol, expDate, optType, walkStrike);
             const wq = await fetchLiveQuote(walkSym);
             if (!wq) continue;
-            console.log(`[QuoteWalk] strike=${walkStrike} mid=$${wq.mid} ask=$${wq.ask}`);
-            // Accept if in range AND affordable
-            if (wq.mid >= dynamicMin && wq.mid <= dynamicMax) {
-              if (wq.mid * 100 <= amount * 2) {
-                strike = walkStrike;
-                midPrice = wq.mid;
-                blindAsk = wq.ask;
-                console.log(`[QuoteWalk] Found target strike=${strike} mid=$${midPrice}`);
-              }
-              break;
-            }
-            // Stop if we walked too far ITM (price > $10)
-            if (wq.mid > 10) break;
-          }
-        }
-
-        // If too expensive (> dynamicMax), walk strike further OTM (away from ATM)
-        if (midPrice > dynamicMax) {
-          let walkStrike = strike;
-          for (let w = 0; w < 50; w++) {
-            walkStrike = optType === 'call' ? walkStrike + strikeInterval : walkStrike - strikeInterval;
-            const walkSym = formatOptionSymbol(symbol, expDate, optType, walkStrike);
-            const wq = await fetchLiveQuote(walkSym);
-            if (!wq) continue;
-            console.log(`[QuoteWalk OTM] strike=${walkStrike} mid=$${wq.mid} ask=$${wq.ask}`);
-            if (wq.mid <= dynamicMax && wq.mid >= dynamicMin) {
+            console.log(`[QuoteWalk ITM] strike=${walkStrike} mid=$${wq.mid}`);
+            if (wq.mid > 0.10) {
               strike = walkStrike;
               midPrice = wq.mid;
               blindAsk = wq.ask;
-              console.log(`[QuoteWalk OTM] Found target strike=${strike} mid=$${midPrice}`);
               break;
             }
-            // Stop if we walked too far and it's too cheap — went too deep OTM
-            if (wq.mid < dynamicMin) break;
           }
         }
         
@@ -831,18 +782,9 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
         continue;
       }
 
-      // Recalc symbol + qty after potential quote walk updated strike/midPrice
+      // Recalc symbol after potential ITM walk updated strike
       const finalOptSymbol = formatOptionSymbol(symbol, expDate, optType, strike);
-      
-      // STRICT BUDGET CHECK: Reject if option is too expensive for our budget
-      const maxAffordableContracts = Math.floor(amount / (midPrice * 100));
-      if (maxAffordableContracts < 1 || midPrice * 100 > amount * 1.5) {
-        console.log(`[Order] REJECTED: ${finalOptSymbol} at $${midPrice.toFixed(2)} is too expensive for $${amount} budget`);
-        openPositions.delete(posKey); // Clear lock so we can try different strike
-        continue;
-      }
-      
-      const finalQty = Math.max(1, maxAffordableContracts);
+      const finalQty = 1; // Always 1 contract — ATM/ITM only
       console.log(`[Order] Final: ${finalOptSymbol} strike=${strike} optType=${optType} exp=${expDate} mid=$${midPrice.toFixed(2)} qty=${finalQty} budget=$${amount}`);
       console.log(`[OrderDebug] About to place order: symbol=${symbol} optType=${optType} strike=${strike} expDate=${expDate} finalOptSymbol=${finalOptSymbol}`);
 
