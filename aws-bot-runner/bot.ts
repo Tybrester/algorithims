@@ -558,7 +558,7 @@ async function onBar(symbol: string, candles: Candle[]): Promise<void> {
               mode: `gap=${b55.gapPct.toFixed(2)}%_rvol=${b55.rvol.toFixed(2)}x_${b55.level}`,
               signal: 'buy',
               take_profit_pct: exitAt30min, // unix ms — 30min exit deadline
-              stop_loss_pct: null,
+              stop_loss_pct: -50,           // -50% disaster stop
             });
             console.log(`[BOOF55] Call leg (1-ITM): ${optSymbol} ${optQty}x @ $${liveQ.mid.toFixed(2)} strike=$${itmStrike} — 30min exit`);
           } else {
@@ -994,17 +994,19 @@ async function runTpSlDaemon(): Promise<void> {
         let exitSymbol = open.symbol;
 
         if (isCallLeg) {
-          // Call leg: exit at 30min deadline stored in take_profit_pct
+          // Call leg: exit at 30min deadline or -50% SL
           const exitDeadline = Number(open.take_profit_pct);
           const is30min = exitDeadline > 0 && Date.now() >= exitDeadline;
-          shouldExit = is30min || isEOD;
-          exitReason = is30min ? '30min_exit' : 'eod_close';
-          // Get live option price
           const optPrice = await fetchRealOptionPrice(open.symbol, open.strike, open.expiration_date, open.option_type, candles);
           const totalCost = Number(open.total_cost) || (entryPrice * contracts * 100);
           pnl = optPrice ? (optPrice * contracts * 100) - totalCost : 0;
+          const pctChange = totalCost > 0 ? (pnl / totalCost) * 100 : 0;
+          const slThreshold = Number(open.stop_loss_pct || -50);
+          const isSL = pctChange <= slThreshold;
+          shouldExit = is30min || isSL || isEOD;
+          exitReason = isSL ? 'stop_loss' : is30min ? '30min_exit' : 'eod_close';
           exitSymbol = formatOptionSymbol(open.symbol, open.expiration_date?.slice(0,10), 'call', Number(open.strike));
-          console.log(`[BOOF55 CALL] ${open.symbol}: optPrice=$${(optPrice||0).toFixed(2)} is30min=${is30min} isEOD=${isEOD}`);
+          console.log(`[BOOF55 CALL] ${open.symbol}: optPrice=$${(optPrice||0).toFixed(2)} pct=${pctChange.toFixed(1)}% sl=${slThreshold}% is30min=${is30min} isSL=${isSL} isEOD=${isEOD}`);
         } else {
           // Stock leg: EOD only
           const shares = contracts;
