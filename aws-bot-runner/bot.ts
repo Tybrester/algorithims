@@ -292,68 +292,103 @@ function isMarketOpen(): boolean {
 }
 
 // ─────────────────────────────────────────────
-// ORDER PLACEMENT  (market orders only)
+// ORDER PLACEMENT  (mid → mid+25% → market)
 // ─────────────────────────────────────────────
 async function placeProtectedOrder(
   optSymbol: string, side: 'buy'|'sell', qty: number, midPrice: number,
   blindAsk?: number, botId?: string, userId?: string, forceFill = false
 ): Promise<{ orderId: string; fillPrice: number | null; status: string } | null> {
-  // Market orders only — no limits, no buffers, immediate fill
-  console.log(`[Order] ${side.toUpperCase()} ${qty}x ${optSymbol} @ MARKET (ask=$${blindAsk?.toFixed(2) ?? 'n/a'}, mid=$${midPrice.toFixed(2)})`);
+  const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-  const orderBody = {
-    symbol: optSymbol, qty: String(qty), side,
-    type: 'market', time_in_force: 'day',
-    position_effect: side === 'buy' ? 'open' : 'close',
+  const bid = blindAsk ? blindAsk - (blindAsk - midPrice) * 2 : midPrice * 0.95;
+  const ask = blindAsk ?? midPrice * 1.05;
+  const spread = ask - bid;
+  const mid25  = parseFloat((midPrice + spread * 0.25).toFixed(2));
+
+  const cancelOrder = async (id: string) => {
+    try { await fetch(`${BASE_URL}/v2/orders/${id}`, { method: 'DELETE', headers: alpacaHeaders() }); } catch {}
   };
 
-  const res = await fetch(`${BASE_URL}/v2/orders`, {
-    method: 'POST', headers: alpacaHeaders(), body: JSON.stringify(orderBody),
-  });
-  const order: any = await res.json();
-  if (!res.ok) { 
-    console.error(`[Order] Market order failed:`, order.message); 
-    (placeProtectedOrder as any)._lastError = order.message || res.statusText;
-    return null; 
+  const pollFill = async (id: string, waitMs: number): Promise<number | null> => {
+    const end = Date.now() + waitMs;
+    while (Date.now() < end) {
+      await sleep(500);
+      const r = await fetch(`${BASE_URL}/v2/orders/${id}`, { headers: alpacaHeaders() });
+      const o: any = await r.json();
+      if (o.filled_avg_price) return Number(o.filled_avg_price);
+    }
+    return null;
+  };
+
+  const submitLimit = async (price: number, label: string): Promise<string | null> => {
+    console.log(`[Order] ${side.toUpperCase()} ${qty}x ${optSymbol} limit @ $${price.toFixed(2)} [${label}]`);
+    const res = await fetch(`${BASE_URL}/v2/orders`, {
+      method: 'POST', headers: alpacaHeaders(),
+      body: JSON.stringify({
+        symbol: optSymbol, qty: String(qty), side,
+        type: 'limit', limit_price: price.toFixed(2), time_in_force: 'day',
+        position_effect: side === 'buy' ? 'open' : 'close',
+      }),
+    });
+    const o: any = await res.json();
+    if (!res.ok) { console.error(`[Order] Limit ${label} rejected:`, o.message); (placeProtectedOrder as any)._lastError = o.message; return null; }
+    return o.id;
+  };
+
+  // Step 1: try mid, wait 5s
+  let orderId = await submitLimit(midPrice, 'mid');
+  if (orderId) {
+    const fill = await pollFill(orderId, 5000);
+    if (fill) { console.log(`[Order] Filled at mid $${fill}`); return { orderId, fillPrice: fill, status: 'filled' }; }
+    await cancelOrder(orderId);
+    await sleep(300);
   }
 
-  console.log(`[Order] Market ${side} ${qty}x ${optSymbol} → ${order.id}`);
+  // Step 2: try mid+25%, wait 25s
+  orderId = await submitLimit(mid25, 'mid+25%');
+  if (orderId) {
+    const fill = await pollFill(orderId, 25000);
+    if (fill) { console.log(`[Order] Filled at mid+25% $${fill}`); return { orderId, fillPrice: fill, status: 'filled' }; }
+    await cancelOrder(orderId);
+    await sleep(300);
+  }
 
-  // Poll until filled (market orders fill quickly)
+  // Step 3: market order fallback
+  console.log(`[Order] ${side.toUpperCase()} ${qty}x ${optSymbol} MARKET fallback`);
+  const mRes = await fetch(`${BASE_URL}/v2/orders`, {
+    method: 'POST', headers: alpacaHeaders(),
+    body: JSON.stringify({ symbol: optSymbol, qty: String(qty), side, type: 'market', time_in_force: 'day', position_effect: side === 'buy' ? 'open' : 'close' }),
+  });
+  const mOrder: any = await mRes.json();
+  if (!mRes.ok) { console.error(`[Order] Market fallback failed:`, mOrder.message); (placeProtectedOrder as any)._lastError = mOrder.message; return null; }
+
+  console.log(`[Order] Market ${side} ${qty}x ${optSymbol} → ${mOrder.id}`);
+
   for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 100));
-    const pollRes = await fetch(`${BASE_URL}/v2/orders/${order.id}`, { headers: alpacaHeaders() });
+    await sleep(200);
+    const pollRes = await fetch(`${BASE_URL}/v2/orders/${mOrder.id}`, { headers: alpacaHeaders() });
     const polled: any = await pollRes.json();
 
     if (polled.filled_avg_price) {
       const fillPrice = Number(polled.filled_avg_price);
-      
-      // Compare: old limit-3c approach vs market fill
-      const oldLimitPrice = side === 'buy' && blindAsk ? blindAsk - 0.03 : fillPrice;
-      const oldLimitCost = oldLimitPrice * qty * 100;
-      const actualCost = fillPrice * qty * 100;
-      const savedVsLimit = oldLimitCost - actualCost; // positive = market was better
-      
       const spreadPaid = blindAsk ? (fillPrice - blindAsk) * 100 * qty : 0;
-      console.log(`[Order] Filled @ $${fillPrice} | vs ask: $${spreadPaid.toFixed(2)} | vs limit-3c: $${savedVsLimit.toFixed(2)}`);
+      console.log(`[Order] Filled @ $${fillPrice} | vs ask: $${spreadPaid.toFixed(2)}`);
 
       // Log fill metrics async
       supabase.from('slippage_logs').insert({
         symbol:               optSymbol,
-        order_id:             order.id,
+        order_id:             mOrder.id,
         bot_id:               botId ?? null,
         user_id:              userId ?? null,
         blind_ask_price:      blindAsk ?? midPrice,
         target_mid_price:     midPrice,
-        limit_price:          oldLimitPrice,
         actual_filled_price:  fillPrice,
         mid_slippage_pennies: Math.round((fillPrice - midPrice) * 100),
-        cash_saved_dollars:   savedVsLimit,
         qty,
         timestamp:            new Date().toISOString(),
       }).then(() => {}, (e: any) => console.error('[Slippage] Log failed:', e.message));
 
-      return { orderId: order.id, fillPrice, status: polled.status };
+      return { orderId: mOrder.id, fillPrice, status: polled.status };
     }
   }
 
