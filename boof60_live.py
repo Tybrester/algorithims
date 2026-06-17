@@ -426,6 +426,25 @@ def handle_bar(s: SymState, bar: dict):
 
     s.last_close = price
 
+    # ── First RTH bar fallback: set day_open if premarket missed it ──
+    if s.prev_close and not s.day_open:
+        s.day_open     = o_price or price
+        s.gap_pct      = (s.day_open - s.prev_close) / s.prev_close * 100
+        s.gap_ok_long  = s.gap_pct >  GAP_MIN
+        s.gap_ok_short = s.gap_pct < -GAP_MIN
+        log.info(f"{s.sym}: RTH open fallback gap={s.gap_pct:.2f}%")
+
+    # ── Position open but option order still pending fill — count bars, force close if stuck ──
+    if s.position and not s.opt_position:
+        s.bars_held += 1
+        if s.bars_held > 5:  # option never filled after 5 bars — abandon
+            log.warning(f"{s.sym}: option never filled after {s.bars_held} bars — abandoning position")
+            with _lock:
+                s.position  = None
+                s.bars_held = 0
+                s.fired_today = True
+        return
+
     # ── Manage open option position ──
     if s.opt_position and s.position:
         opt_sym    = s.opt_position["opt_sym"]
@@ -471,8 +490,8 @@ def handle_bar(s: SymState, bar: dict):
         if s.p10h and s.p10h > s.day_open: levels['P10H'] = s.p10h
         if s.p20h and s.p20h > s.day_open: levels['P20H'] = s.p20h
         if s.pmh  and s.pmh  > s.day_open: levels['PMH']  = s.pmh
-        # Check each level for breakout (closest first)
-        for lname, lval in sorted(levels.items(), key=lambda x: -x[1]):
+        # Check each level for breakout (closest to price first = lowest value above open)
+        for lname, lval in sorted(levels.items(), key=lambda x: x[1]):
             if lname in s.brk_broken: continue
             if price > lval * (1 + BRK_THRESH):
                 s.brk_broken.add(lname)
@@ -501,7 +520,8 @@ def handle_bar(s: SymState, bar: dict):
         if s.p10l and s.p10l < s.day_open: levels['P10L'] = s.p10l
         if s.p20l and s.p20l < s.day_open: levels['P20L'] = s.p20l
         if s.pml  and s.pml  < s.day_open: levels['PML']  = s.pml
-        for lname, lval in sorted(levels.items(), key=lambda x: x[1]):
+        # Check each level for breakdown (closest to price first = highest value below open)
+        for lname, lval in sorted(levels.items(), key=lambda x: -x[1]):
             if lname in s.brk_broken: continue
             if price < lval * (1 - BRK_THRESH):
                 s.brk_broken.add(lname)
@@ -527,7 +547,7 @@ def handle_bar(s: SymState, bar: dict):
         s.pending_entry = True
         threading.Thread(target=open_trade, args=(s, direction, price), daemon=True).start()
 
-def on_bar(bar):
+async def on_bar(bar):
     sym   = bar.symbol if hasattr(bar, 'symbol') else bar.get('S', '')
     close = float(bar.close if hasattr(bar, 'close') else bar.get('c', 0))
     open_ = float(bar.open  if hasattr(bar, 'open')  else bar.get('o', 0))
