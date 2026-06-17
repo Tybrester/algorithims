@@ -652,6 +652,41 @@ def preseed_levels():
             log.error(f"Preseed {sym} error: {e}")
     log.info(f"Regime: both_up={both_up} both_dn={both_dn}")
 
+    # ── Pull today's premarket bars (4:00–9:29 ET) for PMH/PML/gap ──
+    import requests as _req2
+    today     = now_et().date()
+    pm_start  = f"{today}T04:00:00-04:00"
+    pm_end    = f"{today}T09:30:00-04:00"
+    chunk     = SYMBOLS[:30]   # batch 1
+    chunk2    = SYMBOLS[30:]   # batch 2
+    for batch in [chunk, chunk2]:
+        syms_param = ",".join(batch)
+        url = (f"{DATA_URL}/v2/stocks/bars"
+               f"?symbols={syms_param}&timeframe=1Min&start={pm_start}&end={pm_end}"
+               f"&limit=500&feed=iex")
+        try:
+            r  = _req2.get(url, headers=headers, timeout=15)
+            bars_map = r.json().get("bars", {})
+            for sym, bars in bars_map.items():
+                if sym not in state or not bars:
+                    continue
+                s = state[sym]
+                highs  = [float(b.get('h', 0)) for b in bars]
+                lows   = [float(b.get('l', 0)) for b in bars]
+                opens  = [float(b.get('o', 0)) for b in bars]
+                if highs: s.pmh = max(highs)
+                if lows:  s.pml = min(lows)
+                # day_open = first premarket bar open
+                if opens and not s.day_open:
+                    s.day_open     = opens[0]
+                    if s.prev_close and s.day_open:
+                        s.gap_pct      = (s.day_open - s.prev_close) / s.prev_close * 100
+                        s.gap_ok_long  = s.gap_pct >  GAP_MIN
+                        s.gap_ok_short = s.gap_pct < -GAP_MIN
+                log.info(f"  {sym} PM: open={s.day_open} PMH={s.pmh} PML={s.pml} gap={s.gap_pct:.2f}%")
+        except Exception as e:
+            log.error(f"Premarket preseed error: {e}")
+
 # ── HEARTBEAT ─────────────────────────────────────────────────────────────────
 def heartbeat():
     while True:
@@ -705,9 +740,21 @@ def main():
     preseed_levels()
     reconcile_positions()
 
-    threading.Thread(target=eod_close,   daemon=True).start()
-    threading.Thread(target=daily_reset, daemon=True).start()
-    threading.Thread(target=heartbeat,   daemon=True).start()
+    def premarket_refresh():
+        """Re-run preseed at 9:25 ET every day to lock in final PMH/PML before open."""
+        while True:
+            now    = now_et()
+            target = now.replace(hour=9, minute=25, second=0, microsecond=0)
+            if now >= target:
+                target += timedelta(days=1)
+            time.sleep((target - now).total_seconds())
+            log.info("9:25 premarket refresh — updating PMH/PML/gap for all symbols")
+            preseed_levels()
+
+    threading.Thread(target=eod_close,        daemon=True).start()
+    threading.Thread(target=daily_reset,      daemon=True).start()
+    threading.Thread(target=heartbeat,        daemon=True).start()
+    threading.Thread(target=premarket_refresh, daemon=True).start()
 
     watch = SYMBOLS + ['SPY', 'QQQ']
 
