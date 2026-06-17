@@ -1,0 +1,8 @@
+Found 24 files
+  boof24_AAPL_1Min_mild_20260606.csv
+  boof24_AAPL_1Min_strong_20260606.csv
+  boof24_AMD_1Min_mild_20260606.csv
+  boof24_AMD_1Min_strong_20260606.csv
+  boof24_AMZN_1Min_mild_20260606.csv
+
+Columns: ['direction', 'entry', 'pnl_pct', 'win', 'exit_type', 'timestamp', 'vol_z', 'body_atr_ratio']

@@ -1,0 +1,152 @@
+Loading...
+Loaded 77 symbols
+
+Running combined (2025+2026)...
+
+================================================================================
+  LONG ONLY  -- ALL SYMBOLS  |  58 trades  WR 79.3%  PF 8.27  Total +33.47%
+================================================================================
+
+  Sector              Trades    WR%     PF       Avg     Total
+  --------------------------------------------------------------------------------
+  Semiconductors          24  79.2%  10.73   +0.566%   +13.58%
+  Biotech                 17  82.4%  11.14   +0.678%   +11.52%
+  Fintech                  8  75.0%   5.94   +0.539%    +4.31%
+  Industrials              6  83.3%   6.59   +0.489%    +2.94%
+  Travel                   3  66.7%   2.67   +0.377%    +1.13%
+
+    Symbol Sector             Trades    WR%     PF       Avg     Total
+  --------------------------------------------------------------------------------
+       LLY Biotech                 3 100.0%   0.00   +1.084%    +3.25%
+      AMAT Semiconductors          3 100.0%   0.00   +0.935%    +2.80%
+      HOOD Fintech                 4  75.0%   4.79   +0.665%    +2.66%
+      MRNA Biotech                 2  50.0%   3.87   +1.206%    +2.41%
+      NVDA Semiconductors          3 100.0%   0.00   +0.751%    +2.25%
+        MU Semiconductors          3  66.7%  11.84   +0.716%    +2.15%
+        ON Semiconductors          2 100.0%   0.00   +1.066%    +2.13%
+       BMY Biotech                 2 100.0%   0.00   +0.984%    +1.97%
+      REGN Biotech                 4 100.0%   0.00   +0.489%    +1.96%
+       ETN Industrials             2 100.0%   0.00   +0.963%    +1.93%
+      MCHP Semiconductors          5  80.0%  19.45   +0.383%    +1.91%
+      GILD Biotech                 3 100.0%   0.00   +0.631%    +1.89%
+       TXN Semiconductors          1 100.0%   0.00   +1.428%    +1.43%
+      COIN Fintech                 2  50.0%   9.04   +0.685%    +1.37%
+      ABNB Travel                  2  50.0%   2.65   +0.556%    +1.11%
+      ASML Semiconductors          1 100.0%   0.00   +1.098%    +1.10%
+       CAT Industrials             1 100.0%   0.00   +1.001%    +1.00%
+        TT Industrials             1 100.0%   0.00   +0.425%    +0.43%  ***NEW***
+       TSM Semiconductors          1 100.0%   0.00   +0.343%    +0.34%
+      PYPL Fintech                 2 100.0%   0.00   +0.140%    +0.28%
+       NVO Biotech                 2  50.0%   5.23   +0.135%    +0.27%
+      NXPI Semiconductors          3  66.7%   1.60   +0.069%    +0.21%
+      UBER Travel                  1 100.0%   0.00   +0.019%    +0.02%
+      INTC Semiconductors          1   0.0%   0.00   -0.122%    -0.12%
+      AMGN Biotech                 1   0.0%   0.00   -0.232%    -0.23%
+        DE Industrials             2  50.0%   0.21   -0.209%    -0.42%
+       ARM Semiconductors          1   0.0%   0.00   -0.627%    -0.63%  <-- CUT
+================================================================================
+
+================================================================================
+  SHORT ONLY -- ALL SYMBOLS  |  95 trades  WR 52.6%  PF 1.35  Total +19.65%
+================================================================================
+
+  Sector              Trades    WR%     PF       Avg     Total
+  --------------------------------------------------------------------------------
+  Semiconductors          44  56.8%   1.44   +0.274%   +12.07%
+  Biotech                 21  38.1%   0.74   -0.172%    -3.62%
+  Fintech                 10  70.0%   2.11   +0.677%    +6.77%
+  Industrials             12  50.0%   1.31   +0.138%    +1.66%
+  Travel                   8  50.0%   1.77   +0.345%    +2.76%
+
+    Symbol Sector             Trades    WR%     PF       Avg     Total
+  --------------------------------------------------------------------------------
+      ISRG Biotech                 4  75.0%   7.24   +1.333%    +5.33%
+      AVGO Semiconductors          4  75.0%  40.62   +1.165%    +4.66%
+      UBER Travel                  3 100.0%   0.00   +1.435%    +4.30%
+       ARM Semiconductors          2 100.0%   0.00   +2.151%    +4.30%
+       AMD Semiconductors          2 100.0%   0.00   +1.937%    +3.87%
+      MCHP Semiconductors          5  60.0%   9.24   +0.729%    +3.64%
+      HOOD Fintech                 1 100.0%   0.00   +2.655%    +2.66%
+      NVDA Semiconductors          4  75.0%   2.98   +0.566%    +2.26%
+      PYPL Fintech                 3  66.7%   3.53   +0.746%    +2.24%
+       ROP Industrials             1 100.0%   0.00   +1.931%    +1.93%
+        SQ Fintech                 1 100.0%   0.00   +1.920%    +1.92%
+        ON Semiconductors          3  33.3%   2.75   +0.416%    +1.25%
+        GE Industrials             3  66.7%   2.35   +0.411%    +1.23%
+      AMAT Semiconductors          2  50.0%   1.59   +0.531%    +1.06%
+      GILD Biotech                 2  50.0%   9.65   +0.335%    +0.67%
+      INTC Semiconductors          4  75.0%   1.10   +0.128%    +0.51%
+       EMR Industrials             2  50.0%   1.70   +0.209%    +0.42%
+        DE Industrials             2  50.0%   5.33   +0.192%    +0.38%
+       CAT Industrials             2  50.0%   1.22   +0.133%    +0.27%
+       TXN Semiconductors          5  60.0%   1.07   +0.016%    +0.08%
+      COIN Fintech                 5  60.0%   0.99   -0.008%    -0.04%
+      VRTX Biotech                 1   0.0%   0.00   -0.273%    -0.27%
+       ETN Industrials             1   0.0%   0.00   -0.759%    -0.76%  <-- CUT
+      NXPI Semiconductors          4  50.0%   0.61   -0.251%    -1.00%  <-- CUT
+      ASML Semiconductors          2   0.0%   0.00   -0.620%    -1.24%  <-- CUT
+      AMGN Biotech                 1   0.0%   0.00   -1.331%    -1.33%  <-- CUT
+      REGN Biotech                 3  33.3%   0.42   -0.482%    -1.45%  <-- CUT
+      ABNB Travel                  5  20.0%   0.57   -0.308%    -1.54%  <-- CUT
+       NVO Biotech                 2  50.0%   0.14   -0.789%    -1.58%  <-- CUT
+      ABBV Biotech                 4  25.0%   0.46   -0.427%    -1.71%  <-- CUT
+      MRVL Semiconductors          2  50.0%   0.67   -0.874%    -1.75%  <-- CUT
+       URI Industrials             1   0.0%   0.00   -1.814%    -1.81%  <-- CUT
+       TSM Semiconductors          2   0.0%   0.00   -1.102%    -2.20%  <-- CUT
+      MRNA Biotech                 4  25.0%   0.16   -0.822%    -3.29%  <-- CUT
+        MU Semiconductors          3  33.3%   0.38   -1.126%    -3.38%  <-- CUT
+================================================================================
+
+================================================================================
+  COMBINED   -- ALL SYMBOLS  |  153 trades  WR 62.7%  PF 1.87  Total +53.12%
+================================================================================
+
+  Sector              Trades    WR%     PF       Avg     Total
+  --------------------------------------------------------------------------------
+  Semiconductors          68  64.7%   1.89   +0.377%   +25.65%
+  Biotech                 38  57.9%   1.52   +0.208%    +7.90%
+  Fintech                 18  72.2%   2.59   +0.616%   +11.08%
+  Industrials             18  61.1%   1.78   +0.255%    +4.59%
+  Travel                  11  54.5%   1.91   +0.354%    +3.89%
+
+    Symbol Sector             Trades    WR%     PF       Avg     Total
+  --------------------------------------------------------------------------------
+      MCHP Semiconductors         10  70.0%  11.17   +0.556%    +5.56%
+      ISRG Biotech                 4  75.0%   7.24   +1.333%    +5.33%
+      HOOD Fintech                 5  80.0%   8.58   +1.063%    +5.32%
+      AVGO Semiconductors          4  75.0%  40.62   +1.165%    +4.66%
+      NVDA Semiconductors          7  85.7%   4.95   +0.645%    +4.52%
+      UBER Travel                  4 100.0%   0.00   +1.081%    +4.32%
+       AMD Semiconductors          2 100.0%   0.00   +1.937%    +3.87%
+      AMAT Semiconductors          5  80.0%   3.14   +0.773%    +3.87%
+       ARM Semiconductors          3  66.7%   6.86   +1.225%    +3.67%
+        ON Semiconductors          5  60.0%   5.74   +0.676%    +3.38%
+       LLY Biotech                 3 100.0%   0.00   +1.084%    +3.25%
+      GILD Biotech                 5  80.0%  34.06   +0.512%    +2.56%
+      PYPL Fintech                 5  80.0%   3.85   +0.504%    +2.52%
+       BMY Biotech                 2 100.0%   0.00   +0.984%    +1.97%
+       ROP Industrials             1 100.0%   0.00   +1.931%    +1.93%
+        SQ Fintech                 1 100.0%   0.00   +1.920%    +1.92%
+       TXN Semiconductors          6  66.7%   2.26   +0.251%    +1.51%
+      COIN Fintech                 7  57.1%   1.25   +0.190%    +1.33%
+       CAT Industrials             3  66.7%   2.04   +0.422%    +1.27%
+        GE Industrials             3  66.7%   2.35   +0.411%    +1.23%
+       ETN Industrials             3  66.7%   2.54   +0.389%    +1.17%
+      REGN Biotech                 7  71.4%   1.21   +0.073%    +0.51%
+        TT Industrials             1 100.0%   0.00   +0.425%    +0.43%  ***NEW***
+       EMR Industrials             2  50.0%   1.70   +0.209%    +0.42%
+      INTC Semiconductors          5  60.0%   1.07   +0.078%    +0.39%
+        DE Industrials             4  50.0%   0.95   -0.008%    -0.03%
+      ASML Semiconductors          3  33.3%   0.88   -0.048%    -0.14%
+      VRTX Biotech                 1   0.0%   0.00   -0.273%    -0.27%
+      ABNB Travel                  7  28.6%   0.90   -0.061%    -0.43%
+      NXPI Semiconductors          7  57.1%   0.73   -0.114%    -0.80%  <-- CUT
+      MRNA Biotech                 6  33.3%   0.82   -0.146%    -0.87%  <-- CUT
+        MU Semiconductors          6  50.0%   0.78   -0.205%    -1.23%  <-- CUT
+       NVO Biotech                 4  50.0%   0.31   -0.327%    -1.31%  <-- CUT
+      AMGN Biotech                 2   0.0%   0.00   -0.781%    -1.56%  <-- CUT
+      ABBV Biotech                 4  25.0%   0.46   -0.427%    -1.71%  <-- CUT
+      MRVL Semiconductors          2  50.0%   0.67   -0.874%    -1.75%  <-- CUT
+       URI Industrials             1   0.0%   0.00   -1.814%    -1.81%  <-- CUT
+       TSM Semiconductors          3  33.3%   0.16   -0.620%    -1.86%  <-- CUT
+================================================================================

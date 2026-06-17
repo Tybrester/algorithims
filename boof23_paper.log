@@ -1,0 +1,283 @@
+2026-06-10 01:32:02,042  ERROR  Alpaca connection failed: {"message": "unauthorized."}
+
+2026-06-10 01:32:02,042  ERROR  Install: pip install alpaca-py
+2026-06-10 01:32:13,187  ERROR  Alpaca connection failed: {"message": "unauthorized."}
+
+2026-06-10 01:32:13,188  ERROR  Install: pip install alpaca-py
+2026-06-10 01:32:59,865  ERROR  Alpaca connection failed: {"message": "unauthorized."}
+
+2026-06-10 01:32:59,865  ERROR  Install: pip install alpaca-py
+2026-06-10 01:34:14,092  ERROR  Alpaca connection failed: {"message": "unauthorized."}
+
+2026-06-10 01:34:14,092  ERROR  Install: pip install alpaca-py
+2026-06-10 01:35:54,858  INFO  Connected — Boof 23 Paper  |  Cash: $5,000.00  Equity: $5,000.00
+2026-06-10 01:35:54,875  INFO  Boof 23 Paper Bot — 2026-06-10 03:35:54 ET
+2026-06-10 01:35:54,916  INFO  TP=+0.45%  SL=-0.18%  Risk=1%/trade  MaxPos=10
+2026-06-10 01:35:55,009  INFO  Market closed. Exiting.
+2026-06-10 01:37:01,697  INFO  Connected — Boof 23 Paper  |  Cash: $5,000.00  Equity: $5,000.00
+2026-06-10 01:37:01,697  INFO  Boof 23 Paper Bot — 24/7 mode started
+2026-06-10 01:37:01,759  INFO  Account equity: $5,000.00
+2026-06-10 01:37:01,827  INFO  Market closed. Next open: 2026-06-10 09:30 ET  (sleeping 5.9h)
+2026-06-12 09:36:41,832  INFO  Connected — Boof 23 Paper  |  Cash: $4,988.13  Equity: $4,988.13  Buying power: $19,952.52
+2026-06-12 09:36:41,844  INFO  Boof 23 Paper Bot — 24/7 mode started
+2026-06-12 09:36:41,938  INFO  Account equity: $4,988.13
+2026-06-12 09:36:41,939  INFO  [Heartbeat] Boof 23 Alive — 2026-06-12 11:36 ET
+2026-06-12 09:36:41,999  INFO  === NEW DAY 2026-06-12 ===  TP=+0.45%  SL=-0.18%  Risk=1%/trade  MaxPos=10
+2026-06-12 09:36:41,999  INFO  MARKET OPEN time already passed (11:36:41 ET)
+2026-06-12 09:36:41,999  INFO  Active trading loop (9:35 -> 3:45 ET)...
+2026-06-12 09:36:41,999  INFO  [Heartbeat] Boof 23 Alive — 2026-06-12 11:36 ET
+2026-06-12 09:37:02,001  INFO  [Heartbeat] Boof 23 Alive — 2026-06-12 11:37 ET
+2026-06-12 09:37:02,001  INFO  -------------------------------------------------------
+2026-06-12 09:37:02,001  INFO  SCAN: checking Boof 23 signals on 5-min bars...
+2026-06-12 09:37:08,639  INFO    TOST: no setup
+2026-06-12 09:37:08,880  INFO    HOOD: LONG signal | fired 08:05 ET (212.1 min old)
+2026-06-12 09:37:09,118  INFO    ORCL: no setup
+2026-06-12 09:37:09,405  INFO    MSFT: no setup
+2026-06-12 09:37:09,548  INFO    V: SHORT signal | fired 12:15 ET (1402.1 min old)
+2026-06-12 09:37:09,696  INFO    JPM: SHORT signal | fired 15:45 ET (1192.1 min old)
+2026-06-12 09:37:09,945  INFO    SOUN: no setup
+2026-06-12 09:37:10,001  INFO    PODD: no setup
+2026-06-12 09:37:10,061  INFO    ENTG: SHORT signal | fired 16:00 ET (1177.1 min old)
+2026-06-12 09:37:10,192  INFO    GE: SHORT signal | fired 10:40 ET (57.1 min old)
+2026-06-12 09:37:10,318  INFO    MRNA: SHORT signal | fired 10:10 ET (87.1 min old)
+2026-06-12 09:37:10,477  INFO    AI: SHORT signal | fired 14:35 ET (1262.1 min old)
+2026-06-12 09:37:10,733  INFO    PATH: no setup
+2026-06-12 09:37:10,862  INFO    GS: SHORT signal | fired 10:10 ET (87.1 min old)
+2026-06-12 09:37:10,976  INFO    BSX: no setup
+2026-06-12 09:37:11,062  INFO    SIMO: no setup
+2026-06-12 09:37:11,148  INFO    SCHW: LONG signal | fired 15:00 ET (1237.1 min old)
+2026-06-12 09:37:11,337  INFO    TEM: LONG signal | fired 10:00 ET (97.1 min old)
+2026-06-12 09:37:11,575  INFO    AMD: no setup
+2026-06-12 09:37:11,651  INFO    ABNB: LONG signal | fired 15:15 ET (1222.1 min old)
+2026-06-12 09:37:11,799  INFO    NEM: SHORT signal | fired 11:00 ET (1477.1 min old)
+2026-06-12 09:37:11,856  INFO    GILD: no setup
+2026-06-12 09:37:11,969  INFO    MCHP: no setup
+2026-06-12 09:37:12,034  INFO    UNP: SHORT signal | fired 09:35 ET (122.1 min old)
+2026-06-12 09:37:12,151  INFO    ETN: SHORT signal | fired 15:05 ET (1232.1 min old)
+2026-06-12 09:37:12,341  INFO    LRCX: SHORT signal | fired 09:40 ET (117.1 min old)
+2026-06-12 09:37:12,460  INFO    SMTC: no setup
+2026-06-12 09:37:12,527  INFO    INCY: no setup
+2026-06-12 09:37:12,588  INFO    ITW: no setup
+2026-06-12 09:37:12,728  INFO    LLY: no setup
+2026-06-12 09:37:12,810  INFO    MAR: no setup
+2026-06-12 09:37:12,868  INFO    QRVO: no setup
+2026-06-12 09:37:12,946  INFO    MPC: no setup
+2026-06-12 09:37:13,014  INFO    BKR: LONG signal | fired 16:00 ET (1177.1 min old)
+2026-06-12 09:37:13,070  INFO    TMO: SHORT signal | fired 09:30 ET (127.1 min old)
+2026-06-12 09:37:13,188  INFO    CAT: SHORT signal | fired 10:10 ET (87.1 min old)
+2026-06-12 09:37:13,417  INFO    NVDA: LONG signal | fired 09:55 ET (102.1 min old)
+2026-06-12 09:37:13,676  INFO    SOFI: no setup
+2026-06-12 09:37:13,877  INFO    XOM: no setup
+2026-06-12 09:37:13,948  INFO    DPZ: no setup
+2026-06-12 09:37:14,094  INFO    FCX: SHORT signal | fired 10:10 ET (87.1 min old)
+2026-06-12 09:37:14,164  INFO    VRTX: no setup
+2026-06-12 09:37:14,292  INFO    S: no setup
+2026-06-12 09:37:14,457  INFO    CSCO: LONG signal | fired 16:00 ET (1177.1 min old)
+2026-06-12 09:37:14,507  INFO    DE: SHORT signal | fired 15:10 ET (1227.1 min old)
+2026-06-12 09:37:14,585  INFO    HUM: no setup
+2026-06-12 09:37:14,599  INFO  No signals this scan.
+2026-06-12 09:38:04,608  INFO  [Heartbeat] Boof 23 Alive — 2026-06-12 11:38 ET
+2026-06-12 09:38:04,608  INFO  -------------------------------------------------------
+2026-06-12 09:38:04,608  INFO  SCAN: checking Boof 23 signals on 5-min bars...
+2026-06-12 09:38:09,721  INFO    TOST: no setup
+2026-06-12 09:38:09,988  INFO    HOOD: LONG signal | fired 08:05 ET (213.2 min old)
+2026-06-12 09:38:10,219  INFO    ORCL: no setup
+2026-06-12 09:38:10,470  INFO    MSFT: no setup
+2026-06-12 09:38:10,608  INFO    V: SHORT signal | fired 12:15 ET (1403.2 min old)
+2026-06-12 09:38:10,768  INFO    JPM: SHORT signal | fired 15:45 ET (1193.2 min old)
+2026-06-12 09:38:11,037  INFO    SOUN: no setup
+2026-06-12 09:38:11,095  INFO    PODD: no setup
+2026-06-12 09:38:11,154  INFO    ENTG: SHORT signal | fired 16:00 ET (1178.2 min old)
+2026-06-12 09:38:11,286  INFO    GE: SHORT signal | fired 10:40 ET (58.2 min old)
+2026-06-12 09:38:11,407  INFO    MRNA: SHORT signal | fired 10:10 ET (88.2 min old)
+2026-06-12 09:38:11,558  INFO    AI: SHORT signal | fired 14:35 ET (1263.2 min old)
+2026-06-12 09:38:11,758  INFO    PATH: no setup
+2026-06-12 09:38:11,889  INFO    GS: SHORT signal | fired 11:25 ET (13.2 min old)
+2026-06-12 09:38:12,002  INFO    BSX: no setup
+2026-06-12 09:38:12,086  INFO    SIMO: no setup
+2026-06-12 09:38:12,232  INFO    SCHW: LONG signal | fired 15:00 ET (1238.2 min old)
+2026-06-12 09:38:12,418  INFO    TEM: LONG signal | fired 10:00 ET (98.2 min old)
+2026-06-12 09:38:12,648  INFO    AMD: no setup
+2026-06-12 09:38:12,720  INFO    ABNB: LONG signal | fired 15:15 ET (1223.2 min old)
+2026-06-12 09:38:12,862  INFO    NEM: SHORT signal | fired 11:00 ET (1478.2 min old)
+2026-06-12 09:38:12,918  INFO    GILD: no setup
+2026-06-12 09:38:13,030  INFO    MCHP: no setup
+2026-06-12 09:38:13,089  INFO    UNP: SHORT signal | fired 09:35 ET (123.2 min old)
+2026-06-12 09:38:13,206  INFO    ETN: SHORT signal | fired 15:05 ET (1233.2 min old)
+2026-06-12 09:38:13,390  INFO    LRCX: SHORT signal | fired 09:40 ET (118.2 min old)
+2026-06-12 09:38:13,493  INFO    SMTC: no setup
+2026-06-12 09:38:13,556  INFO    INCY: no setup
+2026-06-12 09:38:13,615  INFO    ITW: no setup
+2026-06-12 09:38:13,763  INFO    LLY: no setup
+2026-06-12 09:38:13,857  INFO    MAR: no setup
+2026-06-12 09:38:13,920  INFO    QRVO: no setup
+2026-06-12 09:38:14,018  INFO    MPC: no setup
+2026-06-12 09:38:14,104  INFO    BKR: LONG signal | fired 16:00 ET (1178.2 min old)
+2026-06-12 09:38:14,167  INFO    TMO: SHORT signal | fired 09:30 ET (128.2 min old)
+2026-06-12 09:38:14,297  INFO    CAT: SHORT signal | fired 10:10 ET (88.2 min old)
+2026-06-12 09:38:14,541  INFO    NVDA: LONG signal | fired 09:55 ET (103.2 min old)
+2026-06-12 09:38:14,811  INFO    SOFI: no setup
+2026-06-12 09:38:15,013  INFO    XOM: no setup
+2026-06-12 09:38:15,085  INFO    DPZ: no setup
+2026-06-12 09:38:15,222  INFO    FCX: SHORT signal | fired 10:10 ET (88.2 min old)
+2026-06-12 09:38:15,293  INFO    VRTX: no setup
+2026-06-12 09:38:15,421  INFO    S: no setup
+2026-06-12 09:38:15,574  INFO    CSCO: LONG signal | fired 16:00 ET (1178.2 min old)
+2026-06-12 09:38:15,624  INFO    DE: SHORT signal | fired 15:10 ET (1228.2 min old)
+2026-06-12 09:38:15,676  INFO    HUM: no setup
+2026-06-12 09:38:15,677  INFO  Signals: [('GS', 'short')]
+2026-06-12 09:38:15,853  INFO    GS: skipped (spread 0.097% > 0.05%)
+2026-06-12 09:39:00,858  INFO  [Heartbeat] Boof 23 Alive — 2026-06-12 11:39 ET
+2026-06-12 09:39:00,858  INFO  -------------------------------------------------------
+2026-06-12 09:39:00,858  INFO  SCAN: checking Boof 23 signals on 5-min bars...
+2026-06-12 09:39:05,827  INFO    TOST: no setup
+2026-06-12 09:39:06,059  INFO    HOOD: LONG signal | fired 08:05 ET (214.1 min old)
+2026-06-12 09:39:06,293  INFO    ORCL: no setup
+2026-06-12 09:39:06,547  INFO    MSFT: no setup
+2026-06-12 09:39:06,680  INFO    V: SHORT signal | fired 12:15 ET (1404.1 min old)
+2026-06-12 09:39:06,827  INFO    JPM: SHORT signal | fired 15:45 ET (1194.1 min old)
+2026-06-12 09:39:07,074  INFO    SOUN: no setup
+2026-06-12 09:39:07,129  INFO    PODD: no setup
+2026-06-12 09:39:07,189  INFO    ENTG: SHORT signal | fired 16:00 ET (1179.1 min old)
+2026-06-12 09:39:07,322  INFO    GE: SHORT signal | fired 10:40 ET (59.1 min old)
+2026-06-12 09:39:07,442  INFO    MRNA: SHORT signal | fired 10:10 ET (89.1 min old)
+2026-06-12 09:39:07,589  INFO    AI: SHORT signal | fired 14:35 ET (1264.1 min old)
+2026-06-12 09:39:07,781  INFO    PATH: no setup
+2026-06-12 09:39:07,904  INFO    GS: SHORT signal | fired 11:25 ET (14.1 min old)
+2026-06-12 09:39:08,009  INFO    BSX: no setup
+2026-06-12 09:39:08,090  INFO    SIMO: no setup
+2026-06-12 09:39:08,170  INFO    SCHW: LONG signal | fired 15:00 ET (1239.1 min old)
+2026-06-12 09:39:08,377  INFO    TEM: LONG signal | fired 10:00 ET (99.1 min old)
+2026-06-12 09:39:08,609  INFO    AMD: no setup
+2026-06-12 09:39:08,682  INFO    ABNB: LONG signal | fired 15:15 ET (1224.1 min old)
+2026-06-12 09:39:08,822  INFO    NEM: SHORT signal | fired 11:00 ET (1479.1 min old)
+2026-06-12 09:39:08,877  INFO    GILD: no setup
+2026-06-12 09:39:08,985  INFO    MCHP: no setup
+2026-06-12 09:39:09,043  INFO    UNP: SHORT signal | fired 09:35 ET (124.1 min old)
+2026-06-12 09:39:09,156  INFO    ETN: SHORT signal | fired 15:05 ET (1234.1 min old)
+2026-06-12 09:39:09,333  INFO    LRCX: SHORT signal | fired 09:40 ET (119.1 min old)
+2026-06-12 09:39:09,437  INFO    SMTC: no setup
+2026-06-12 09:39:09,500  INFO    INCY: no setup
+2026-06-12 09:39:09,556  INFO    ITW: no setup
+2026-06-12 09:39:09,688  INFO    LLY: no setup
+2026-06-12 09:39:09,766  INFO    MAR: no setup
+2026-06-12 09:39:09,819  INFO    QRVO: no setup
+2026-06-12 09:39:09,888  INFO    MPC: no setup
+2026-06-12 09:39:09,955  INFO    BKR: LONG signal | fired 16:00 ET (1179.1 min old)
+2026-06-12 09:39:10,006  INFO    TMO: SHORT signal | fired 09:30 ET (129.1 min old)
+2026-06-12 09:39:10,119  INFO    CAT: SHORT signal | fired 10:10 ET (89.1 min old)
+2026-06-12 09:39:10,340  INFO    NVDA: LONG signal | fired 09:55 ET (104.1 min old)
+2026-06-12 09:39:10,591  INFO    SOFI: no setup
+2026-06-12 09:39:10,777  INFO    XOM: no setup
+2026-06-12 09:39:10,844  INFO    DPZ: no setup
+2026-06-12 09:39:10,977  INFO    FCX: SHORT signal | fired 10:10 ET (89.1 min old)
+2026-06-12 09:39:11,042  INFO    VRTX: no setup
+2026-06-12 09:39:11,165  INFO    S: no setup
+2026-06-12 09:39:11,313  INFO    CSCO: LONG signal | fired 16:00 ET (1179.1 min old)
+2026-06-12 09:39:11,362  INFO    DE: SHORT signal | fired 15:10 ET (1229.1 min old)
+2026-06-12 09:39:11,412  INFO    HUM: no setup
+2026-06-12 09:39:11,412  INFO  Signals: [('GS', 'short')]
+2026-06-12 09:39:11,527  INFO    GS: skipped (spread 0.100% > 0.05%)
+2026-06-12 09:40:01,532  INFO  [Heartbeat] Boof 23 Alive — 2026-06-12 11:40 ET
+2026-06-12 09:40:01,532  INFO  -------------------------------------------------------
+2026-06-12 09:40:01,532  INFO  SCAN: checking Boof 23 signals on 5-min bars...
+2026-06-12 09:40:06,411  INFO    TOST: no setup
+2026-06-12 09:40:06,633  INFO    HOOD: LONG signal | fired 08:05 ET (215.1 min old)
+2026-06-12 09:40:06,863  INFO    ORCL: no setup
+2026-06-12 09:40:07,107  INFO    MSFT: no setup
+2026-06-12 09:40:07,241  INFO    V: SHORT signal | fired 12:15 ET (1405.1 min old)
+2026-06-12 09:40:07,383  INFO    JPM: SHORT signal | fired 15:45 ET (1195.1 min old)
+2026-06-12 09:40:07,623  INFO    SOUN: no setup
+2026-06-12 09:40:07,675  INFO    PODD: no setup
+2026-06-12 09:40:07,731  INFO    ENTG: SHORT signal | fired 16:00 ET (1180.1 min old)
+2026-06-12 09:40:07,851  INFO    GE: SHORT signal | fired 10:40 ET (60.1 min old)
+2026-06-12 09:40:07,965  INFO    MRNA: SHORT signal | fired 10:10 ET (90.1 min old)
+2026-06-12 09:40:08,104  INFO    AI: SHORT signal | fired 14:35 ET (1265.1 min old)
+2026-06-12 09:40:08,288  INFO    PATH: no setup
+2026-06-12 09:40:08,408  INFO    GS: SHORT signal | fired 11:25 ET (15.1 min old)
+2026-06-12 09:40:08,512  INFO    BSX: no setup
+2026-06-12 09:40:08,592  INFO    SIMO: no setup
+2026-06-12 09:40:08,672  INFO    SCHW: LONG signal | fired 15:00 ET (1240.1 min old)
+2026-06-12 09:40:08,843  INFO    TEM: LONG signal | fired 10:00 ET (100.1 min old)
+2026-06-12 09:40:09,066  INFO    AMD: no setup
+2026-06-12 09:40:09,138  INFO    ABNB: LONG signal | fired 15:15 ET (1225.1 min old)
+2026-06-12 09:40:09,276  INFO    NEM: SHORT signal | fired 11:00 ET (1480.1 min old)
+2026-06-12 09:40:09,328  INFO    GILD: no setup
+2026-06-12 09:40:09,431  INFO    MCHP: no setup
+2026-06-12 09:40:09,487  INFO    UNP: SHORT signal | fired 09:35 ET (125.1 min old)
+2026-06-12 09:40:09,596  INFO    ETN: SHORT signal | fired 15:05 ET (1235.1 min old)
+2026-06-12 09:40:09,769  INFO    LRCX: SHORT signal | fired 09:40 ET (120.1 min old)
+2026-06-12 09:40:09,869  INFO    SMTC: no setup
+2026-06-12 09:40:09,927  INFO    INCY: no setup
+2026-06-12 09:40:09,981  INFO    ITW: no setup
+2026-06-12 09:40:10,110  INFO    LLY: no setup
+2026-06-12 09:40:10,185  INFO    MAR: no setup
+2026-06-12 09:40:10,237  INFO    QRVO: no setup
+2026-06-12 09:40:10,306  INFO    MPC: no setup
+2026-06-12 09:40:10,371  INFO    BKR: LONG signal | fired 16:00 ET (1180.1 min old)
+2026-06-12 09:40:10,422  INFO    TMO: SHORT signal | fired 09:30 ET (130.1 min old)
+2026-06-12 09:40:10,533  INFO    CAT: SHORT signal | fired 10:10 ET (90.1 min old)
+2026-06-12 09:40:10,745  INFO    NVDA: LONG signal | fired 09:55 ET (105.1 min old)
+2026-06-12 09:40:11,014  INFO    SOFI: no setup
+2026-06-12 09:40:11,206  INFO    XOM: no setup
+2026-06-12 09:40:11,271  INFO    DPZ: no setup
+2026-06-12 09:40:11,400  INFO    FCX: SHORT signal | fired 10:10 ET (90.1 min old)
+2026-06-12 09:40:11,465  INFO    VRTX: no setup
+2026-06-12 09:40:11,583  INFO    S: no setup
+2026-06-12 09:40:11,729  INFO    CSCO: LONG signal | fired 16:00 ET (1180.1 min old)
+2026-06-12 09:40:11,779  INFO    DE: SHORT signal | fired 15:10 ET (1230.1 min old)
+2026-06-12 09:40:11,835  INFO    HUM: no setup
+2026-06-12 09:40:11,835  INFO  No signals this scan.
+2026-06-12 09:41:01,839  INFO  [Heartbeat] Boof 23 Alive — 2026-06-12 11:41 ET
+2026-06-12 09:41:01,839  INFO  -------------------------------------------------------
+2026-06-12 09:41:01,839  INFO  SCAN: checking Boof 23 signals on 5-min bars...
+2026-06-12 09:41:06,362  INFO    TOST: no setup
+2026-06-12 09:41:06,607  INFO    HOOD: LONG signal | fired 08:05 ET (216.1 min old)
+2026-06-12 09:41:06,877  INFO    ORCL: no setup
+2026-06-12 09:41:07,156  INFO    MSFT: no setup
+2026-06-12 09:41:07,298  INFO    V: SHORT signal | fired 12:15 ET (1406.1 min old)
+2026-06-12 09:41:07,462  INFO    JPM: SHORT signal | fired 15:45 ET (1196.1 min old)
+2026-06-12 09:41:07,736  INFO    SOUN: no setup
+2026-06-12 09:41:07,801  INFO    PODD: no setup
+2026-06-12 09:41:07,868  INFO    ENTG: SHORT signal | fired 16:00 ET (1181.1 min old)
+2026-06-12 09:41:08,004  INFO    GE: SHORT signal | fired 10:40 ET (61.1 min old)
+2026-06-12 09:41:08,128  INFO    MRNA: SHORT signal | fired 10:10 ET (91.1 min old)
+2026-06-12 09:41:08,282  INFO    AI: SHORT signal | fired 14:35 ET (1266.1 min old)
+2026-06-12 09:41:08,486  INFO    PATH: no setup
+2026-06-12 09:41:08,634  INFO    GS: SHORT signal | fired 11:25 ET (16.1 min old)
+2026-06-12 09:41:08,750  INFO    BSX: no setup
+2026-06-12 09:41:08,833  INFO    SIMO: no setup
+2026-06-12 09:41:08,915  INFO    SCHW: LONG signal | fired 15:00 ET (1241.1 min old)
+2026-06-12 09:41:09,096  INFO    TEM: LONG signal | fired 10:00 ET (101.1 min old)
+2026-06-12 09:41:09,326  INFO    AMD: no setup
+2026-06-12 09:41:09,400  INFO    ABNB: LONG signal | fired 15:15 ET (1226.1 min old)
+2026-06-12 09:41:09,549  INFO    NEM: SHORT signal | fired 11:00 ET (1481.1 min old)
+2026-06-12 09:41:09,605  INFO    GILD: no setup
+2026-06-12 09:41:09,715  INFO    MCHP: no setup
+2026-06-12 09:41:09,776  INFO    UNP: SHORT signal | fired 09:35 ET (126.1 min old)
+2026-06-12 09:41:09,894  INFO    ETN: SHORT signal | fired 15:05 ET (1236.1 min old)
+2026-06-12 09:41:10,075  INFO    LRCX: SHORT signal | fired 09:40 ET (121.1 min old)
+2026-06-12 09:41:10,179  INFO    SMTC: no setup
+2026-06-12 09:41:10,242  INFO    INCY: no setup
+2026-06-12 09:41:10,319  INFO    ITW: no setup
+2026-06-12 09:41:10,452  INFO    LLY: no setup
+2026-06-12 09:41:10,529  INFO    MAR: no setup
+2026-06-12 09:41:10,583  INFO    QRVO: no setup
+2026-06-12 09:41:10,656  INFO    MPC: no setup
+2026-06-12 09:41:10,721  INFO    BKR: LONG signal | fired 16:00 ET (1181.1 min old)
+2026-06-12 09:41:10,772  INFO    TMO: SHORT signal | fired 09:30 ET (131.1 min old)
+2026-06-12 09:41:10,885  INFO    CAT: SHORT signal | fired 10:10 ET (91.1 min old)
+2026-06-12 09:41:11,115  INFO    NVDA: LONG signal | fired 09:55 ET (106.1 min old)
+2026-06-12 09:41:11,402  INFO    SOFI: no setup
+2026-06-12 09:41:11,654  INFO    XOM: no setup
+2026-06-12 09:41:11,723  INFO    DPZ: no setup
+2026-06-12 09:41:11,857  INFO    FCX: SHORT signal | fired 10:10 ET (91.1 min old)
+2026-06-12 09:41:11,923  INFO    VRTX: no setup
+2026-06-12 09:41:12,045  INFO    S: no setup
+2026-06-12 09:41:12,195  INFO    CSCO: LONG signal | fired 16:00 ET (1181.1 min old)
+2026-06-12 09:41:12,246  INFO    DE: SHORT signal | fired 15:10 ET (1231.1 min old)
+2026-06-12 09:41:12,300  INFO    HUM: no setup
+2026-06-12 09:41:12,300  INFO  No signals this scan.
+2026-06-12 09:41:56,065  INFO  Stopped by user.
+2026-06-12 09:41:56,065  INFO  EOD: closing all open positions...
+2026-06-12 09:41:56,065  INFO  All positions closed.

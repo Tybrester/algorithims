@@ -1,0 +1,2 @@
+2026-06-12 08:02:02,341 - __main__ - ERROR - Bot failed: Please set ALPACA_API_KEY and ALPACA_API_SECRET environment variables
+2026-06-12 08:02:34,760 - __main__ - ERROR - Bot failed: module 'alpaca_trade_api' has no attribute 'StreamConn'

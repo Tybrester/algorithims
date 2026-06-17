@@ -1,0 +1,10 @@
+Columns: ['symbol', 'date', 'time', 'entry_price', 'rvol', 'mfe_15m', 'mae_15m', 'mfe_30m', 'mae_30m', 'mfe_60m', 'mae_60m']
+Total: 101
+Runners: 12
+
+Runner symbols:
+  AAPL
+  AMZN
+  MSFT
+  NVDA
+  TSLA

@@ -1,0 +1,22 @@
+Loading 6-month 1-min bars for SPY & QQQ...
+  SPY: fetching from Alpaca (chunked)...
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+  SPY: cached 48,452 bars to boof51_cache_SPY.csv
+  SPY: 48,433 bars across 124 days
+  QQQ: fetching from Alpaca (chunked)...
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+    chunk error: 'charmap' codec can't encode character '\u2192' in position 21: character maps to <undefined>
+  QQQ: cached 48,429 bars to boof51_cache_QQQ.csv
+  QQQ: 48,410 bars across 124 days
+  20/88 configs done...

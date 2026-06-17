@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\tybre\Desktop\aivibe\boof51_bt.py", line 253, in <module>
+    trades = run_backtest(df, sym, windows)
+  File "C:\Users\tybre\Desktop\aivibe\boof51_bt.py", line 108, in run_backtest
+    t    = row["time"].strftime("%H:%M")
+  File "pandas/_libs/tslibs/timestamps.pyx", line 2145, in pandas._libs.tslibs.timestamps.Timestamp.strftime
+  File "C:\Users\tybre\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\pytz\tzinfo.py", line 430, in dst
+    def dst(self, dt, is_dst=None):
+    
+KeyboardInterrupt

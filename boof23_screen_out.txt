@@ -1,0 +1,557 @@
+﻿=================================================================
+PHASE 1 ù Free-run screen: all symbols, last 6 months
+Period : 2025-12-09 to 2026-06-09
+Filter : MFE/MAE > 1.05  AND  EOD+ > 52.0%
+=================================================================
+       AAPL   n=123  MFE/MAE=0.67x  EOD+=43.1%  score=0.548
+       ABBV   n=121  MFE/MAE=0.89x  EOD+=43.8%  score=0.662
+  PASS ABNB   n=122  MFE/MAE=1.15x  EOD+=61.5%  score=0.884
+       ABT    n=119  MFE/MAE=0.86x  EOD+=50.4%  score=0.682
+       ACLS   n= 80  MFE/MAE=0.68x  EOD+=42.5%  score=0.553
+       ADBE   n=122  MFE/MAE=0.90x  EOD+=45.9%  score=0.680
+       ADI    n=121  MFE/MAE=1.00x  EOD+=52.9%  score=0.764
+       AEHR   n=100  MFE/MAE=0.71x  EOD+=49.0%  score=0.600
+       AFRM   n=122  MFE/MAE=0.62x  EOD+=47.5%  score=0.546
+  PASS AI     n=121  MFE/MAE=1.24x  EOD+=60.3%  score=0.919
+       AJG    n=117  MFE/MAE=1.35x  EOD+=50.4%  score=0.928
+       ALAB   n=122  MFE/MAE=0.94x  EOD+=45.9%  score=0.700
+       ALGN   n=109  MFE/MAE=0.78x  EOD+=49.5%  score=0.636
+       AMAT   n=121  MFE/MAE=0.50x  EOD+=38.0%  score=0.442
+  PASS AMD    n=121  MFE/MAE=1.25x  EOD+=52.1%  score=0.886
+       AME    n=100  MFE/MAE=0.69x  EOD+=43.0%  score=0.560
+       AMGN   n=119  MFE/MAE=0.97x  EOD+=52.1%  score=0.745
+       AMKR   n=117  MFE/MAE=0.76x  EOD+=50.4%  score=0.631
+       AMP    n=119  MFE/MAE=1.04x  EOD+=54.6%  score=0.794
+       AMZN   n=122  MFE/MAE=1.14x  EOD+=51.6%  score=0.826
+       AOSL   n= 62  MFE/MAE=0.37x  EOD+=45.2%  score=0.413
+       APA    n=122  MFE/MAE=0.91x  EOD+=56.6%  score=0.740
+       APD    n=122  MFE/MAE=0.90x  EOD+=49.2%  score=0.695
+       APP    n=123  MFE/MAE=0.99x  EOD+=52.8%  score=0.759
+       ARM    n=119  MFE/MAE=0.77x  EOD+=50.4%  score=0.638
+       ASAN   n=121  MFE/MAE=0.79x  EOD+=41.3%  score=0.602
+       ASML   n=117  MFE/MAE=0.94x  EOD+=48.7%  score=0.716
+       AVGO   n=122  MFE/MAE=0.98x  EOD+=47.5%  score=0.727
+       AXP    n=122  MFE/MAE=0.91x  EOD+=48.4%  score=0.696
+       BAC    n=123  MFE/MAE=0.71x  EOD+=40.7%  score=0.557
+       BILL   n=120  MFE/MAE=0.58x  EOD+=43.3%  score=0.507
+       BIO    n=105  MFE/MAE=0.47x  EOD+=47.6%  score=0.473
+       BKNG   n=106  MFE/MAE=0.86x  EOD+=45.3%  score=0.654
+  PASS BKR    n=122  MFE/MAE=1.13x  EOD+=54.9%  score=0.839
+       BLK    n=122  MFE/MAE=0.81x  EOD+=51.6%  score=0.665
+       BMRN   n=119  MFE/MAE=0.99x  EOD+=52.1%  score=0.756
+  PASS BSX    n=120  MFE/MAE=1.25x  EOD+=55.8%  score=0.906
+       BX     n=123  MFE/MAE=0.85x  EOD+=52.8%  score=0.690
+       CARR   n=123  MFE/MAE=0.75x  EOD+=48.0%  score=0.615
+  PASS CAT    n=123  MFE/MAE=1.12x  EOD+=54.5%  score=0.834
+       CAVA   n=119  MFE/MAE=0.68x  EOD+=46.2%  score=0.572
+       CCL    n=121  MFE/MAE=0.94x  EOD+=53.7%  score=0.737
+       CELH   n=119  MFE/MAE=0.92x  EOD+=49.6%  score=0.706
+       CEVA   n= 74  MFE/MAE=0.50x  EOD+=36.5%  score=0.430
+       CHRW   n=117  MFE/MAE=0.86x  EOD+=55.6%  score=0.708
+       CI     n=120  MFE/MAE=0.82x  EOD+=47.5%  score=0.647
+       CME    n=122  MFE/MAE=0.67x  EOD+=42.6%  score=0.546
+       CMG    n=122  MFE/MAE=0.86x  EOD+=45.9%  score=0.658
+       COHR   n=121  MFE/MAE=0.98x  EOD+=46.3%  score=0.721
+       COIN   n=123  MFE/MAE=0.95x  EOD+=51.2%  score=0.732
+       COP    n=122  MFE/MAE=1.08x  EOD+=51.6%  score=0.800
+       CRL    n=104  MFE/MAE=0.64x  EOD+=51.0%  score=0.576
+       CRM    n=123  MFE/MAE=0.85x  EOD+=53.7%  score=0.695
+       CRUS   n= 79  MFE/MAE=0.81x  EOD+=51.9%  score=0.663
+       CRWD   n=122  MFE/MAE=0.75x  EOD+=41.8%  score=0.586
+  PASS CSCO   n=121  MFE/MAE=1.07x  EOD+=53.7%  score=0.802
+       CSX    n=122  MFE/MAE=1.04x  EOD+=53.3%  score=0.784
+       CVX    n=121  MFE/MAE=0.97x  EOD+=52.9%  score=0.749
+       DASH   n=123  MFE/MAE=0.72x  EOD+=49.6%  score=0.609
+       DDOG   n=117  MFE/MAE=1.00x  EOD+=54.7%  score=0.774
+  PASS DE     n=117  MFE/MAE=1.05x  EOD+=53.8%  score=0.797
+       DHR    n=122  MFE/MAE=0.97x  EOD+=50.8%  score=0.739
+       DIOD   n= 66  MFE/MAE=1.02x  EOD+=45.5%  score=0.740
+       DOCN   n=115  MFE/MAE=0.73x  EOD+=47.0%  score=0.602
+       DOCU   n=121  MFE/MAE=0.73x  EOD+=51.2%  score=0.620
+       DOV    n=107  MFE/MAE=0.92x  EOD+=51.4%  score=0.717
+  PASS DPZ    n=121  MFE/MAE=1.09x  EOD+=55.4%  score=0.822
+       DUOL   n=119  MFE/MAE=0.71x  EOD+=51.3%  score=0.611
+       DVN    n=122  MFE/MAE=1.04x  EOD+=52.5%  score=0.780
+       DXCM   n=122  MFE/MAE=0.68x  EOD+=36.1%  score=0.522
+       ELV    n=117  MFE/MAE=0.56x  EOD+=46.2%  score=0.511
+       EMR    n=121  MFE/MAE=1.02x  EOD+=50.4%  score=0.764
+  PASS ENTG   n=120  MFE/MAE=1.28x  EOD+=58.3%  score=0.932
+       EOG    n=120  MFE/MAE=0.96x  EOD+=47.5%  score=0.720
+       EQT    n=122  MFE/MAE=0.65x  EOD+=41.0%  score=0.531
+       ESTC   n=118  MFE/MAE=0.58x  EOD+=46.6%  score=0.522
+  PASS ETN    n=123  MFE/MAE=1.22x  EOD+=52.8%  score=0.875
+       ETSY   n=122  MFE/MAE=0.99x  EOD+=50.0%  score=0.745
+       EW     n=121  MFE/MAE=0.78x  EOD+=47.9%  score=0.632
+       EXAS   n= 65  MFE/MAE=0.95x  EOD+=52.3%  score=0.739
+       EXPD   n=107  MFE/MAE=0.78x  EOD+=45.8%  score=0.617
+       EXPE   n=116  MFE/MAE=0.81x  EOD+=48.3%  score=0.647
+       FANG   n=116  MFE/MAE=0.75x  EOD+=47.4%  score=0.614
+       FAST   n=120  MFE/MAE=0.82x  EOD+=44.2%  score=0.630
+  PASS FCX    n=123  MFE/MAE=1.09x  EOD+=55.3%  score=0.821
+       FIVN   n=121  MFE/MAE=0.87x  EOD+=49.6%  score=0.683
+       FORM   n=102  MFE/MAE=0.71x  EOD+=51.0%  score=0.608
+       FTNT   n=121  MFE/MAE=0.90x  EOD+=51.2%  score=0.707
+       GD     n=120  MFE/MAE=0.39x  EOD+=42.5%  score=0.408
+  PASS GE     n=121  MFE/MAE=1.30x  EOD+=55.4%  score=0.927
+       GFS    n=120  MFE/MAE=0.95x  EOD+=53.3%  score=0.739
+  PASS GILD   n=121  MFE/MAE=1.21x  EOD+=55.4%  score=0.880
+       GOOGL  n=122  MFE/MAE=1.00x  EOD+=50.8%  score=0.753
+  PASS GS     n=121  MFE/MAE=1.24x  EOD+=57.9%  score=0.907
+       GTLB   n=123  MFE/MAE=0.67x  EOD+=43.9%  score=0.555
+       GWW    n= 97  MFE/MAE=0.76x  EOD+=49.5%  score=0.625
+       HAL    n=120  MFE/MAE=0.95x  EOD+=50.8%  score=0.729
+       HCA    n=120  MFE/MAE=0.65x  EOD+=52.5%  score=0.589
+       HEI    n=112  MFE/MAE=0.85x  EOD+=46.4%  score=0.655
+       HIMS   n=123  MFE/MAE=1.07x  EOD+=49.6%  score=0.782
+       HIMX   n=103  MFE/MAE=0.78x  EOD+=50.5%  score=0.642
+       HLT    n=121  MFE/MAE=0.82x  EOD+=46.3%  score=0.640
+       HOLX   n= 65  MFE/MAE=0.61x  EOD+=46.2%  score=0.538
+       HON    n=121  MFE/MAE=0.77x  EOD+=49.6%  score=0.632
+  PASS HOOD   n=121  MFE/MAE=1.84x  EOD+=62.0%  score=1.232
+       HUBB   n=116  MFE/MAE=0.90x  EOD+=55.2%  score=0.727
+       HUBS   n=120  MFE/MAE=0.61x  EOD+=42.5%  score=0.520
+  PASS HUM    n=117  MFE/MAE=1.07x  EOD+=52.1%  score=0.795
+       IBM    n=120  MFE/MAE=0.74x  EOD+=45.0%  score=0.595
+       ICE    n=119  MFE/MAE=0.74x  EOD+=57.1%  score=0.657
+       ICHR   n= 79  MFE/MAE=0.60x  EOD+=50.6%  score=0.555
+       IDXX   n=120  MFE/MAE=0.68x  EOD+=48.3%  score=0.580
+       ILMN   n=119  MFE/MAE=1.01x  EOD+=48.7%  score=0.749
+  PASS INCY   n=117  MFE/MAE=1.18x  EOD+=54.7%  score=0.864
+       INTC   n=121  MFE/MAE=0.99x  EOD+=48.8%  score=0.740
+       INTU   n=121  MFE/MAE=0.73x  EOD+=51.2%  score=0.622
+       IONQ   n=123  MFE/MAE=0.62x  EOD+=42.3%  score=0.523
+       IPGP   n= 73  MFE/MAE=0.50x  EOD+=52.1%  score=0.511
+       IQV    n=116  MFE/MAE=0.72x  EOD+=43.1%  score=0.574
+       IR     n=121  MFE/MAE=0.91x  EOD+=49.6%  score=0.704
+       ISRG   n=118  MFE/MAE=0.77x  EOD+=53.4%  score=0.652
+  PASS ITW    n=118  MFE/MAE=1.17x  EOD+=55.1%  score=0.862
+       JCI    n=121  MFE/MAE=0.66x  EOD+=45.5%  score=0.556
+  PASS JPM    n=122  MFE/MAE=1.36x  EOD+=58.2%  score=0.971
+       KKR    n=121  MFE/MAE=0.60x  EOD+=43.8%  score=0.519
+       KLAC   n=118  MFE/MAE=0.80x  EOD+=46.6%  score=0.635
+       LIN    n=121  MFE/MAE=0.69x  EOD+=44.6%  score=0.567
+  PASS LLY    n=122  MFE/MAE=1.13x  EOD+=59.0%  score=0.862
+       LMT    n=121  MFE/MAE=0.93x  EOD+=45.5%  score=0.693
+       LNG    n=120  MFE/MAE=0.95x  EOD+=49.2%  score=0.723
+  PASS LRCX   n=123  MFE/MAE=1.19x  EOD+=54.5%  score=0.869
+       LSCC   n=120  MFE/MAE=0.99x  EOD+=50.0%  score=0.744
+       LULU   n=120  MFE/MAE=0.90x  EOD+=50.8%  score=0.706
+       LVS    n=122  MFE/MAE=0.87x  EOD+=54.9%  score=0.712
+       MA     n=122  MFE/MAE=1.00x  EOD+=52.5%  score=0.761
+  PASS MAR    n=121  MFE/MAE=1.18x  EOD+=52.9%  score=0.853
+       MCD    n=119  MFE/MAE=0.77x  EOD+=45.4%  score=0.610
+  PASS MCHP   n=122  MFE/MAE=1.17x  EOD+=59.0%  score=0.879
+       MCO    n=120  MFE/MAE=0.88x  EOD+=48.3%  score=0.679
+       MDB    n=121  MFE/MAE=0.72x  EOD+=51.2%  score=0.614
+       MDT    n=122  MFE/MAE=1.11x  EOD+=50.0%  score=0.804
+       MELI   n=122  MFE/MAE=0.90x  EOD+=47.5%  score=0.687
+       META   n=123  MFE/MAE=0.94x  EOD+=50.4%  score=0.724
+       MGM    n=122  MFE/MAE=0.94x  EOD+=51.6%  score=0.728
+       MLM    n=110  MFE/MAE=0.85x  EOD+=53.6%  score=0.695
+       MNDY   n=117  MFE/MAE=0.80x  EOD+=46.2%  score=0.631
+  PASS MPC    n=119  MFE/MAE=1.15x  EOD+=54.6%  score=0.847
+       MPWR   n=120  MFE/MAE=0.72x  EOD+=46.7%  score=0.593
+  PASS MRNA   n=121  MFE/MAE=1.28x  EOD+=57.0%  score=0.924
+       MRVL   n=121  MFE/MAE=0.92x  EOD+=52.1%  score=0.720
+       MS     n=122  MFE/MAE=0.97x  EOD+=51.6%  score=0.744
+  PASS MSFT   n=122  MFE/MAE=1.37x  EOD+=62.3%  score=0.996
+       MTSI   n=116  MFE/MAE=0.78x  EOD+=48.3%  score=0.633
+       MU     n=121  MFE/MAE=0.92x  EOD+=47.1%  score=0.695
+       NCLH   n=119  MFE/MAE=1.03x  EOD+=52.9%  score=0.778
+  PASS NEM    n=122  MFE/MAE=1.22x  EOD+=54.1%  score=0.880
+       NET    n=119  MFE/MAE=0.89x  EOD+=46.2%  score=0.678
+       NFLX   n=123  MFE/MAE=1.02x  EOD+=54.5%  score=0.780
+       NKE    n=122  MFE/MAE=0.98x  EOD+=50.0%  score=0.738
+       NOC    n=119  MFE/MAE=1.29x  EOD+=49.6%  score=0.892
+       NOW    n=122  MFE/MAE=0.82x  EOD+=45.9%  score=0.639
+       NSC    n=115  MFE/MAE=1.08x  EOD+=48.7%  score=0.786
+       NTRS   n=103  MFE/MAE=0.63x  EOD+=50.5%  score=0.567
+       NU     n=122  MFE/MAE=1.10x  EOD+=51.6%  score=0.806
+       NUE    n=112  MFE/MAE=0.58x  EOD+=42.9%  score=0.503
+  PASS NVDA   n=121  MFE/MAE=1.13x  EOD+=52.9%  score=0.832
+       NVO    n=122  MFE/MAE=1.00x  EOD+=56.6%  score=0.784
+       NXPI   n=118  MFE/MAE=1.04x  EOD+=55.1%  score=0.796
+       ODFL   n=118  MFE/MAE=0.47x  EOD+=45.8%  score=0.463
+       OKTA   n=118  MFE/MAE=1.03x  EOD+=55.9%  score=0.795
+       ON     n=123  MFE/MAE=1.29x  EOD+=49.6%  score=0.894
+       ONTO   n=102  MFE/MAE=0.76x  EOD+=51.0%  score=0.634
+  PASS ORCL   n=119  MFE/MAE=1.78x  EOD+=56.3%  score=1.169
+       OXY    n=119  MFE/MAE=0.73x  EOD+=46.2%  score=0.595
+       PANW   n=119  MFE/MAE=0.82x  EOD+=43.7%  score=0.629
+  PASS PATH   n=122  MFE/MAE=1.29x  EOD+=52.5%  score=0.909
+       PAYO   n=114  MFE/MAE=0.86x  EOD+=47.4%  score=0.665
+       PCAR   n=119  MFE/MAE=0.67x  EOD+=47.1%  score=0.570
+       PGR    n=120  MFE/MAE=0.71x  EOD+=47.5%  score=0.595
+       PH     n=120  MFE/MAE=0.98x  EOD+=52.5%  score=0.754
+       PI     n= 94  MFE/MAE=0.94x  EOD+=53.2%  score=0.734
+       PLTR   n=123  MFE/MAE=1.01x  EOD+=53.7%  score=0.773
+  PASS PODD   n=118  MFE/MAE=1.35x  EOD+=55.9%  score=0.953
+       POWI   n=104  MFE/MAE=0.81x  EOD+=48.1%  score=0.646
+       PSX    n=122  MFE/MAE=0.99x  EOD+=49.2%  score=0.739
+       PWR    n=117  MFE/MAE=0.89x  EOD+=52.1%  score=0.704
+       PYPL   n=122  MFE/MAE=0.80x  EOD+=50.8%  score=0.655
+       QCOM   n=123  MFE/MAE=0.99x  EOD+=52.8%  score=0.759
+       QQQ    n=123  MFE/MAE=0.85x  EOD+=48.8%  score=0.668
+  PASS QRVO   n=108  MFE/MAE=1.14x  EOD+=55.6%  score=0.849
+       RCL    n=123  MFE/MAE=0.78x  EOD+=54.5%  score=0.662
+       REGN   n=121  MFE/MAE=1.01x  EOD+=52.9%  score=0.769
+       RJF    n=106  MFE/MAE=0.69x  EOD+=49.1%  score=0.592
+       RKLB   n=123  MFE/MAE=0.90x  EOD+=52.0%  score=0.712
+       RMBS   n=108  MFE/MAE=0.91x  EOD+=58.3%  score=0.746
+       RMD    n=121  MFE/MAE=0.83x  EOD+=49.6%  score=0.665
+       ROK    n=122  MFE/MAE=0.75x  EOD+=50.8%  score=0.631
+       ROKU   n=121  MFE/MAE=0.57x  EOD+=43.0%  score=0.500
+       ROP    n=120  MFE/MAE=0.66x  EOD+=41.7%  score=0.538
+       ROST   n=118  MFE/MAE=0.90x  EOD+=50.8%  score=0.703
+       RTX    n=121  MFE/MAE=0.91x  EOD+=57.0%  score=0.743
+       RVTY   n=116  MFE/MAE=0.62x  EOD+=51.7%  score=0.570
+  PASS S      n=120  MFE/MAE=1.09x  EOD+=52.5%  score=0.806
+       SBUX   n=122  MFE/MAE=0.75x  EOD+=47.5%  score=0.613
+  PASS SCHW   n=122  MFE/MAE=1.23x  EOD+=55.7%  score=0.891
+       SG     n=116  MFE/MAE=0.79x  EOD+=46.6%  score=0.630
+       SHOP   n=122  MFE/MAE=0.95x  EOD+=51.6%  score=0.731
+       SHW    n=123  MFE/MAE=0.94x  EOD+=54.5%  score=0.744
+  PASS SIMO   n= 91  MFE/MAE=1.15x  EOD+=63.7%  score=0.894
+       SLB    n=121  MFE/MAE=0.71x  EOD+=43.8%  score=0.572
+  PASS SMTC   n=118  MFE/MAE=1.18x  EOD+=55.9%  score=0.868
+       SNOW   n=119  MFE/MAE=0.76x  EOD+=46.2%  score=0.611
+  PASS SOFI   n=122  MFE/MAE=1.10x  EOD+=54.9%  score=0.827
+  PASS SOUN   n=123  MFE/MAE=1.35x  EOD+=57.7%  score=0.964
+       SPGI   n=123  MFE/MAE=0.84x  EOD+=45.5%  score=0.646
+       SPOT   n=121  MFE/MAE=0.85x  EOD+=52.9%  score=0.688
+       STLD   n=113  MFE/MAE=0.68x  EOD+=45.1%  score=0.567
+       STT    n=116  MFE/MAE=1.04x  EOD+=54.3%  score=0.793
+       SWKS   n=121  MFE/MAE=0.82x  EOD+=53.7%  score=0.677
+       SYK    n=122  MFE/MAE=0.63x  EOD+=50.8%  score=0.570
+       SYNA   n= 98  MFE/MAE=0.80x  EOD+=42.9%  score=0.615
+       TDG    n=120  MFE/MAE=1.08x  EOD+=51.7%  score=0.796
+       TEAM   n=121  MFE/MAE=0.79x  EOD+=45.5%  score=0.624
+       TECH   n=117  MFE/MAE=0.84x  EOD+=50.4%  score=0.672
+  PASS TEM    n=120  MFE/MAE=1.21x  EOD+=57.5%  score=0.891
+       TER    n=121  MFE/MAE=0.58x  EOD+=51.2%  score=0.545
+       TJX    n=121  MFE/MAE=0.91x  EOD+=47.9%  score=0.693
+  PASS TMO    n=120  MFE/MAE=1.12x  EOD+=55.0%  score=0.834
+  PASS TOST   n=122  MFE/MAE=1.93x  EOD+=63.1%  score=1.280
+       TRV    n=119  MFE/MAE=0.82x  EOD+=45.4%  score=0.639
+       TSLA   n=122  MFE/MAE=0.99x  EOD+=47.5%  score=0.734
+       TSM    n=123  MFE/MAE=0.95x  EOD+=56.1%  score=0.757
+       TT     n=119  MFE/MAE=0.85x  EOD+=55.5%  score=0.704
+       TWLO   n=120  MFE/MAE=1.04x  EOD+=56.7%  score=0.804
+       U      n=122  MFE/MAE=1.18x  EOD+=51.6%  score=0.847
+       UBER   n=122  MFE/MAE=0.82x  EOD+=54.1%  score=0.679
+       UCTT   n= 95  MFE/MAE=0.81x  EOD+=48.4%  score=0.646
+       ULTA   n=122  MFE/MAE=0.87x  EOD+=51.6%  score=0.695
+       UNH    n=122  MFE/MAE=0.69x  EOD+=46.7%  score=0.576
+  PASS UNP    n=120  MFE/MAE=1.21x  EOD+=54.2%  score=0.876
+       UPST   n=119  MFE/MAE=0.63x  EOD+=40.3%  score=0.518
+       URI    n=116  MFE/MAE=0.82x  EOD+=53.4%  score=0.677
+  PASS V      n=121  MFE/MAE=1.40x  EOD+=57.0%  score=0.986
+       VECO   n= 99  MFE/MAE=0.43x  EOD+=43.4%  score=0.430
+       VEEV   n=121  MFE/MAE=0.72x  EOD+=45.5%  score=0.589
+       VLO    n=122  MFE/MAE=0.86x  EOD+=46.7%  score=0.665
+       VMC    n=118  MFE/MAE=0.94x  EOD+=50.8%  score=0.723
+  PASS VRTX   n=123  MFE/MAE=1.10x  EOD+=53.7%  score=0.820
+       WAT    n=121  MFE/MAE=0.58x  EOD+=43.8%  score=0.511
+       WFC    n=123  MFE/MAE=0.99x  EOD+=53.7%  score=0.763
+       WING   n=120  MFE/MAE=0.87x  EOD+=54.2%  score=0.706
+       WOLF   n=102  MFE/MAE=1.02x  EOD+=52.0%  score=0.772
+       WYNN   n=115  MFE/MAE=0.68x  EOD+=43.5%  score=0.557
+  PASS XOM    n=122  MFE/MAE=1.09x  EOD+=55.7%  score=0.823
+       XYL    n=114  MFE/MAE=0.61x  EOD+=44.7%  score=0.530
+       YUM    n=118  MFE/MAE=0.94x  EOD+=55.1%  score=0.743
+       ZS     n=120  MFE/MAE=1.02x  EOD+=50.0%  score=0.760
+       ZTS    n=122  MFE/MAE=0.86x  EOD+=55.7%  score=0.709
+
+=================================================================
+SCREEN RESULTS: 46 / 258 symbols passed
+Passing: ['TOST', 'HOOD', 'ORCL', 'MSFT', 'V', 'JPM', 'SOUN', 'PODD', 'ENTG', 'GE', 'MRNA', 'AI', 'PATH', 'GS', 'BSX', 'SIMO', 'SCHW', 'TEM', 'AMD', 'ABNB', 'NEM', 'GILD', 'MCHP', 'UNP', 'ETN', 'LRCX', 'SMTC', 'INCY', 'ITW', 'LLY', 'MAR', 'QRVO', 'MPC', 'BKR', 'TMO', 'CAT', 'NVDA', 'SOFI', 'XOM', 'DPZ', 'FCX', 'VRTX', 'S', 'CSCO', 'DE', 'HUM']
+
+Top 30 by score:
+  SYM        N  MFE/MAE    EOD+   SCORE  PASS
+  ------------------------------------------
+  TOST     122     1.93x   63.1%   1.280    YES
+  HOOD     121     1.84x   62.0%   1.232    YES
+  ORCL     119     1.78x   56.3%   1.169    YES
+  MSFT     122     1.37x   62.3%   0.996    YES
+  V        121     1.40x   57.0%   0.986    YES
+  JPM      122     1.36x   58.2%   0.971    YES
+  SOUN     123     1.35x   57.7%   0.964    YES
+  PODD     118     1.35x   55.9%   0.953    YES
+  ENTG     120     1.28x   58.3%   0.932    YES
+  AJG      117     1.35x   50.4%   0.928      -
+  GE       121     1.30x   55.4%   0.927    YES
+  MRNA     121     1.28x   57.0%   0.924    YES
+  AI       121     1.24x   60.3%   0.919    YES
+  PATH     122     1.29x   52.5%   0.909    YES
+  GS       121     1.24x   57.9%   0.907    YES
+  BSX      120     1.25x   55.8%   0.906    YES
+  SIMO      91     1.15x   63.7%   0.894    YES
+  ON       123     1.29x   49.6%   0.894      -
+  NOC      119     1.29x   49.6%   0.892      -
+  SCHW     122     1.23x   55.7%   0.891    YES
+  TEM      120     1.21x   57.5%   0.891    YES
+  AMD      121     1.25x   52.1%   0.886    YES
+  ABNB     122     1.15x   61.5%   0.884    YES
+  NEM      122     1.22x   54.1%   0.880    YES
+  GILD     121     1.21x   55.4%   0.880    YES
+  MCHP     122     1.17x   59.0%   0.879    YES
+  UNP      120     1.21x   54.2%   0.876    YES
+  ETN      123     1.22x   52.8%   0.875    YES
+  LRCX     123     1.19x   54.5%   0.869    YES
+  SMTC     118     1.18x   55.9%   0.868    YES
+
+=================================================================
+PHASE 2 ù Full Boof 23 backtest on 46 passing symbols
+Period : 2024-01-01 to 2026-06-09
+=================================================================
+
+--- 2024 ---
+  TOST: 3492 trades
+  HOOD: 3598 trades
+  ORCL: 3497 trades
+  MSFT: 3741 trades
+  V: 3615 trades
+  JPM: 3364 trades
+  SOUN: 2940 trades
+  PODD: 1726 trades
+  ENTG: 2424 trades
+  GE: 3531 trades
+  MRNA: 3180 trades
+  AI: 2721 trades
+  PATH: 2994 trades
+  GS: 2424 trades
+  BSX: 3198 trades
+  SIMO: 974 trades
+  SCHW: 3554 trades
+  TEM: 1201 trades
+  AMD: 4235 trades
+  ABNB: 3387 trades
+  NEM: 3335 trades
+  GILD: 3181 trades
+  MCHP: 3576 trades
+  UNP: 3073 trades
+  ETN: 2942 trades
+  LRCX: 1618 trades
+  SMTC: 2254 trades
+  INCY: 2302 trades
+  ITW: 1871 trades
+  LLY: 2611 trades
+  MAR: 2313 trades
+  QRVO: 2064 trades
+  MPC: 3126 trades
+  BKR: 3257 trades
+  TMO: 2385 trades
+  CAT: 2738 trades
+  NVDA: 3990 trades
+  SOFI: 2994 trades
+  XOM: 3720 trades
+  DPZ: 1409 trades
+  FCX: 3687 trades
+  VRTX: 1833 trades
+  S: 3274 trades
+  CSCO: 3126 trades
+  DE: 2484 trades
+  HUM: 2613 trades
+
+=================================================================
+  Boof 23 FILTERED (46 syms) ù 2024
+=================================================================
+  Trades:        131572
+  Win Rate:      56.7%
+  Profit Factor: 2.18
+  Avg Trade:     +0.0153%
+  Total Return:  +2016.09%
+  Max Drawdown:  -0.74%
+  Hold Bars:     med=0  p90=1  max=17
+
+  BY DIRECTION:
+               n     wr   avg
+direction                    
+long       61414  57.19  0.02
+short      70158  56.19  0.01
+
+  BY EXIT:
+               n     wr
+exit_type              
+sl         57028    0.0
+time           1    0.0
+tp         74543  100.0
+
+  TRADES/DAY (sanity):
+    Days traded: 250  Total: 131572
+    mean=526.3  median=532  p90=610  max=693
+    WARNING: 250 days with >50 trades: {datetime.date(2024, 9, 6): 693, datetime.date(2024, 4, 17): 687, datetime.date(2024, 11, 15): 681}
+
+  SAME-BAR CONFLICTS (TP and SL both touched):
+    Count:    29113 / 131572  (22.1% of all trades)
+    Current  (TP checked first): WR=100.0%  Ret=+1455.65%
+    Worst    (SL always first):  WR=0.0%  Ret=-873.39%
+    Best     (TP always first):  WR=100.0%  Ret=+1455.65%
+    Overall WR worst case:       34.5%  Ret=-312.95%
+
+--- 2025 ---
+  TOST: 3723 trades
+  HOOD: 4123 trades
+  ORCL: 4162 trades
+  MSFT: 3995 trades
+  V: 3574 trades
+  JPM: 3561 trades
+  SOUN: 4719 trades
+  PODD: 1580 trades
+  ENTG: 3159 trades
+  GE: 3907 trades
+  MRNA: 3982 trades
+  AI: 3937 trades
+  PATH: 3364 trades
+  GS: 2249 trades
+  BSX: 3879 trades
+  SIMO: 986 trades
+  SCHW: 3765 trades
+  TEM: 3893 trades
+  AMD: 4294 trades
+  ABNB: 3802 trades
+  NEM: 3865 trades
+  GILD: 3723 trades
+  MCHP: 4001 trades
+  UNP: 3156 trades
+  ETN: 3270 trades
+  LRCX: 3840 trades
+  SMTC: 2723 trades
+  INCY: 2573 trades
+  ITW: 1900 trades
+  LLY: 3248 trades
+  MAR: 2746 trades
+  QRVO: 2179 trades
+  MPC: 2740 trades
+  BKR: 3824 trades
+  TMO: 3152 trades
+  CAT: 2911 trades
+  NVDA: 4775 trades
+  SOFI: 4184 trades
+  XOM: 4175 trades
+  DPZ: 1122 trades
+  FCX: 3803 trades
+  VRTX: 2234 trades
+  S: 3516 trades
+  CSCO: 3643 trades
+  DE: 2191 trades
+  HUM: 2491 trades
+
+=================================================================
+  Boof 23 FILTERED (46 syms) ù 2025
+=================================================================
+  Trades:        152639
+  Win Rate:      61.2%
+  Profit Factor: 2.62
+  Avg Trade:     +0.0189%
+  Total Return:  +2889.00%
+  Max Drawdown:  -0.70%
+  Hold Bars:     med=0  p90=1  max=8
+
+  BY DIRECTION:
+               n     wr   avg
+direction                    
+long       71889  61.35  0.02
+short      80750  60.99  0.02
+
+  BY EXIT:
+               n     wr
+exit_type              
+sl         59284    0.0
+time           2   50.0
+tp         93353  100.0
+
+  TRADES/DAY (sanity):
+    Days traded: 247  Total: 152639
+    mean=618.0  median=613  p90=724  max=881
+    WARNING: 247 days with >50 trades: {datetime.date(2025, 11, 18): 881, datetime.date(2025, 3, 6): 846, datetime.date(2025, 10, 22): 828}
+
+  SAME-BAR CONFLICTS (TP and SL both touched):
+    Count:    45958 / 152639  (30.1% of all trades)
+    Current  (TP checked first): WR=100.0%  Ret=+2297.90%
+    Worst    (SL always first):  WR=0.0%  Ret=-1378.74%
+    Best     (TP always first):  WR=100.0%  Ret=+2297.90%
+    Overall WR worst case:       31.1%  Ret=-787.64%
+
+--- 2026 ---
+  TOST: 1795 trades
+  HOOD: 1935 trades
+  ORCL: 1826 trades
+  MSFT: 1866 trades
+  V: 1772 trades
+  JPM: 1771 trades
+  SOUN: 1857 trades
+  PODD: 1331 trades
+  ENTG: 1338 trades
+  GE: 1729 trades
+  MRNA: 1706 trades
+  AI: 1693 trades
+  PATH: 1786 trades
+  GS: 1566 trades
+  BSX: 1717 trades
+  SIMO: 609 trades
+  SCHW: 1740 trades
+  TEM: 1616 trades
+  AMD: 1902 trades
+  ABNB: 1612 trades
+  NEM: 1766 trades
+  GILD: 1696 trades
+  MCHP: 1657 trades
+  UNP: 1477 trades
+  ETN: 1661 trades
+  LRCX: 1761 trades
+  SMTC: 1395 trades
+  INCY: 1113 trades
+  ITW: 1470 trades
+  LLY: 1646 trades
+  MAR: 1613 trades
+  QRVO: 847 trades
+  MPC: 1372 trades
+  BKR: 1877 trades
+  TMO: 1596 trades
+  CAT: 1712 trades
+  NVDA: 2229 trades
+  SOFI: 1898 trades
+  XOM: 1829 trades
+  DPZ: 1408 trades
+  FCX: 2030 trades
+  VRTX: 1381 trades
+  S: 1725 trades
+  CSCO: 1903 trades
+  DE: 1556 trades
+  HUM: 1329 trades
+
+=================================================================
+  Boof 23 FILTERED (46 syms) ù 2026
+=================================================================
+  Trades:        75114
+  Win Rate:      63.4%
+  Profit Factor: 2.89
+  Avg Trade:     +0.0207%
+  Total Return:  +1557.94%
+  Max Drawdown:  -0.52%
+  Hold Bars:     med=0  p90=0  max=6
+
+  BY DIRECTION:
+               n     wr   avg
+direction                    
+long       35252  63.75  0.02
+short      39862  63.14  0.02
+
+  BY EXIT:
+               n     wr
+exit_type              
+sl         27472    0.0
+tp         47642  100.0
+
+  TRADES/DAY (sanity):
+    Days traded: 108  Total: 75114
+    mean=695.5  median=697  p90=785  max=867
+    WARNING: 107 days with >50 trades: {datetime.date(2026, 3, 12): 867, datetime.date(2026, 4, 8): 807, datetime.date(2026, 4, 30): 804}
+
+  SAME-BAR CONFLICTS (TP and SL both touched):
+    Count:    25817 / 75114  (34.4% of all trades)
+    Current  (TP checked first): WR=100.0%  Ret=+1290.85%
+    Worst    (SL always first):  WR=0.0%  Ret=-774.51%
+    Best     (TP always first):  WR=100.0%  Ret=+1290.85%
+    Overall WR worst case:       29.1%  Ret=-507.42%

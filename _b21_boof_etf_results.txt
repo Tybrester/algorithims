@@ -1,0 +1,209 @@
+﻿
+-- Jan 2025 --
+  NVDA... 18845 bars -> 131 trades (5.7/d)  WR=47.3%
+  AAPL... 15605 bars -> 115 trades (5.0/d)  WR=39.1%
+  MSFT... 12940 bars -> 61 trades (2.7/d)  WR=42.6%
+  AMZN... 14456 bars -> 120 trades (5.2/d)  WR=40.8%
+  GOOGL... 13445 bars -> 108 trades (4.7/d)  WR=50.0%
+  AVGO... 14662 bars -> 39 trades (1.7/d)  WR=38.5%
+  META... 12877 bars -> 108 trades (4.7/d)  WR=53.7%
+  TSLA... 18406 bars -> 151 trades (6.6/d)  WR=44.4%
+  QQQ... 16925 bars -> 154 trades (6.7/d)  WR=40.9%
+  SPY... 15762 bars -> 154 trades (6.7/d)  WR=49.4%
+  LLY... 8476 bars -> 14 trades (0.6/d)  WR=42.9%
+  BRK.B... 8556 bars -> 26 trades (1.1/d)  WR=42.3%
+
+-- Feb 2025 --
+  NVDA... 17882 bars -> 126 trades (6.3/d)  WR=60.3%
+  AAPL... 13821 bars -> 80 trades (4.0/d)  WR=35.0%
+  MSFT... 12172 bars -> 28 trades (1.4/d)  WR=46.4%
+  AMZN... 14787 bars -> 111 trades (5.5/d)  WR=44.1%
+  GOOGL... 14012 bars -> 94 trades (4.7/d)  WR=50.0%
+  AVGO... 12919 bars -> 49 trades (2.5/d)  WR=34.7%
+  META... 11876 bars -> 92 trades (4.6/d)  WR=52.2%
+  TSLA... 17543 bars -> 149 trades (7.5/d)  WR=48.3%
+  QQQ... 15971 bars -> 145 trades (7.2/d)  WR=49.0%
+  SPY... 14665 bars -> 120 trades (6.0/d)  WR=47.5%
+  LLY... 8053 bars -> 28 trades (1.4/d)  WR=39.3%
+  BRK.B... 8160 bars -> 22 trades (1.1/d)  WR=54.5%
+
+-- Mar 2025 --
+  NVDA... 19880 bars -> 140 trades (6.7/d)  WR=45.7%
+  AAPL... 15316 bars -> 124 trades (5.9/d)  WR=40.3%
+  MSFT... 12638 bars -> 41 trades (2.0/d)  WR=29.3%
+  AMZN... 16324 bars -> 129 trades (6.1/d)  WR=46.5%
+  GOOGL... 15103 bars -> 129 trades (6.1/d)  WR=51.2%
+  AVGO... 15030 bars -> 61 trades (2.9/d)  WR=36.1%
+  META... 13210 bars -> 116 trades (5.5/d)  WR=48.3%
+  TSLA... 19819 bars -> 149 trades (7.1/d)  WR=51.7%
+  QQQ... 18652 bars -> 193 trades (9.2/d)  WR=47.7%
+  SPY... 17764 bars -> 164 trades (7.8/d)  WR=52.4%
+  LLY... 8576 bars -> 3 trades (0.1/d)  WR=0.0%
+  BRK.B... 9569 bars -> 23 trades (1.1/d)  WR=47.8%
+
+-- Apr 2025 --
+  NVDA... 19823 bars -> 119 trades (5.4/d)  WR=43.7%
+  AAPL... 17337 bars -> 147 trades (6.7/d)  WR=51.0%
+  MSFT... 13479 bars -> 65 trades (3.0/d)  WR=44.6%
+  AMZN... 17247 bars -> 126 trades (5.7/d)  WR=47.6%
+  GOOGL... 15899 bars -> 128 trades (5.8/d)  WR=46.9%
+  AVGO... 14682 bars -> 101 trades (4.6/d)  WR=48.5%
+  META... 14580 bars -> 118 trades (5.4/d)  WR=45.8%
+  TSLA... 19703 bars -> 141 trades (6.4/d)  WR=47.5%
+  QQQ... 19002 bars -> 169 trades (7.7/d)  WR=44.4%
+  SPY... 18610 bars -> 155 trades (7.0/d)  WR=49.0%
+  LLY... 9068 bars -> 28 trades (1.3/d)  WR=39.3%
+  BRK.B... 10509 bars -> 45 trades (2.0/d)  WR=51.1%
+
+-- May 2025 --
+  NVDA... 19795 bars -> 112 trades (5.3/d)  WR=50.0%
+  AAPL... 16803 bars -> 114 trades (5.4/d)  WR=47.4%
+  MSFT... 12543 bars -> 99 trades (4.7/d)  WR=38.4%
+  AMZN... 16439 bars -> 117 trades (5.6/d)  WR=42.7%
+  GOOGL... 16370 bars -> 133 trades (6.3/d)  WR=54.9%
+  AVGO... 13019 bars -> 91 trades (4.3/d)  WR=46.2%
+  META... 13275 bars -> 98 trades (4.7/d)  WR=38.8%
+  TSLA... 19664 bars -> 179 trades (8.5/d)  WR=50.8%
+  QQQ... 18628 bars -> 177 trades (8.4/d)  WR=43.5%
+  SPY... 17839 bars -> 161 trades (7.7/d)  WR=42.2%
+  LLY... 9576 bars -> 4 trades (0.2/d)  WR=0.0%
+  BRK.B... 10073 bars -> 4 trades (0.2/d)  WR=0.0%
+
+-- Jun 2025 --
+  NVDA... 18807 bars -> 121 trades (5.8/d)  WR=49.6%
+  AAPL... 15678 bars -> 94 trades (4.5/d)  WR=34.0%
+  MSFT... 11072 bars -> 100 trades (4.8/d)  WR=55.0%
+  AMZN... 14839 bars -> 124 trades (5.9/d)  WR=47.6%
+  GOOGL... 15009 bars -> 98 trades (4.7/d)  WR=46.9%
+  AVGO... 13456 bars -> 53 trades (2.5/d)  WR=35.8%
+  META... 11497 bars -> 95 trades (4.5/d)  WR=44.2%
+  TSLA... 18688 bars -> 135 trades (6.4/d)  WR=48.9%
+  QQQ... 17350 bars -> 175 trades (8.3/d)  WR=46.3%
+  SPY... 16908 bars -> 157 trades (7.5/d)  WR=43.3%
+  LLY... 8258 bars -> 29 trades (1.4/d)  WR=62.1%
+  BRK.B... 9096 bars -> 5 trades (0.2/d)  WR=60.0%
+
+-- Jul 2025 --
+  NVDA... 20444 bars -> 115 trades (5.0/d)  WR=53.0%
+  AAPL... 16332 bars -> 114 trades (5.0/d)  WR=40.4%
+  MSFT... 11885 bars -> 87 trades (3.8/d)  WR=44.8%
+  AMZN... 15685 bars -> 112 trades (4.9/d)  WR=44.6%
+  GOOGL... 15840 bars -> 114 trades (5.0/d)  WR=43.9%
+  AVGO... 12613 bars -> 79 trades (3.4/d)  WR=41.8%
+  META... 12175 bars -> 91 trades (4.0/d)  WR=42.9%
+  TSLA... 20221 bars -> 151 trades (6.6/d)  WR=45.7%
+  QQQ... 18320 bars -> 172 trades (7.5/d)  WR=36.0%
+  SPY... 17668 bars -> 156 trades (6.8/d)  WR=46.2%
+  LLY... 8934 bars -> 30 trades (1.3/d)  WR=50.0%
+  BRK.B... 9703 bars -> 21 trades (0.9/d)  WR=42.9%
+
+-- Aug 2025 --
+  NVDA... 19665 bars -> 118 trades (5.6/d)  WR=42.4%
+  AAPL... 15276 bars -> 95 trades (4.5/d)  WR=51.6%
+  MSFT... 12105 bars -> 15 trades (0.7/d)  WR=26.7%
+  AMZN... 15117 bars -> 101 trades (4.8/d)  WR=40.6%
+  GOOGL... 13722 bars -> 97 trades (4.6/d)  WR=42.3%
+  AVGO... 11923 bars -> 59 trades (2.8/d)  WR=45.8%
+  META... 11513 bars -> 78 trades (3.7/d)  WR=43.6%
+  TSLA... 18719 bars -> 149 trades (7.1/d)  WR=48.3%
+  QQQ... 17803 bars -> 158 trades (7.5/d)  WR=35.4%
+  SPY... 17089 bars -> 130 trades (6.2/d)  WR=41.5%
+  LLY... 10659 bars -> 42 trades (2.0/d)  WR=45.2%
+  BRK.B... 9507 bars -> 43 trades (2.0/d)  WR=25.6%
+
+-- Sep 2025 --
+  NVDA... 19689 bars -> 134 trades (6.4/d)  WR=40.3%
+  AAPL... 15756 bars -> 98 trades (4.7/d)  WR=46.9%
+  MSFT... 12376 bars -> 77 trades (3.7/d)  WR=51.9%
+  AMZN... 15961 bars -> 109 trades (5.2/d)  WR=46.8%
+  GOOGL... 14442 bars -> 97 trades (4.6/d)  WR=42.3%
+  AVGO... 14209 bars -> 62 trades (3.0/d)  WR=48.4%
+  META... 11351 bars -> 83 trades (4.0/d)  WR=49.4%
+  TSLA... 19194 bars -> 122 trades (5.8/d)  WR=47.5%
+  QQQ... 17862 bars -> 145 trades (6.9/d)  WR=44.8%
+  SPY... 16737 bars -> 116 trades (5.5/d)  WR=52.6%
+  LLY... 8878 bars -> 28 trades (1.3/d)  WR=57.1%
+  BRK.B... 9097 bars -> 13 trades (0.6/d)  WR=61.5%
+
+-- Oct 2025 --
+  NVDA... 21626 bars -> 127 trades (5.5/d)  WR=38.6%
+  AAPL... 16789 bars -> 117 trades (5.1/d)  WR=38.5%
+  MSFT... 13670 bars -> 80 trades (3.5/d)  WR=38.8%
+  AMZN... 18812 bars -> 131 trades (5.7/d)  WR=38.2%
+  GOOGL... 16144 bars -> 122 trades (5.3/d)  WR=46.7%
+  AVGO... 15106 bars -> 98 trades (4.3/d)  WR=44.9%
+  META... 14355 bars -> 112 trades (4.9/d)  WR=44.6%
+  TSLA... 21100 bars -> 169 trades (7.3/d)  WR=45.0%
+  QQQ... 20583 bars -> 182 trades (7.9/d)  WR=40.1%
+  SPY... 19095 bars -> 153 trades (6.7/d)  WR=43.1%
+  LLY... 9775 bars -> 27 trades (1.2/d)  WR=59.3%
+  BRK.B... 10244 bars -> 16 trades (0.7/d)  WR=43.8%
+
+-- Nov 2025 --
+  NVDA... 17861 bars -> 128 trades (6.7/d)  WR=49.2%
+  AAPL... 13125 bars -> 81 trades (4.3/d)  WR=46.9%
+  MSFT... 14658 bars -> 19 trades (1.0/d)  WR=36.8%
+  AMZN... 14756 bars -> 106 trades (5.6/d)  WR=56.6%
+  GOOGL... 15000 bars -> 90 trades (4.7/d)  WR=50.0%
+  AVGO... 14431 bars -> 41 trades (2.2/d)  WR=39.0%
+  META... 16096 bars -> 137 trades (7.2/d)  WR=53.3%
+  TSLA... 17795 bars -> 135 trades (7.1/d)  WR=48.1%
+  QQQ... 17672 bars -> 155 trades (8.2/d)  WR=40.6%
+  SPY... 17252 bars -> 137 trades (7.2/d)  WR=46.0%
+  LLY... 9530 bars -> 49 trades (2.6/d)  WR=44.9%
+  BRK.B... 9853 bars -> 53 trades (2.8/d)  WR=49.1%
+
+-- Dec 2025 --
+  NVDA... 20314 bars -> 118 trades (5.1/d)  WR=50.0%
+  AAPL... 14019 bars -> 91 trades (4.0/d)  WR=44.0%
+  MSFT... 14921 bars -> 66 trades (2.9/d)  WR=42.4%
+  AMZN... 15493 bars -> 91 trades (4.0/d)  WR=35.2%
+  GOOGL... 15072 bars -> 122 trades (5.3/d)  WR=45.1%
+  AVGO... 17601 bars -> 28 trades (1.2/d)  WR=39.3%
+  META... 15173 bars -> 119 trades (5.2/d)  WR=41.2%
+  TSLA... 20175 bars -> 149 trades (6.5/d)  WR=46.3%
+  QQQ... 19546 bars -> 159 trades (6.9/d)  WR=41.5%
+  SPY... 19182 bars -> 157 trades (6.8/d)  WR=41.4%
+  LLY... 9913 bars -> 18 trades (0.8/d)  WR=55.6%
+  BRK.B... 10268 bars -> 13 trades (0.6/d)  WR=53.8%
+
+========================================================================
+  BOOF 21 -- QQQ + SPY -- Full Year 2025  (+35% TP / -15% SL)
+========================================================================
+  Month          P&L     Running   Trades    T/d      WR
+  ----------------------------------------------------------------------
+  Jan     $   15,015  $   15,015     1181   51.3   45.0%
+  Feb     $   15,048  $   30,064     1044   52.2   48.0%
+  Mar     $   18,033  $   48,096     1272   60.6   46.9%
+  Apr     $   15,932  $   64,028     1342   61.0   47.0%
+  May     $   13,233  $   77,262     1289   61.4   45.5%
+  Jun     $   13,366  $   90,628     1186   56.5   46.3%
+  Jul     $   11,615  $  102,243     1242   54.0   43.9%
+  Aug     $    7,709  $  109,952     1085   51.7   42.2%
+  Sep     $   12,586  $  122,538     1084   51.6   47.1%
+  Oct     $   12,608  $  135,146     1334   58.0   42.3%
+  Nov     $   16,008  $  151,155     1131   59.5   47.8%
+  Dec     $   10,676  $  161,831     1131   49.2   43.4%
+  ======================================================================
+
+  Total Trades:    14,321  (55.5/day avg)
+  Win Rate:        45.4%
+  EV / Trade:      $11.30
+  Profit Factor:   1.62
+  Total 2025 P&L:  $161,831
+  Red Months:      0
+
+  Per Symbol:
+    NVDA   N=1489  WR= 47.4%  EV=$  13.15  P&L=$   19,583
+    AAPL   N=1270  WR= 43.1%  EV=$   9.35  P&L=$   11,868
+    MSFT   N= 738  WR= 43.6%  EV=$   8.13  P&L=$    5,999
+    AMZN   N=1377  WR= 44.4%  EV=$  10.57  P&L=$   14,555
+    GOOGL  N=1332  WR= 47.7%  EV=$  14.47  P&L=$   19,269
+    AVGO   N= 761  WR= 42.7%  EV=$   8.27  P&L=$    6,294
+    META   N=1247  WR= 46.7%  EV=$  13.85  P&L=$   17,267
+    TSLA   N=1779  WR= 47.7%  EV=$  13.69  P&L=$   24,358
+    QQQ    N=1984  WR= 42.5%  EV=$   8.91  P&L=$   17,672
+    SPY    N=1760  WR= 46.1%  EV=$  11.71  P&L=$   20,614
+    LLY    N= 300  WR= 48.0%  EV=$   9.00  P&L=$    2,699
+    BRK.B  N= 284  WR= 45.1%  EV=$   5.82  P&L=$    1,653
+========================================================================
