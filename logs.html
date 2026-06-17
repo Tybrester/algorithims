@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bot Logs - BoofCapital</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --surface: #0f0f0f;
+      --surface2: #131313;
+      --border: #1c1c1c;
+      --border2: #242424;
+      --accent: #00e676;
+      --accent-dim: #00c853;
+      --accent-glow: rgba(0,230,118,0.15);
+      --red: #f44336;
+      --text: #f0f0f0;
+      --text2: #a0a0a0;
+      --muted: #666;
+    }
+
+    html { font-size: 80%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #loading-screen { position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center; }
+    .spinner { width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px;
+    }
+    .logo { font-size:1rem;font-weight:800;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:6px; }
+    .logo span { color:var(--accent); }
+    .nav-right { display:flex;align-items:center;gap:16px; }
+    .nav-email { font-size:0.78rem;color:var(--text2); }
+    .nav-signout { font-size:0.78rem;color:var(--muted);background:none;border:1px solid var(--border);border-radius:5px;padding:4px 10px;cursor:pointer;color:var(--text2); }
+    .nav-signout:hover { border-color:#333;color:var(--text); }
+
+    /* ── MAIN CONTENT ── */
+    main { min-height:100vh; padding:24px; }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .page-header {
+      margin-bottom: 40px;
+    }
+
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--text), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-subtitle {
+      font-size: 1.125rem;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+
+    /* ── MONITOR CONTROLS ── */
+    .monitor-controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dim);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface2);
+      border-color: var(--border2);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.inactive { background: var(--muted); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ── BOT SECTIONS ── */
+    .bot-section {
+      margin-bottom: 32px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .bot-header {
+      padding: 20px 24px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .bot-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .bot-stats {
+      display: flex;
+      gap: 24px;
+      font-size: 0.875rem;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-value {
+      font-weight: 700;
+      font-size: 1.125rem;
+    }
+
+    .stat-label {
+      color: var(--text2);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat.active { color: var(--accent); }
+    .stat.close { color: #ffc107; }
+    .stat.inactive { color: var(--muted); }
+
+    /* ── SYMBOL GRID ── */
+    .symbols-grid {
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .symbol-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      transition: all 0.15s;
+    }
+
+    .symbol-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-2px);
+    }
+
+    .symbol-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .symbol-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+    }
+
+    .symbol-status {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-active {
+      background: var(--accent-glow);
+      color: var(--accent);
+    }
+
+    .status-close {
+      background: rgba(255, 193, 7, 0.1);
+      color: #ffc107;
+    }
+
+    .status-inactive {
+      background: var(--surface2);
+      color: var(--muted);
+    }
+
+    .status-error {
+      background: rgba(244, 67, 54, 0.1);
+      color: var(--red);
+    }
+
+    .status-watching {
+      background: rgba(33, 150, 243, 0.1);
+      color: #2196f3;
+    }
+
+    .traded-tag {
+      background: rgba(255, 152, 0, 0.2);
+      color: #ff9800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(255, 152, 0, 0.3);
+    }
+
+    .symbol-metrics {
+      font-size: 0.8125rem;
+      color: var(--text2);
+      line-height: 1.4;
+    }
+
+    .last-update {
+      text-align: center;
+      color: var(--text2);
+      font-size: 0.875rem;
+      margin-top: 32px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    /* ── LOADING STATE ── */
+    .loading {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text2);
+    }
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 0 24px; }
+      nav ul { display: none; }
+      .nav-mobile-btns { display: flex; }
+      
+      .container { padding: 0 16px; }
+      .page-title { font-size: 2rem; }
+      
+      .symbols-grid {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+      
+      .bot-stats {
+        gap: 16px;
+        font-size: 0.75rem;
+      }
+      
+      .stat-value { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen"><div class="spinner"></div></div>
+
+  <nav>
+    <a href="dashboard.html" class="logo">Boof<span>Capital</span><img src="bull.png" style="height:1.4em;vertical-align:middle;margin-left:6px;" alt="" /></a>
+    <div class="nav-right">
+      <span class="nav-email" id="nav-email"></span>
+      <button class="nav-signout" onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
+
+  <main>
+    <div class="container">
+      <div class="page-header">
+        <h1 class="page-title">Bot Logs</h1>
+        <p class="page-subtitle">Real-time monitoring of all trading bots and their setup detection status</p>
+      </div>
+
+      <div class="monitor-controls">
+        <button class="btn btn-primary" onclick="refreshData()">
+          <span>🔄</span> Refresh Now
+        </button>
+        <button class="btn btn-secondary" onclick="toggleAutoRefresh()">
+          <span id="auto-refresh-icon">⏸️</span> <span id="auto-refresh-text">Pause Auto</span>
+        </button>
+        <div class="status-indicator">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="connection-status">Connected</span>
+        </div>
+      </div>
+
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading bot data...</p>
+      </div>
+
+      <div id="bot-data" style="display: none;">
+        <!-- Bot data will be inserted here -->
+      </div>
+
+      <div class="last-update" id="last-update">
+        Last Update: Loading...
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://isanhutzyctcjygjhzbn.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function init() {
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (!session) { window.location.href = 'signin.html'; return; }
+      document.getElementById('nav-email').textContent = session.user.email;
+      document.getElementById('loading-screen').style.display = 'none';
+      refreshData();
+      if (autoRefresh) startAutoRefresh();
+    }
+
+    async function signOut() {
+      await sbClient.auth.signOut();
+      window.location.href = 'signin.html';
+    }
+
+    let autoRefresh = true;
+    let refreshInterval;
+
+    const SB_URL = SUPABASE_URL;
+    const SB_KEY = SUPABASE_KEY;
+
+    const BOOF50_SYMS = ['TSLA','AMD','APP','COIN','HOOD','SMCI','UPST','META','MSFT','NVDA','MSTR','PLTR','CRWD','AAPL','AMZN'];
+    const BOOF60_SYMS = [
+      'AAPL','AMZN','APP','AVGO','AMD','NVDA','TSLA','META','MSFT','PLTR',
+      'HOOD','COIN','MSTR','SMCI','UPST','MU','MRVL','CRM','PANW','GOOGL',
+      'AFRM','HIMS','CLSK','ADBE','ARM','CRWD','SNOW','UBER','NFLX','RBLX',
+      'SOFI','IONQ','RGTI','QUBT','ACHR','JOBY','LUNR','RDDT','CAVA','DUOL',
+      'CELH','DKNG','MELI','SHOP','PYPL','SPOT','PINS','SNAP','LYFT','RIVN',
+      'LCID','CHWY','SOUN','BBAI','AI','ASTS','RKLB','IREN','CORZ'
+    ];
+
+    async function fetchBOOF50Status() {
+      const res = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF50&order=symbol.asc`, {
+        headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
+      });
+      const rows = await res.json();
+      const rowMap = {};
+      for (const r of rows) rowMap[r.symbol] = r;
+      const symbols = BOOF50_SYMS.map(sym => {
+        const r = rowMap[sym];
+        return r ? {
+          symbol: sym,
+          setup_active: r.setup_active,
+          setup_close: r.setup_close,
+          setup_watching: r.setup_watching,
+          metrics: r.metrics || '',
+        } : {
+          symbol: sym,
+          setup_active: false, setup_close: false, setup_closed: false, setup_watching: false,
+          metrics: '',
+        };
+      });
+      const active   = symbols.filter(s => s.setup_active).length;
+      const close    = symbols.filter(s => s.setup_close).length;
+      const watching = symbols.filter(s => s.setup_watching).length;
+      return { total_symbols: 15, active_setups: active, close_setups: close, watching_setups: watching, symbols };
+    }
+
+    async function fetchBOOF60Status() {
+      const ALPACA_KEY    = 'PKVHGMJFJQNF5XAHQSH53MALN3';
+      const ALPACA_SECRET = '3oZAEY38MdLt7QYt5R99EPXknbtnMbaf73usn8U78X21';
+      const ALPACA_HEADERS = { 'APCA-API-KEY-ID': ALPACA_KEY, 'APCA-API-SECRET-KEY': ALPACA_SECRET };
+      const DATA_URL = 'https://data.alpaca.markets';
+
+      // Pull live bot_status rows pushed by the bot
+      const sbRes = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF60&order=symbol.asc`, {
+        headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
+      });
+      const rows = await sbRes.json();
+      const rowMap = {};
+      for (const r of rows) rowMap[r.symbol] = r;
+
+      // Fetch snapshots for all 59 symbols in one call
+      let snapMap = {};
+      try {
+        const symsParam = BOOF60_SYMS.join(',');
+        const snapRes = await fetch(`${DATA_URL}/v2/stocks/snapshots?symbols=${symsParam}&feed=iex`, { headers: ALPACA_HEADERS });
+        if (snapRes.ok) snapMap = await snapRes.json();
+      } catch(e) {}
+
+      const symbols = BOOF60_SYMS.map(sym => {
+        const r    = rowMap[sym];
+        const snap = snapMap[sym];
+
+        // Live bot pushed active status — use it
+        if (r && (r.setup_active || r.setup_close || r.setup_watching)) {
+          return {
+            symbol: sym,
+            setup_active:   r.setup_active   ?? false,
+            setup_close:    r.setup_close     ?? false,
+            setup_watching: r.setup_watching  ?? false,
+            metrics: r.metrics || '',
+          };
+        }
+
+        // Build gap/regime info from snapshot for monitoring view
+        let metrics = '';
+        let gapped  = false;
+        if (snap) {
+          const prevClose   = snap.prevDailyBar?.c;
+          const todayOpen   = snap.dailyBar?.o ?? snap.latestTrade?.p;
+          const latestPrice = snap.latestTrade?.p ?? snap.dailyBar?.c;
+          const pdh = snap.prevDailyBar?.h ?? 0;
+          const pdl = snap.prevDailyBar?.l ?? 0;
+          if (prevClose && todayOpen) {
+            const gapPct = ((todayOpen - prevClose) / prevClose * 100).toFixed(2);
+            const gap    = parseFloat(gapPct);
+            gapped = Math.abs(gap) >= 0.5;
+            const dir    = gap >= 0.5 ? '↑' : gap <= -0.5 ? '↓' : '';
+            const pdhStr = pdh > 0 ? ` | PDH: $${pdh.toFixed(2)}` : '';
+            const pdlStr = pdl > 0 ? ` | PDL: $${pdl.toFixed(2)}` : '';
+            const priceStr = latestPrice ? ` | $${latestPrice.toFixed(2)}` : '';
+            metrics = `Gap: ${gap > 0 ? '+' : ''}${gapPct}% ${dir}${priceStr}${pdhStr}${pdlStr}`;
+          }
+        }
+
+        return {
+          symbol: sym,
+          setup_active:   false,
+          setup_close:    false,
+          setup_watching: gapped,
+          metrics,
+        };
+      });
+
+      const active   = symbols.filter(s => s.setup_active).length;
+      const close    = symbols.filter(s => s.setup_close).length;
+      const watching = symbols.filter(s => s.setup_watching).length;
+      return { total_symbols: BOOF60_SYMS.length, active_setups: active, close_setups: close, watching_setups: watching, symbols };
+    }
+
+    async function fetchBOOF23Status() {
+      const res = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF23&order=symbol.asc`, {
+        headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
+      });
+      const rows = await res.json();
+      const allSyms = rows.map(r => ({
+        symbol: r.symbol,
+        setup_active: r.setup_active,
+        setup_close: r.setup_close,
+        setup_watching: r.setup_watching,
+        metrics: r.metrics || '',
+      }));
+      const symbols = allSyms.filter(s => s.setup_active || s.setup_close || s.setup_watching);
+      return {
+        total_symbols: 46,
+        active_setups:  symbols.filter(s => s.setup_active).length,
+        close_setups:   symbols.filter(s => s.setup_close).length,
+        watching_setups: symbols.filter(s => s.setup_watching).length,
+        symbols
+      };
+    }
+
+    function fetchBotData() {
+      return Promise.all([fetchBOOF23Status(), fetchBOOF50Status(), fetchBOOF60Status()]).then(([boof23Data, boof50Data, boof60Data]) => ({
+        last_update: new Date().toISOString(),
+        bots: {
+          'BOOF23': boof23Data,
+          'BOOF50': boof50Data,
+          'BOOF60 — Multi-Level Breakout': boof60Data,
+        }
+      }));
+    }
+
+    function renderBotData(data) {
+      const container = document.getElementById('bot-data');
+      let html = '';
+
+      for (const [botName, botData] of Object.entries(data.bots)) {
+        // Add criteria for BOOF23
+        let criteriaInfo = '';
+        if (botName === 'BOOF23') {
+          criteriaInfo = '';
+        }
+
+        html += `
+          <div class="bot-section">
+            <div class="bot-header">
+              <div class="bot-name">🤖 ${botName}</div>
+              <div class="bot-stats">
+                <div class="stat">
+                  <div class="stat-value active">${botData.active_setups}</div>
+                  <div class="stat-label">Active</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value close">${botData.close_setups}</div>
+                  <div class="stat-label">Close</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value" style="color: #2196f3;">${botData.watching_setups || 0}</div>
+                  <div class="stat-label">Watching</div>
+                </div>
+                <div class="stat">
+                  <div class="stat-value inactive">${botData.total_symbols}</div>
+                  <div class="stat-label">Total</div>
+                </div>
+              </div>
+            </div>
+            ${criteriaInfo}
+            <div class="symbols-grid">
+        `;
+
+        // All bots: only show symbols with something happening
+        const relevantSymbols = botData.symbols.filter(symbol =>
+          symbol.setup_active || symbol.setup_close || symbol.setup_watching || symbol.setup_error
+        );
+
+        if (relevantSymbols.length === 0) {
+          html += `
+            <div style="padding: 40px; text-align: center; color: var(--text2);">
+              <p style="font-size: 1.1rem; margin-bottom: 8px;">🎯 No current setups</p>
+              <p style="font-size: 0.9rem;">All symbols are inactive - monitoring for opportunities</p>
+            </div>
+          `;
+        } else {
+          for (const symbol of relevantSymbols) {
+            let statusClass = 'status-inactive';
+            let statusText = 'Inactive';
+            
+            if (symbol.setup_active) {
+              statusClass = 'status-active';
+              statusText = 'Active';
+            } else if (symbol.setup_close) {
+              statusClass = 'status-close';
+              statusText = 'Close';
+            } else if (symbol.setup_watching) {
+              statusClass = 'status-watching';
+              statusText = 'Watching';
+            } else if (symbol.setup_error) {
+              statusClass = 'status-error';
+              statusText = 'Error';
+            }
+
+            let tradedTag = symbol.traded ? `<span class="traded-tag">TRADED: ${symbol.traded_count || 1}</span>` : '';
+            
+            const priceMatch = symbol.metrics && symbol.metrics.match(/px=\$([0-9,.]+)/);
+
+            html += `
+              <div class="symbol-card" data-sym="${symbol.symbol}">
+                <div class="symbol-header">
+                  <div class="symbol-name">${symbol.symbol}<span class="live-px" id="px-${symbol.symbol}" style="color:var(--text2);font-size:0.82rem;font-weight:400;margin-left:6px;">${priceMatch ? '$'+priceMatch[1] : ''}</span></div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    ${tradedTag}
+                    <div class="symbol-status ${statusClass}">${statusText}</div>
+                  </div>
+                </div>
+                <div class="symbol-metrics">${(symbol.metrics || '').replace(/\s*\|\s*px=\$[0-9,.]+/, '')}</div>
+              </div>
+            `;
+          }
+        }
+
+        html += `
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      document.getElementById('last-update').innerHTML = 
+        `Last Update: ${new Date(data.last_update).toLocaleString()}`;
+      fetchLivePrices();
+    }
+
+    // ── Live prices from Yahoo Finance ──────────────────────────────────────
+    async function fetchLivePrices() {
+      const els = document.querySelectorAll('[data-sym]');
+      const syms = [...new Set([...els].map(e => e.dataset.sym))];
+      if (!syms.length) return;
+      const joined = syms.join(',');
+      try {
+        const r = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/spark?symbols=${joined}&range=1d&interval=1m`,
+          { headers: { 'Accept': 'application/json' } }
+        );
+        if (!r.ok) return;
+        const json = await r.json();
+        const result = json?.spark?.result || [];
+        for (const item of result) {
+          const sym = item.symbol;
+          const closes = item?.response?.[0]?.meta?.regularMarketPrice;
+          if (closes == null) continue;
+          const el = document.getElementById('px-' + sym);
+          if (el) el.textContent = '$' + closes.toFixed(2);
+        }
+      } catch(e) { /* silently ignore */ }
+    }
+
+    setInterval(fetchLivePrices, 15000);
+
+    function refreshData() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('bot-data').style.display = 'none';
+      
+      fetchBotData().then(data => {
+        renderBotData(data);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('bot-data').style.display = 'block';
+        
+        // Update status
+        document.getElementById('status-dot').classList.remove('inactive');
+        document.getElementById('connection-status').textContent = 'Connected';
+      }).catch(error => {
+        console.error('Error fetching data:', error);
+        document.getElementById('status-dot').classList.add('inactive');
+        document.getElementById('connection-status').textContent = 'Connection Error';
+        document.getElementById('loading').style.display = 'none';
+      });
+    }
+
+    function toggleAutoRefresh() {
+      autoRefresh = !autoRefresh;
+      const icon = document.getElementById('auto-refresh-icon');
+      const text = document.getElementById('auto-refresh-text');
+      
+      if (autoRefresh) {
+        icon.textContent = '⏸️';
+        text.textContent = 'Pause Auto';
+        startAutoRefresh();
+      } else {
+        icon.textContent = '▶️';
+        text.textContent = 'Resume Auto';
+        stopAutoRefresh();
+      }
+    }
+
+    function startAutoRefresh() {
+      refreshInterval = setInterval(refreshData, 30000); // Refresh every 30 seconds
+    }
+
+    function stopAutoRefresh() {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    }
+
+    window.addEventListener('beforeunload', () => stopAutoRefresh());
+    init();
+  </script>
+</body>
+</html>
