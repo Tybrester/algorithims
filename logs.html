@@ -455,9 +455,9 @@
       return { total_symbols: 15, active_setups: active, close_setups: close, watching_setups: watching, symbols };
     }
 
-    async function fetchBOOF60Status() {
-      const ALPACA_KEY    = 'PKVHGMJFJQNF5XAHQSH53MALN3';
-      const ALPACA_SECRET = '3oZAEY38MdLt7QYt5R99EPXknbtnMbaf73usn8U78X21';
+    async function fetchBOOF60Status(instanceKey, instanceSecret) {
+      const ALPACA_KEY    = instanceKey;
+      const ALPACA_SECRET = instanceSecret;
       const ALPACA_HEADERS = { 'APCA-API-KEY-ID': ALPACA_KEY, 'APCA-API-SECRET-KEY': ALPACA_SECRET };
       const DATA_URL = 'https://data.alpaca.markets';
 
@@ -551,12 +551,19 @@
     }
 
     function fetchBotData() {
-      return Promise.all([fetchBOOF23Status(), fetchBOOF50Status(), fetchBOOF60Status()]).then(([boof23Data, boof50Data, boof60Data]) => ({
+      const KEY_A = 'PKOMQ2SP7VX4B7OI3P7O6FUWNV', SEC_A = '85MQcXB7nqfrvaXmQidhLKgs9usWgDXnDiubMugArPzb';
+      const KEY_B = 'PKLSN6BRD4A5O3FWE642NSZXWL', SEC_B = '4SdfVvHyxVcRuWGuGZrUechMkzLcvacuvbfwmxTfZ8iJ';
+      return Promise.all([
+        fetchBOOF23Status(), fetchBOOF50Status(),
+        fetchBOOF60Status(KEY_A, SEC_A),
+        fetchBOOF60Status(KEY_B, SEC_B)
+      ]).then(([boof23Data, boof50Data, boof60aData, boof60bData]) => ({
         last_update: new Date().toISOString(),
         bots: {
           'BOOF23': boof23Data,
           'BOOF50': boof50Data,
-          'BOOF60 — Multi-Level Breakout': boof60Data,
+          'BOOF60 A — Multi-Level Breakout': boof60aData,
+          'BOOF60 B — Multi-Level Breakout (0.15% Buffer)': boof60bData,
         }
       }));
     }
