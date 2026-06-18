@@ -493,12 +493,15 @@
         // Build gap/regime info from snapshot for monitoring view
         let metrics = '';
         let gapped  = false;
+        let closeToLevel = false;
         if (snap) {
           const prevClose   = snap.prevDailyBar?.c;
           const todayOpen   = snap.dailyBar?.o ?? snap.latestTrade?.p;
           const latestPrice = snap.latestTrade?.p ?? snap.dailyBar?.c;
           const pdh = snap.prevDailyBar?.h ?? 0;
           const pdl = snap.prevDailyBar?.l ?? 0;
+          const pmh = snap.minuteBar?.h ?? 0;
+          const pml = snap.minuteBar?.l ?? 0;
           if (prevClose && todayOpen) {
             const gapPct = ((todayOpen - prevClose) / prevClose * 100).toFixed(2);
             const gap    = parseFloat(gapPct);
@@ -508,14 +511,20 @@
             const pdlStr = pdl > 0 ? ` | PDL: $${pdl.toFixed(2)}` : '';
             const priceStr = latestPrice ? ` | $${latestPrice.toFixed(2)}` : '';
             metrics = `Gap: ${gap > 0 ? '+' : ''}${gapPct}% ${dir}${priceStr}${pdhStr}${pdlStr}`;
+            // "Close" = gapped AND price is within 0.3% of PDH (long) or PDL (short)
+            if (gapped && latestPrice) {
+              const CLOSE_THRESH = 0.003;
+              if (gap >= 0.5 && pdh > 0 && Math.abs(latestPrice - pdh) / pdh <= CLOSE_THRESH) closeToLevel = true;
+              if (gap <= -0.5 && pdl > 0 && Math.abs(latestPrice - pdl) / pdl <= CLOSE_THRESH) closeToLevel = true;
+            }
           }
         }
 
         return {
           symbol: sym,
           setup_active:   false,
-          setup_close:    false,
-          setup_watching: gapped,
+          setup_close:    closeToLevel,
+          setup_watching: gapped && !closeToLevel,
           metrics,
         };
       });
