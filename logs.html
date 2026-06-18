@@ -437,10 +437,10 @@
         const r = rowMap[sym];
         return r ? {
           symbol: sym,
-          setup_active: r.setup_active,
-          setup_close: r.setup_close,
-          setup_watching: r.setup_watching,
-          metrics: r.metrics || '',
+          setup_active:   isStale(r.updated_at) ? false : r.setup_active,
+          setup_close:    isStale(r.updated_at) ? false : r.setup_close,
+          setup_watching: isStale(r.updated_at) ? false : r.setup_watching,
+          metrics: isStale(r.updated_at) ? '(stale)' : (r.metrics || ''),
         } : {
           symbol: sym,
           setup_active: false, setup_close: false, setup_closed: false, setup_watching: false,
@@ -526,6 +526,12 @@
       return { total_symbols: BOOF60_SYMS.length, active_setups: active, close_setups: close, watching_setups: watching, symbols };
     }
 
+    const STALE_MS = 5 * 60 * 1000; // 5 minutes
+    function isStale(updated_at) {
+      if (!updated_at) return true;
+      return (Date.now() - new Date(updated_at).getTime()) > STALE_MS;
+    }
+
     async function fetchBOOF23Status() {
       const res = await fetch(`${SB_URL}/rest/v1/bot_status?bot=eq.BOOF23&order=symbol.asc`, {
         headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` }
@@ -533,10 +539,10 @@
       const rows = await res.json();
       const allSyms = rows.map(r => ({
         symbol: r.symbol,
-        setup_active: r.setup_active,
-        setup_close: r.setup_close,
-        setup_watching: r.setup_watching,
-        metrics: r.metrics || '',
+        setup_active:   isStale(r.updated_at) ? false : r.setup_active,
+        setup_close:    isStale(r.updated_at) ? false : r.setup_close,
+        setup_watching: isStale(r.updated_at) ? false : r.setup_watching,
+        metrics: isStale(r.updated_at) ? '(stale)' : (r.metrics || ''),
       }));
       const symbols = allSyms.filter(s => s.setup_active || s.setup_close || s.setup_watching);
       return {
