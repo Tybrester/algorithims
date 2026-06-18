@@ -440,7 +440,7 @@
           setup_active:   isStale(r.updated_at) ? false : r.setup_active,
           setup_close:    isStale(r.updated_at) ? false : r.setup_close,
           setup_watching: isStale(r.updated_at) ? false : r.setup_watching,
-          metrics: isStale(r.updated_at) ? '(stale)' : (r.metrics || ''),
+          metrics: isStale(r.updated_at) ? '(stale)' : (isStaleWarn(r.updated_at) ? `(stale) ${r.metrics || ''}` : (r.metrics || '')),
         } : {
           symbol: sym,
           setup_active: false, setup_close: false, setup_closed: false, setup_watching: false,
@@ -535,10 +535,15 @@
       return { total_symbols: BOOF60_SYMS.length, active_setups: active, close_setups: close, watching_setups: watching, symbols };
     }
 
-    const STALE_MS = 5 * 60 * 1000; // 5 minutes
+    const STALE_MS      = 2 * 60 * 60 * 1000; // 2 hours — hide entirely after this
+    const STALE_WARN_MS = 30 * 60 * 1000;     // 30 min  — show (stale) label after this
     function isStale(updated_at) {
       if (!updated_at) return true;
       return (Date.now() - new Date(updated_at).getTime()) > STALE_MS;
+    }
+    function isStaleWarn(updated_at) {
+      if (!updated_at) return true;
+      return (Date.now() - new Date(updated_at).getTime()) > STALE_WARN_MS;
     }
 
     async function fetchBOOF23Status() {
