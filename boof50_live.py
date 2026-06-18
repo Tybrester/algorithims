@@ -1,0 +1,724 @@
+"""
+BOOF50 Live Trading Bot — 1DTE Options
+=======================================
+Signal    : VWAP Cross on underlying (5-bar hold confirmation)
+Instrument: 1DTE options — call (long signal) / put (short signal)
+            Pick the strike whose mid-price is closest to $3.50
+
+Entry fill logic (adaptive limit):
+  1. Place buy limit at mid = (bid + ask) / 2
+  2. After 7s if unfilled: move to mid + 25% of spread
+  3. After another 7s if unfilled: move to mid + 50% of spread (≈ ask)
+  4. Cancel if still unfilled
+
+On fill (e.g. $3.04):
+  TP = fill * 1.30  → sell limit  $3.95
+  SL = fill * 0.85  → sell stop   $2.58
+  Submit both as OCO — first fill cancels the other
+
+Kill switches:
+  - Max 3 open positions at once
+  - Max 1 per symbol per direction
+  - Stop symbol after 3 consecutive losses
+  - Stop bot after 5 daily losses
+  - PAPER = True by default
+"""
+
+import time, threading, logging, requests as _requests
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+import alpaca_trade_api as tradeapi
+from alpaca_trade_api.stream import Stream
+
+# ── Config ─────────────────────────────────────────────────────────────────────
+
+API_KEY    = "PK2HCVPMLXNL7TPYECFGJOCCZK"
+API_SECRET = "7PUiaNTfWhGYLQGfQFbMbuANWwPzzsy8nm23egqgdg4C"
+PAPER      = True
+
+BASE_URL = "https://paper-api.alpaca.markets" if PAPER else "https://api.alpaca.markets"
+
+SYMBOLS = [
+    "TSLA","AMD","APP","COIN","HOOD",
+    "SMCI","UPST","META","MSFT","NVDA",
+    "MSTR","PLTR","CRWD","AAPL","AMZN"
+]
+
+OPTION_TARGET  = 2.00    # pick strike whose mid is closest to this
+CONTRACTS      = 1
+TP_MULT        = 1.35    # +35%
+SL_MULT        = 0.85    # -15%
+FILL_WAIT_S    = 7       # seconds between limit price bumps
+CONFIRM_BARS   = 3
+MAX_HOLD_MIN   = 120
+MAX_POSITIONS  = 10      # max 10 concurrent open positions
+MAX_LOSSES_SYM = 3
+MAX_DAILY_LOSS = 8
+TZ             = ZoneInfo("America/New_York")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
+    datefmt="%H:%M:%S"
+)
+log = logging.getLogger("BOOF50")
+
+# ── Supabase ───────────────────────────────────────────────────────────────────
+
+SUPABASE_URL     = "https://isanhutzyctcjygjhzbn.supabase.co"
+SUPABASE_KEY     = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzYW5odXR6eWN0Y2p5Z2poemJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTYzNDYsImV4cCI6MjA5MTY5MjM0Nn0.L0ATp-IriR708C2n3as_YXDgjHvtn_CWubbzPeSxRi0"
+_SB_HEADERS      = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}", "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates"}
+
+def sb_push_status(symbols_payload: list):
+    try:
+        _requests.post(
+            f"{SUPABASE_URL}/rest/v1/bot_status",
+            headers=_SB_HEADERS,
+            json=symbols_payload,
+            timeout=5,
+        )
+    except Exception as e:
+        log.debug(f"Supabase status push failed: {e}")
+
+# ── Alpaca client ──────────────────────────────────────────────────────────────
+
+api = tradeapi.REST(API_KEY, API_SECRET, BASE_URL, api_version="v2")
+
+
+# ── State ──────────────────────────────────────────────────────────────────────
+
+class SymbolState:
+    def __init__(self):
+        self.bars        = []
+        self.cum_pv      = 0.0
+        self.cum_vol     = 0.0
+        self.confirm     = {}   # side -> bar count
+        self.position    = {}   # side -> position dict
+        self.consec_loss = 0
+        self.stopped     = False
+
+
+state        = {sym: SymbolState() for sym in SYMBOLS}
+daily_losses = 0
+bot_stopped  = False
+_lock        = threading.Lock()
+
+
+# ── VWAP ───────────────────────────────────────────────────────────────────────
+
+def update_vwap(s: SymbolState, bar: dict) -> float:
+    typ       = (bar["h"] + bar["l"] + bar["c"]) / 3
+    s.cum_pv  += typ * bar["v"]
+    s.cum_vol += bar["v"]
+    return s.cum_pv / s.cum_vol if s.cum_vol else bar["c"]
+
+
+# ── Option contract selection ──────────────────────────────────────────────────
+
+def get_1dte_expiry() -> str:
+    """Return next trading day's date as YYYY-MM-DD (1DTE expiry)."""
+    now = datetime.now(TZ)
+    exp = now + timedelta(days=1)
+    # skip weekends
+    while exp.weekday() >= 5:
+        exp += timedelta(days=1)
+    return exp.strftime("%Y-%m-%d")
+
+
+def select_option(sym: str, side: str, underlying_price: float):
+    """
+    Fetch option chain for sym, find the strike whose mid is closest
+    to OPTION_TARGET. Returns dict with keys: symbol, bid, ask, mid.
+    """
+    if underlying_price < 10:
+        log.warning(f"Skipping {sym} — underlying price ${underlying_price:.2f} below $20 min")
+        return None
+    from alpaca.trading.client import TradingClient as _TC
+    from alpaca.trading.requests import GetOptionContractsRequest as _GOCR
+    from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
+    from alpaca.data.requests import OptionSnapshotRequest as _OSR
+    opt_type = "call" if side == "long" else "put"
+    try:
+        _tc  = _TC(API_KEY, API_SECRET, paper=True)
+        _odc = _OHDC(API_KEY, API_SECRET)
+        _now = datetime.now(ZoneInfo("America/New_York"))
+        _candidates = [(_now + timedelta(days=i)).strftime("%Y-%m-%d")
+                       for i in range(1, 10) if (_now + timedelta(days=i)).weekday() < 5][:7]
+        contracts = []; expiry = None
+        strike_lo = round(underlying_price * 0.80, 2)
+        strike_hi = round(underlying_price * 1.20, 2)
+        for candidate in _candidates:
+            req = _GOCR(underlying_symbols=[sym], expiration_date=candidate, type=opt_type,
+                        strike_price_gte=str(strike_lo), strike_price_lte=str(strike_hi), limit=50)
+            contracts = _tc.get_option_contracts(req).option_contracts
+            if contracts: expiry = candidate; break
+        if not contracts:
+            log.warning(f"No contracts for {sym} {opt_type} in next 7 days")
+            return None
+        log.info(f"Option expiry {sym}: {expiry} ({len(contracts)} contracts, strikes {strike_lo}-{strike_hi})")
+        snaps = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[c.symbol for c in contracts]))
+        TARGET_SPEND = 500.0  # minimum spend — scale qty up, never cap ITM cost
+        chain = []
+        for contract in contracts:
+            snap = snaps.get(contract.symbol)
+            if not snap: continue
+            strike = float(contract.strike_price)
+            bid = snap.latest_quote.bid_price or 0
+            ask = snap.latest_quote.ask_price or 0
+            if ask < 1.50: continue  # minimum $1.50 ask — skip cheap/worthless contracts
+            if bid > 0 and ask > 0 and (ask - bid) / ask > 0.40: continue  # skip spread > 2:1 ratio
+            mid = (bid + ask) / 2
+            strike_dist = abs(strike - underlying_price)
+            chain.append({"symbol": contract.symbol, "bid": bid, "ask": ask,
+                          "mid": mid, "strike": strike, "strike_dist": strike_dist})
+        if not chain:
+            for contract in contracts:
+                snap = snaps.get(contract.symbol)
+                if not snap: continue
+                strike = float(contract.strike_price)
+                bid = snap.latest_quote.bid_price or 0
+                ask = snap.latest_quote.ask_price or 0
+                if ask < 1.50: continue
+                if bid > 0 and ask > 0 and (ask - bid) / ask > 0.60: continue
+                mid = (bid + ask) / 2
+                strike_dist = abs(strike - underlying_price)
+                chain.append({"symbol": contract.symbol, "bid": bid, "ask": ask,
+                              "mid": mid, "strike": strike, "strike_dist": strike_dist})
+            if not chain:
+                log.warning(f"No contracts for {sym} {opt_type} even with relaxed spread")
+                return None
+            log.info(f"  {sym} using relaxed spread filter (60%)")
+        if opt_type == "call":
+            itm = sorted([c for c in chain if c["strike"] <= underlying_price], key=lambda x: underlying_price - x["strike"])
+            otm = sorted([c for c in chain if c["strike"] >  underlying_price], key=lambda x: x["strike_dist"])
+        else:
+            itm = sorted([c for c in chain if c["strike"] >= underlying_price], key=lambda x: x["strike"] - underlying_price)
+            otm = sorted([c for c in chain if c["strike"] <  underlying_price], key=lambda x: x["strike_dist"])
+        ordered = itm + otm
+        best = None
+        for c in ordered:
+            cost_1 = c["ask"] * 100
+            if cost_1 <= 0: continue
+            qty = max(1, round(TARGET_SPEND / cost_1))
+            c["qty"] = qty
+            best = c
+            break
+        if not best:
+            best = ordered[0]; best["qty"] = 1
+        log.info(f"  {sym} selected {best['symbol']} ask={best['ask']:.2f} "
+                 f"qty={best['qty']} cost=${best['ask']*100*best['qty']:.0f}")
+        return best
+    except Exception as e:
+        log.error(f"Option chain error {sym}: {e}")
+        return None
+
+
+# ── Adaptive limit entry ───────────────────────────────────────────────────────
+
+def place_entry(sym: str, side: str, underlying_price: float):
+    """Select option, enter with adaptive limit, then place OCO exits on fill."""
+    if bot_stopped:
+        log.warning("Bot stopped — skipping"); return
+    if state[sym].stopped:
+        log.warning(f"{sym} stopped — skipping"); return
+    with _lock:
+        if sum(len(s.position) for s in state.values()) >= MAX_POSITIONS:
+            log.info(f"Max positions reached — skipping {sym} {side}"); return
+        if state[sym].position:
+            log.info(f"{sym} already has open position — skipping {side}"); return
+        state[sym].position[side] = {"reserved": True}  # reserve immediately inside lock
+
+    contract = select_option(sym, side, underlying_price)
+    if not contract:
+        log.warning(f"No suitable option found for {sym} {side}")
+        with _lock: state[sym].position.pop(side, None)
+        return
+
+    opt_sym  = contract["symbol"]
+    bid      = contract["bid"]
+    ask      = contract["ask"]
+    spread   = ask - bid
+    mid      = contract["mid"]
+    qty      = contract.get("qty", CONTRACTS)
+    log.info(f"OPTION {sym:5s} {side:5s}  {opt_sym}  bid={bid:.2f} ask={ask:.2f} mid={mid:.2f}  qty={qty}")
+
+    order_id  = None
+    limit_px  = round(ask + 0.05, 2)  # slightly above ask to guarantee fill
+    for attempt in range(2):
+        try:
+            if order_id:
+                try: api.cancel_order(order_id)
+                except Exception: pass
+            if attempt == 0:
+                order = api.submit_order(
+                    symbol=opt_sym, qty=qty, side="buy",
+                    type="limit", time_in_force="day", limit_price=str(limit_px),
+                )
+                log.info(f"  Attempt 1: BUY LIMIT {opt_sym} @ {limit_px:.2f} (wait 20s)")
+            else:
+                order = api.submit_order(
+                    symbol=opt_sym, qty=qty, side="buy",
+                    type="market", time_in_force="day"
+                )
+                log.info(f"  Attempt 2: BUY MARKET {opt_sym} (fallback)")
+            order_id = order.id
+            time.sleep(20)
+            o = api.get_order(order_id)
+            if o.status == "filled":
+                fill = float(o.filled_avg_price)
+                log.info(f"FILL   {sym:5s} {side:5s}  {opt_sym} @ {fill:.2f}")
+                _place_oco_exits(sym, side, opt_sym, fill, qty)
+                return
+        except Exception as e:
+            log.error(f"Entry order error {sym} attempt {attempt+1}: {e}")
+            return
+    if order_id:
+        try: api.cancel_order(order_id)
+        except Exception: pass
+    log.warning(f"SKIP   {sym} {side} — unfilled after all attempts, cancelled")
+
+
+def _place_oco_exits(sym: str, side: str, opt_sym: str, fill: float, qty: int = 1):
+    """Place sell limit (TP) + sell stop (SL) as two separate orders after fill."""
+    tp_price = round(fill * TP_MULT, 2)
+    sl_price = round(fill * SL_MULT, 2)
+    log.info(f"EXIT   {sym:5s} {side:5s}  TP={tp_price:.2f}  SL={sl_price:.2f}")
+    tp_id = None; sl_id = None
+    try:
+        tp_ord = api.submit_order(
+            symbol=opt_sym, qty=qty, side="sell",
+            type="limit", time_in_force="day",
+            limit_price=str(tp_price),
+        )
+        tp_id = tp_ord.id
+        log.info(f"  TP order placed: {tp_id}")
+    except Exception as e:
+        log.error(f"TP order error {sym}: {e}")
+    # SL is monitored in the bar loop — no resting SL order (would be rejected as uncovered by Alpaca)
+    # Always record position so dashboard shows active and monitor loop can manage exits
+    with _lock:
+        state[sym].position[side] = {
+            "opt_sym":   opt_sym,
+            "entry":     fill,
+            "tp":        tp_price,
+            "sl":        sl_price,
+            "opened_at": datetime.now(TZ),
+            "tp_id":     tp_id,
+            "trail_floor": None,   # None = not yet activated (below 15%)
+        }
+
+
+# ── Fill/close tracking ────────────────────────────────────────────────────────
+
+def on_exit_fill(sym: str, side: str, fill: float, won: bool):
+    global daily_losses, bot_stopped
+    with _lock:
+        state[sym].position.pop(side, None)
+        if won:
+            state[sym].consec_loss = 0
+            log.info(f"WIN    {sym:5s} {side:5s}  exit={fill:.2f}")
+        else:
+            state[sym].consec_loss += 1
+            daily_losses           += 1
+            log.info(f"LOSS   {sym:5s} {side:5s}  exit={fill:.2f}  streak={state[sym].consec_loss}")
+            if state[sym].consec_loss >= MAX_LOSSES_SYM:
+                state[sym].stopped = True
+                log.warning(f"KILL   {sym} stopped ({MAX_LOSSES_SYM} consec losses)")
+            if daily_losses >= MAX_DAILY_LOSS:
+                bot_stopped = True
+                log.warning(f"KILL   Bot stopped — {MAX_DAILY_LOSS} daily losses reached")
+
+
+# ── Bar handler ────────────────────────────────────────────────────────────────
+
+def handle_bar(sym: str, bar: dict):
+    now_et = datetime.now(TZ)
+    t      = now_et.strftime("%H:%M")
+    s      = state[sym]
+
+    if t == "09:00":
+        s.cum_pv = s.cum_vol = 0.0
+        s.bars = []; s.confirm = {}
+
+    vwap        = update_vwap(s, bar)
+    bar["vwap"] = vwap
+    s.bars.append(bar)
+
+    if bot_stopped or s.stopped:   return
+    if len(s.bars) < 6:            return
+    if t < "09:30":                return   # no signals before RTH open
+    if t >= "15:55" and s.position:         # EOD force close
+        for _side, _pos in list(s.position.items()):
+            try:
+                api.submit_order(_pos["opt_sym"], _pos.get("qty", 1), "sell", "market", "day")
+                log.info(f"EOD bar-close {sym} {_side} {_pos['opt_sym']}")
+            except Exception as e:
+                log.error(f"EOD close failed {sym}: {e}")
+        with _lock:
+            s.position.pop("long", None); s.position.pop("short", None)
+        return
+    if t >= "15:00":               return   # no new entries after 15:00
+
+    prev = s.bars[-2]; curr = s.bars[-1]
+
+    for side in ["long", "short"]:
+        crossed = (
+            prev["c"] < prev["vwap"] and curr["c"] > curr["vwap"]
+        ) if side == "long" else (
+            prev["c"] > prev["vwap"] and curr["c"] < curr["vwap"]
+        )
+
+        if crossed:
+            s.confirm[side] = 1
+            log.info(f"CROSS  {sym:5s} {side:5s}  {t}  px={curr['c']:.2f}  vwap={curr['vwap']:.2f}")
+            continue
+
+        if side in s.confirm:
+            still_holding = (curr["c"] > curr["vwap"]) if side == "long" else (curr["c"] < curr["vwap"])
+            if still_holding:
+                s.confirm[side] += 1
+            else:
+                del s.confirm[side]; continue
+
+            if s.confirm[side] >= CONFIRM_BARS:
+                log.info(f"SIGNAL {sym:5s} {side:5s}  confirmed @ {curr['c']:.2f}")
+                threading.Thread(
+                    target=place_entry, args=(sym, side, curr["c"]), daemon=True
+                ).start()
+                del s.confirm[side]
+
+    # push status to Supabase every bar
+    pos_str      = ", ".join(f"{sd}@{p['entry']:.2f}" for sd, p in s.position.items())
+    setup_active = len(s.position) > 0
+    setup_close  = any(v >= CONFIRM_BARS - 1 for v in s.confirm.values())
+    setup_watching = bool(s.confirm) and not setup_close
+    metrics = f"VWAP: {curr['vwap']:.2f} | Price: {curr['c']:.2f}"
+    if pos_str: metrics += f" | Position: {pos_str}"
+    # show signal info if watching/close (confirm in progress)
+    if s.confirm:
+        sig_side = next(iter(s.confirm))
+        sig_cnt  = s.confirm[sig_side]
+        metrics += f" | Confirm: {sig_side.upper()} {sig_cnt}/{CONFIRM_BARS} @ {t}"
+    threading.Thread(target=sb_push_status, args=([{
+        "bot": "BOOF50", "symbol": sym,
+        "setup_active": setup_active, "setup_close": setup_close,
+        "setup_watching": setup_watching,
+        "metrics": metrics, "updated_at": datetime.now(TZ).isoformat(),
+    }],), daemon=True).start()
+
+    # SL monitor + trailing floor + time exit
+    for side, pos in list(s.position.items()):
+        age = (now_et - pos["opened_at"]).seconds / 60
+        opt_sym  = pos["opt_sym"]
+        sl_price = pos["sl"]
+        entry    = pos["entry"]
+        try:
+            from alpaca.data.historical.option import OptionHistoricalDataClient as _OHDC
+            from alpaca.data.requests import OptionSnapshotRequest as _OSR
+            _odc = _OHDC(API_KEY, API_SECRET)
+            snap = _odc.get_option_snapshot(_OSR(symbol_or_symbols=[opt_sym])).get(opt_sym)
+            if snap and snap.latest_quote:
+                opt_bid = snap.latest_quote.bid_price or 0
+                opt_ask = snap.latest_quote.ask_price or 0
+                opt_mid = (opt_bid + opt_ask) / 2 if opt_ask else opt_bid
+                if opt_mid > 0:
+                    pct = (opt_mid - entry) / entry * 100
+
+                    # ── Trailing floor logic ──
+                    # Floor activates at +25%, steps up every 5%
+                    # e.g. +25% → floor=25, +30% → floor=30, etc.
+                    if pct >= 25.0:
+                        new_floor = int(pct // 5) * 5   # round down to nearest 5
+                        new_floor = max(new_floor, 25)  # minimum floor is 25
+                        old_floor = pos.get("trail_floor")
+                        if old_floor is None or new_floor > old_floor:
+                            with _lock:
+                                pos["trail_floor"] = new_floor
+                            log.info(f"TRAIL  {sym} {side} floor raised to +{new_floor}%  (mid={opt_mid:.2f} pct={pct:.1f}%)")
+
+                    # ── Check if floor was breached ──
+                    floor = pos.get("trail_floor")
+                    floor_price = entry * (1 + floor / 100) if floor else None
+                    hit_floor = floor_price and opt_mid <= floor_price
+                    hit_sl    = opt_mid <= sl_price
+
+                    if hit_floor or hit_sl:
+                        reason = f"trail_floor+{floor}%" if hit_floor else f"sl"
+                        log.info(f"EXIT   {sym} {side} {reason}  mid={opt_mid:.2f}  pct={pct:.1f}%")
+                        try:
+                            api.submit_order(opt_sym, pos.get("qty", 1), "sell", "market", "day")
+                            if pos.get("tp_id"):
+                                try: api.cancel_order(pos["tp_id"])
+                                except: pass
+                        except Exception as e:
+                            log.error(f"Exit close failed {sym}: {e}")
+                        with _lock:
+                            s.position.pop(side, None)
+                        on_exit_fill(sym, side, opt_mid, hit_floor)  # floor exit counts as win
+                        continue
+        except Exception:
+            pass
+        if age >= MAX_HOLD_MIN:
+            log.info(f"TIMEOUT {sym} {side} — market close after {age:.0f} min")
+            try:
+                api.submit_order(opt_sym, pos.get("qty", 1), "sell", "market", "day")
+                if pos.get("tp_id"):
+                    try: api.cancel_order(pos["tp_id"])
+                    except: pass
+            except Exception as e:
+                log.error(f"Timeout close failed {sym}: {e}")
+            with _lock:
+                s.position.pop(side, None)
+
+
+# ── Stream handlers ────────────────────────────────────────────────────────────
+
+async def on_minute_bar(bar):
+    sym = bar.symbol
+    if sym in state:
+        handle_bar(sym, {"o": bar.open, "h": bar.high, "l": bar.low, "c": bar.close, "v": bar.volume})
+
+
+async def on_trade_update(update):
+    if update.event not in ("fill", "partial_fill"): return
+    order  = update.order
+    # map option symbol back to underlying
+    opt_sym = order["symbol"]
+    fill    = float(order.get("filled_avg_price", 0))
+    otype   = order.get("type", "")
+    for sym, s in state.items():
+        for side, pos in list(s.position.items()):
+            if pos.get("opt_sym") == opt_sym:
+                won = (otype == "limit")  # limit fill = TP hit; stop fill = SL hit
+                on_exit_fill(sym, side, fill, won)
+                return
+
+
+# ── EOD force-close scheduler ──────────────────────────────────────────────────
+
+def _eod_close_all():
+    """Force-close all open positions at 15:54 ET via background thread."""
+    from zoneinfo import ZoneInfo as _ZI
+    import time as _time
+    _TZ = _ZI("America/New_York")
+    while True:
+        now = datetime.now(_TZ)
+        target = now.replace(hour=15, minute=54, second=0, microsecond=0)
+        if now >= target:
+            target += timedelta(days=1)
+        secs = (target - now).total_seconds()
+        _time.sleep(secs)
+        log.info("EOD CLOSE — force-closing all positions at 15:54 ET")
+        for sym, s in list(state.items()):
+            for side, pos in list(s.position.items()):
+                opt_sym = pos.get("opt_sym")
+                qty     = pos.get("qty", 1)
+                try:
+                    api.submit_order(opt_sym, qty, "sell", "market", "day")
+                    log.info(f"EOD closed {sym} {side} {opt_sym}")
+                    if pos.get("tp_id"):
+                        try: api.cancel_order(pos["tp_id"])
+                        except: pass
+                except Exception as e:
+                    log.error(f"EOD close failed {sym} {side}: {e}")
+                with _lock:
+                    s.position.pop(side, None)
+
+
+# ── Real-time SL monitor (polls Alpaca every 15s) ─────────────────────────────
+
+def _sl_monitor():
+    """Background thread: poll Alpaca positions every 15s, fire market sell on SL breach."""
+    log.info("SL MONITOR started — polling every 15s")
+    while True:
+        try:
+            positions = api.list_positions()
+            # only skip if a market sell is already in flight — resting TP limits are fine
+            market_closing = {o.symbol for o in api.list_orders(status='open') if o.side == 'sell' and o.type == 'market'}
+            for p in positions:
+                opt_sym = p.symbol
+                if opt_sym in market_closing:
+                    continue  # market sell already submitted, don't double-close
+                underlying = next((s for s in SYMBOLS if opt_sym.startswith(s)), None)
+                if not underlying:
+                    continue
+                current_price = float(p.current_price or 0)
+                avg_entry     = float(p.avg_entry_price or 0)
+                if avg_entry <= 0 or current_price <= 0:
+                    continue
+                sl_price  = round(avg_entry * SL_MULT, 2)
+                tp_price  = round(avg_entry * TP_MULT, 2)
+                pct       = (current_price - avg_entry) / avg_entry * 100
+
+                # ── Ratcheting trailing stop ──────────────────────────────
+                s = state.get(underlying)
+                pos_dict = None
+                if s:
+                    for side, pd in s.position.items():
+                        if pd.get('opt_sym') == opt_sym:
+                            pos_dict = pd; break
+                if pos_dict is not None:
+                    if current_price > pos_dict.get("peak", avg_entry):
+                        pos_dict["peak"] = current_price
+                    peak = pos_dict.get("peak", avg_entry)
+                    peak_pct = (peak - avg_entry) / avg_entry * 100
+                    if peak_pct >= 25.0:
+                        steps = int((peak_pct - 25.0) / 5.0)
+                        trail_floor_pct = 25.0 + steps * 5.0
+                        trail_floor = round(avg_entry * (1 + trail_floor_pct / 100), 2)
+                        if current_price <= trail_floor:
+                            log.info(f"TRAIL STOP {opt_sym} cur={current_price:.2f} <= floor={trail_floor:.2f} "
+                                     f"(peak=+{peak_pct:.1f}%, floor=+{trail_floor_pct:.0f}%) — CLOSING")
+                            try:
+                                qty = abs(int(float(p.qty)))
+                                tp_id = pos_dict.get('tp_id')
+                                if tp_id:
+                                    try: api.cancel_order(tp_id)
+                                    except: pass
+                                    time.sleep(0.5)
+                                api.submit_order(opt_sym, qty, 'sell', 'market', 'day')
+                                with _lock:
+                                    if s:
+                                        for side2, pd2 in list(s.position.items()):
+                                            if pd2.get('opt_sym') == opt_sym:
+                                                s.position.pop(side2, None)
+                                                on_exit_fill(underlying, side2, current_price, True)
+                            except Exception as e:
+                                log.error(f"Trail stop close failed {opt_sym}: {e}")
+                        else:
+                            log.info(f"TRAIL {opt_sym} cur={current_price:.2f} +{pct:.1f}%  peak=+{peak_pct:.1f}%  floor=+{trail_floor_pct:.0f}%")
+                        continue  # skip fixed SL/TP once trailing active
+
+                # ── Fixed SL (before +15% threshold) ─────────────────────
+                if current_price <= sl_price:
+                    log.warning(f"SL MONITOR HIT {opt_sym}  cur={current_price:.2f} <= sl={sl_price:.2f} ({pct*100:.1f}%) — CLOSING")
+                    try:
+                        qty = abs(int(float(p.qty)))
+                        # cancel resting TP first to avoid uncovered option rejection
+                        tp_id = None
+                        s = state.get(underlying)
+                        if s:
+                            for side, pos in list(s.position.items()):
+                                if pos.get('opt_sym') == opt_sym:
+                                    tp_id = pos.get('tp_id')
+                        if tp_id:
+                            try: api.cancel_order(tp_id)
+                            except: pass
+                            time.sleep(0.5)
+                        api.submit_order(opt_sym, qty, 'sell', 'market', 'day')
+                        log.info(f"SL MARKET SELL {opt_sym} qty={qty}")
+                        with _lock:
+                            s = state.get(underlying)
+                            if s:
+                                for side, pos in list(s.position.items()):
+                                    if pos.get('opt_sym') == opt_sym:
+                                        s.position.pop(side, None)
+                                        on_exit_fill(underlying, side, current_price, False)
+                    except Exception as e:
+                        log.error(f"SL monitor close failed {opt_sym}: {e}")
+                # TP breach (in case resting limit didn't fill)
+                elif current_price >= tp_price:
+                    log.info(f"TP MONITOR HIT {opt_sym}  cur={current_price:.2f} >= tp={tp_price:.2f} ({pct*100:.1f}%) — CLOSING")
+                    try:
+                        qty = abs(int(float(p.qty)))
+                        tp_id = None
+                        s = state.get(underlying)
+                        if s:
+                            for side, pos in list(s.position.items()):
+                                if pos.get('opt_sym') == opt_sym:
+                                    tp_id = pos.get('tp_id')
+                        if tp_id:
+                            try: api.cancel_order(tp_id)
+                            except: pass
+                            time.sleep(0.5)
+                        api.submit_order(opt_sym, qty, 'sell', 'market', 'day')
+                        with _lock:
+                            s = state.get(underlying)
+                            if s:
+                                for side, pos in list(s.position.items()):
+                                    if pos.get('opt_sym') == opt_sym:
+                                        if pos.get('tp_id'):
+                                            try: api.cancel_order(pos['tp_id'])
+                                            except: pass
+                                        s.position.pop(side, None)
+                                        on_exit_fill(underlying, side, current_price, True)
+                    except Exception as e:
+                        log.error(f"TP monitor close failed {opt_sym}: {e}")
+        except Exception as e:
+            log.error(f"SL monitor poll error: {e}")
+        time.sleep(15)
+
+
+# ── Daily reset ────────────────────────────────────────────────────────────────
+
+def reset_daily():
+    global daily_losses, bot_stopped
+    with _lock:
+        daily_losses = 0; bot_stopped = False
+        for s in state.values():
+            s.stopped = False; s.consec_loss = 0
+            s.confirm = {}; s.cum_pv = s.cum_vol = 0.0; s.bars = []
+    log.info("RESET  Daily state cleared")
+
+
+# ── Main ───────────────────────────────────────────────────────────────────────
+
+def reconcile_positions():
+    """On startup, re-register any open Alpaca option positions into state."""
+    try:
+        positions = api.list_positions()
+        open_orders = api.list_orders(status='open')
+        closing_syms = {o.symbol for o in open_orders if o.side == 'sell'}
+        for p in positions:
+            if p.symbol in closing_syms:
+                log.info(f"RECONCILE skip {p.symbol} — already has open sell order")
+                continue
+            sym_raw = p.symbol  # e.g. TSLA260617P00395000
+            # Find underlying from our symbol list
+            underlying = next((s for s in SYMBOLS if sym_raw.startswith(s)), None)
+            if not underlying:
+                continue
+            side = "short" if "P" in sym_raw[len(underlying):] else "long"
+            entry = float(p.avg_entry_price)
+            qty   = int(float(p.qty))
+            tp_price = round(entry * TP_MULT, 2)
+            sl_price = round(entry * SL_MULT, 2)
+            with _lock:
+                state[underlying].position[side] = {
+                    "opt_sym":   sym_raw,
+                    "entry":     entry,
+                    "tp":        tp_price,
+                    "sl":        sl_price,
+                    "qty":       qty,
+                    "opened_at": datetime.now(TZ),
+                }
+            log.info(f"RECONCILE {underlying} {side} {sym_raw} @ {entry}  TP={tp_price}  SL={sl_price}")
+    except Exception as e:
+        log.error(f"Reconcile error: {e}")
+
+
+def main():
+    log.info(f"BOOF50 1DTE Options Bot  {'[PAPER]' if PAPER else '[LIVE]'}")
+    log.info(f"Universe : {', '.join(SYMBOLS)}")
+    log.info(f"Target premium ~${OPTION_TARGET:.2f}  TP={TP_MULT}x  SL={SL_MULT}x")
+    log.info(f"MaxPos={MAX_POSITIONS}  MaxLosses/sym={MAX_LOSSES_SYM}  DailyStop={MAX_DAILY_LOSS}")
+    reconcile_positions()
+    threading.Thread(target=_eod_close_all, daemon=True).start()
+    threading.Thread(target=_sl_monitor, daemon=True).start()
+
+    while True:
+        try:
+            stream = Stream(API_KEY, API_SECRET, base_url=BASE_URL, data_feed="sip")
+            stream.subscribe_bars(on_minute_bar, *SYMBOLS)
+            stream.subscribe_updated_bars(on_minute_bar, *SYMBOLS)
+            stream.subscribe_trade_updates(on_trade_update)
+            log.info("Streaming — waiting for bars (incl. pre-market)...")
+            stream.run()
+        except Exception as e:
+            log.error(f"Stream error: {e} — reconnecting in 60s")
+            time.sleep(60)
+
+
+if __name__ == "__main__":
+    main()
