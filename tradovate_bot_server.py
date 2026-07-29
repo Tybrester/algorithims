@@ -149,8 +149,16 @@ def start_bot():
     if err:
         return err
 
-    if not APP_ID or not APP_CID or not APP_SEC:
-        return jsonify({"error": "Server misconfigured: set TRADOVATE_APP_ID, TRADOVATE_CID, TRADOVATE_SEC env vars on the runner."}), 500
+    # Each Tradovate user has their OWN API key (App ID/CID/Secret) tied to
+    # their own live funded account (Tradovate's retail API Access add-on) —
+    # this is NOT a single shared platform credential. Prefer whatever the
+    # user submitted; only fall back to the runner's own env vars (useful for
+    # the operator's personal testing) if the user left a field blank.
+    user_app_id = body.get("appId") or APP_ID
+    user_cid    = body.get("cid") or APP_CID
+    user_sec    = body.get("sec") or APP_SEC
+    if not user_app_id or not user_cid or not user_sec:
+        return jsonify({"error": "Missing Tradovate API credentials: App ID, CID, and Secret are required (from your Tradovate Application Settings \u2192 API Access)."}), 400
 
     required = ["username", "password"]
     missing = [f for f in required if not body.get(f)]
@@ -167,10 +175,10 @@ def start_bot():
         env["TRADOVATE_ENV"]         = body.get("env", "demo")
         env["TRADOVATE_USERNAME"]    = body["username"]
         env["TRADOVATE_PASSWORD"]    = body["password"]
-        env["TRADOVATE_APP_ID"]      = APP_ID
-        env["TRADOVATE_APP_VERSION"] = APP_VERSION
-        env["TRADOVATE_CID"]         = APP_CID
-        env["TRADOVATE_SEC"]         = APP_SEC
+        env["TRADOVATE_APP_ID"]      = user_app_id
+        env["TRADOVATE_APP_VERSION"] = body.get("appVersion") or APP_VERSION
+        env["TRADOVATE_CID"]         = user_cid
+        env["TRADOVATE_SEC"]         = user_sec
         env["TRADOVATE_DEVICE_ID"]   = body.get("deviceId") or str(uuid.uuid4())
         env["PYTHONUNBUFFERED"]      = "1"
         # Tell the bot process which per-user config file to poll.
