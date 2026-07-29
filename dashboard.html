@@ -591,6 +591,21 @@
           <pre id="fb-terminal" style="flex:1;margin:0;padding:20px 22px;background:#050505;color:#00e676;font-family:'Consolas','Menlo',monospace;font-size:1rem;line-height:1.6;overflow-y:auto;height:75vh;min-height:600px;white-space:pre-wrap;word-break:break-word;">Waiting for bot output...</pre>
         </div>
       </div>
+
+      <div class="panel" style="margin-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h2 style="margin-bottom:0;">Account &amp; Recent Trades</h2>
+          <button id="fb-account-refresh-btn" style="background:none;border:1px solid #333;color:var(--muted);font-size:0.85rem;padding:6px 14px;border-radius:5px;cursor:pointer;font-family:inherit;">Refresh</button>
+        </div>
+        <div id="fb-account-error" style="font-size:0.85rem;color:var(--red);display:none;margin-bottom:12px;"></div>
+        <div id="fb-accounts-list" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+          <div style="color:#444;font-size:0.85rem;">Click Refresh to load your TopstepX account balance.</div>
+        </div>
+        <div id="fb-trades-container">
+          <div style="color:#444;font-size:0.85rem;">No trades loaded yet.</div>
+        </div>
+      </div>
+
       <style>
         @media (max-width: 1000px) { .futures-bot-grid { grid-template-columns: 1fr !important; font-size: 1em !important; } }
       </style>
@@ -682,6 +697,10 @@
         terminal: document.getElementById('fb-terminal'),
         errorEl: document.getElementById('fb-error'),
         statusBadge: document.getElementById('fb-status-badge'),
+        accountRefreshBtn: document.getElementById('fb-account-refresh-btn'),
+        accountError: document.getElementById('fb-account-error'),
+        accountsList: document.getElementById('fb-accounts-list'),
+        tradesContainer: document.getElementById('fb-trades-container'),
       };
       if (!els.startBtn) return; // panel not present on this page
 
@@ -854,6 +873,81 @@
       els.clearBtn.addEventListener('click', () => {
         els.terminal.textContent = 'Waiting for bot output...';
       });
+
+      function showAccountError(msg) {
+        els.accountError.textContent = msg;
+        els.accountError.style.display = msg ? 'block' : 'none';
+      }
+
+      function renderAccounts(accounts) {
+        if (!accounts || accounts.length === 0) {
+          els.accountsList.innerHTML = '<div style="color:#444;font-size:0.85rem;">No accounts found.</div>';
+          return;
+        }
+        els.accountsList.innerHTML = accounts.map(a => `
+          <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:14px 18px;min-width:180px;">
+            <div style="font-size:0.75rem;color:var(--muted);margin-bottom:4px;">${a.name || 'Account'}${a.simulated ? ' (Sim)' : ''}</div>
+            <div style="font-size:1.3rem;font-weight:800;color:var(--accent);">$${Number(a.balance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div style="font-size:0.7rem;color:${a.canTrade ? 'var(--accent)' : 'var(--red)'};margin-top:4px;">${a.canTrade ? 'Trading enabled' : 'Trading disabled'}</div>
+          </div>
+        `).join('');
+      }
+
+      function renderTrades(trades) {
+        if (!trades || trades.length === 0) {
+          els.tradesContainer.innerHTML = '<div style="color:#444;font-size:0.85rem;">No trades in the last 7 days.</div>';
+          return;
+        }
+        const rows = trades.map(t => {
+          const side = t.side === 0 ? 'Buy' : 'Sell';
+          const pnl = t.profitAndLoss;
+          const pnlHtml = pnl === null || pnl === undefined
+            ? '—'
+            : `<span style="color:${pnl >= 0 ? 'var(--accent)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}$${Number(pnl).toFixed(2)}</span>`;
+          const time = t.creationTimestamp ? new Date(t.creationTimestamp).toLocaleString() : '—';
+          return `<tr>
+            <td style="color:var(--muted);font-size:0.8rem;">${time}</td>
+            <td>${t.accountName || '—'}</td>
+            <td style="color:var(--accent);font-weight:600;">${t.contractId || '—'}</td>
+            <td><span style="padding:2px 8px;border-radius:4px;font-size:0.78rem;font-weight:700;background:${side==='Buy'?'rgba(0,230,118,0.12)':'rgba(255,23,68,0.12)'};color:${side==='Buy'?'var(--accent)':'var(--red)'}">${side}</span></td>
+            <td>${t.size ?? '—'}</td>
+            <td>${t.price != null ? '$' + Number(t.price).toFixed(2) : '—'}</td>
+            <td>${pnlHtml}</td>
+            <td style="color:var(--muted);font-size:0.8rem;">${t.fees != null ? '$' + Number(t.fees).toFixed(2) : '—'}</td>
+          </tr>`;
+        }).join('');
+        els.tradesContainer.innerHTML = `<table class="positions-table">
+          <thead><tr><th>Time</th><th>Account</th><th>Contract</th><th>Side</th><th>Qty</th><th>Price</th><th>P&L</th><th>Fees</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+      }
+
+      async function refreshAccountInfo() {
+        showAccountError('');
+        if (!els.username.value || !els.apiKey.value) {
+          showAccountError('Enter your TopstepX username and API key above first.');
+          return;
+        }
+        els.accountRefreshBtn.disabled = true;
+        els.accountRefreshBtn.textContent = 'Loading...';
+        try {
+          const res = await fetch(`${RUNNER_URL}/api/account-info`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: els.username.value, apiKey: els.apiKey.value }),
+          });
+          const j = await res.json();
+          if (!res.ok) { showAccountError(j.error || 'Failed to load account info'); return; }
+          renderAccounts(j.accounts);
+          renderTrades(j.trades);
+        } catch (e) {
+          showAccountError(`Could not reach runner at ${RUNNER_URL}`);
+        } finally {
+          els.accountRefreshBtn.disabled = false;
+          els.accountRefreshBtn.textContent = 'Refresh';
+        }
+      }
+      els.accountRefreshBtn.addEventListener('click', refreshAccountInfo);
 
       pollStatus().then(() => {
         fetch(`${RUNNER_URL}/api/status?userId=${encodeURIComponent(userId)}`)

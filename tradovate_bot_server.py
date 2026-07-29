@@ -39,9 +39,13 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 
+import httpx
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
+
+TOPSTEP_API_URL = os.environ.get("PROJECT_X_API_URL", "https://api.topstepx.com")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # TEMPORARY: pointed at the lightweight connection-test bot while testing the
@@ -281,6 +285,76 @@ def health():
     # No userId required — meant for external uptime pingers (e.g. UptimeRobot)
     # to keep this free-tier Render service from spinning down mid-trade.
     return jsonify({"status": "ok"})
+
+
+@app.route("/api/account-info", methods=["POST", "OPTIONS"])
+def account_info():
+    """Fetch TopstepX account balance(s) + recent trade history on demand.
+
+    Stateless — takes the user's own username/API key directly from the
+    request each time (same credentials as /api/start), does a fresh login,
+    and returns account balances plus recent fills. Does not require the bot
+    to be running.
+    """
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.get_json(force=True, silent=True) or {}
+    username = body.get("username")
+    api_key = body.get("apiKey")
+    if not username or not api_key:
+        return jsonify({"error": "Missing TopstepX credentials: username and API key are required."}), 400
+
+    try:
+        client = httpx.Client(timeout=10)
+        resp = client.post(f"{TOPSTEP_API_URL}/api/Auth/loginKey", json={
+            "userName": username, "apiKey": api_key,
+        })
+        data = resp.json()
+    except Exception as e:
+        return jsonify({"error": f"Could not reach TopstepX: {e}"}), 502
+
+    if not data.get("success", False):
+        return jsonify({"error": data.get("errorMessage") or "TopstepX authentication failed"}), 401
+
+    token = data.get("token")
+    if not token:
+        return jsonify({"error": "TopstepX authentication succeeded but no token received"}), 502
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    try:
+        accts_resp = client.post(f"{TOPSTEP_API_URL}/api/Account/search", headers=headers,
+                                  json={"onlyActiveAccounts": True})
+        accounts = accts_resp.json().get("accounts") or []
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch accounts: {e}"}), 502
+
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=7)
+    all_trades = []
+    for acct in accounts:
+        acct_id = acct.get("id")
+        try:
+            tr_resp = client.post(f"{TOPSTEP_API_URL}/api/Trade/search", headers=headers, json={
+                "accountId": acct_id,
+                "startTimestamp": start.isoformat(),
+                "endTimestamp": end.isoformat(),
+            })
+            trades = tr_resp.json().get("trades") or []
+            for t in trades:
+                t["accountName"] = acct.get("name")
+            all_trades.extend(trades)
+        except Exception:
+            pass
+
+    all_trades.sort(key=lambda t: t.get("creationTimestamp", ""), reverse=True)
+
+    return jsonify({
+        "accounts": [{
+            "id": a.get("id"), "name": a.get("name"), "balance": a.get("balance"),
+            "canTrade": a.get("canTrade"), "simulated": a.get("simulated"),
+        } for a in accounts],
+        "trades": all_trades[:50],
+    })
 
 
 @app.route("/api/status", methods=["GET"])
