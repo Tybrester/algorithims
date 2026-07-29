@@ -260,7 +260,7 @@
           <th>Systems</th>
           <th>Last Active</th>
           <th>Approval</th>
-          <th>Bots Access</th>
+          <th>Bot Approval</th>
           <th>Actions</th>
         </tr></thead>
         <tbody>
@@ -278,7 +278,7 @@
                   : `<button class="action-btn approve" onclick="approveUser('${u.user_id}', '${u.email}')">Approve</button>`
                 }
               </td>
-              <td><button class="action-btn ${on ? 'bots-on' : ''}" onclick="toggleBots('${u.user_id}', ${!on})">${on ? 'Enabled ?' : 'Enable Bots'}</button></td>
+              <td><button class="action-btn ${on ? 'bots-on' : ''}" onclick="toggleBots('${u.user_id}', ${!on})">${on ? 'Approved' : 'Approve Bot'}</button></td>
               <td><button class="action-btn danger" onclick="deleteUser('${u.email}')">Delete</button></td>
             </tr>`;
           }).join('')}
