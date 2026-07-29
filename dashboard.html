@@ -1122,9 +1122,7 @@
 
     // ── Futures Bot (Tradovate) control panel ──────────────────────────────
     (async function initFuturesBot() {
-      // TODO: replace with your deployed server's public URL once hosted
-      // (see tradovate_bot_server.py docstring) — localhost only works for you.
-      const RUNNER_URL = 'http://localhost:8787';
+      const RUNNER_URL = 'https://algorithims-wjmd.onrender.com';
       const ENV = 'demo';
       const els = {
         username: document.getElementById('fb-username'),

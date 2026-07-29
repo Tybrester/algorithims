@@ -9,9 +9,9 @@ process or WebSocket connection, which the futures bot needs all day).
 Each logged-in dashboard user gets their own isolated bot subprocess, runtime
 config file, and log stream, keyed by their Supabase user id (`userId`) — so
 many people can run the bot at once from the same server without stepping on
-each other. Users only ever provide their OWN Tradovate username/password;
-the Tradovate APP_ID/CID/SEC (the API app credentials) are shared server-side
-config, set once by whoever deploys this.
+each other. Tradovate issues API credentials (App ID/CID/Secret) per trading
+account, not per platform, so each user submits their OWN username, password,
+App ID, CID, and Secret from the dashboard — this server never needs its own.
 
 Deploy this once, anywhere reachable by everyone's browser (a small VPS,
 Railway, Render, etc. — NOT your laptop, or it stops working when your PC is
@@ -60,10 +60,9 @@ CORS(app, resources={r"/api/*": {"origins": [
     "http://localhost:3000", "http://127.0.0.1:5500",
 ]}})
 
-# App-level credentials (issued once to the BoofCapital Tradovate API app by
-# Tradovate — NOT per-user). Configure these as environment variables on
-# whatever machine runs this server; end users only ever enter their own
-# Tradovate username/password in the dashboard.
+# Optional fallback only — used if a user leaves their own App ID/CID/Secret
+# blank (e.g. for the operator's own testing). Real users provide their own
+# via the dashboard, since Tradovate issues these per trading account.
 APP_ID      = os.environ.get("TRADOVATE_APP_ID", "")
 APP_VERSION = os.environ.get("TRADOVATE_APP_VERSION", "1.0.0")
 APP_CID     = os.environ.get("TRADOVATE_CID", "")
