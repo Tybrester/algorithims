@@ -275,6 +275,14 @@ def set_config():
     })
 
 
+@app.route("/", methods=["GET"])
+@app.route("/health", methods=["GET"])
+def health():
+    # No userId required — meant for external uptime pingers (e.g. UptimeRobot)
+    # to keep this free-tier Render service from spinning down mid-trade.
+    return jsonify({"status": "ok"})
+
+
 @app.route("/api/status", methods=["GET"])
 def status():
     user_id, err = _require_user_id(request.args)
