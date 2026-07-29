@@ -601,6 +601,64 @@
         <div style="color:#444;font-size:0.85rem;">Loading bots...</div>
       </div>
 
+      <div id="futures-bot-locked" style="display:none;color:#666;font-size:0.85rem;padding:16px 0;">You don't have access to the Futures Bot yet. Contact an admin to enable it for your account.</div>
+      <div id="futures-bot-section" style="display:none;">
+      <div class="section-title" style="margin-top:0;font-size:1.1rem;">Futures Bot (Tradovate)</div>
+      <div style="display:grid;grid-template-columns:420px 1fr;gap:20px;margin-bottom:20px;align-items:start;font-size:1.25em;" class="futures-bot-grid">
+        <div class="panel" style="display:flex;flex-direction:column;gap:14px;padding:24px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h2 style="margin-bottom:0;font-size:1.3rem;">Connect</h2>
+            <span id="fb-status-badge" style="font-size:0.85rem;font-weight:700;padding:5px 12px;border-radius:20px;background:rgba(255,255,255,0.05);color:#555;">○ Stopped</span>
+          </div>
+          <input id="fb-username" type="text" placeholder="Tradovate Username" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
+          <input id="fb-password" type="password" placeholder="API Key" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+              <label for="fb-base-symbol" style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Base Contract</label>
+              <select id="fb-base-symbol" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;box-sizing:border-box;">
+                <option value="MNQ">MNQ (Micro)</option>
+                <option value="NQ">NQ (Full-size)</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="fb-base-qty" style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Base Qty</label>
+              <input id="fb-base-qty" type="number" min="1" step="1" value="1" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;box-sizing:border-box;">
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;">
+              <label for="fb-loss-symbol" style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Loss Contract</label>
+              <select id="fb-loss-symbol" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;box-sizing:border-box;">
+                <option value="MNQ">MNQ (Micro)</option>
+                <option value="NQ">NQ (Full-size)</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label for="fb-loss-qty" style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Loss Qty</label>
+              <input id="fb-loss-qty" type="number" min="1" step="1" value="1" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;box-sizing:border-box;">
+            </div>
+          </div>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:-6px;">Press Enter in a field to push changes to a running bot live</div>
+          <div id="fb-qty-msg" style="font-size:0.8rem;min-height:1.1em;"></div>
+          <div style="display:flex;gap:12px;margin-top:6px;">
+            <button id="fb-start-btn" class="btn-primary" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;">Start</button>
+            <button id="fb-stop-btn" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">Stop</button>
+          </div>
+          <div id="fb-error" style="font-size:0.9rem;color:var(--red);display:none;"></div>
+        </div>
+        <div class="panel" style="display:flex;flex-direction:column;padding:0;overflow:hidden;">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <h2 style="margin-bottom:0;font-size:1.3rem;">Terminal</h2>
+            <button id="fb-clear-btn" style="background:none;border:1px solid #333;color:var(--muted);font-size:0.85rem;padding:6px 14px;border-radius:5px;cursor:pointer;font-family:inherit;">Clear</button>
+          </div>
+          <pre id="fb-terminal" style="flex:1;margin:0;padding:20px 22px;background:#050505;color:#00e676;font-family:'Consolas','Menlo',monospace;font-size:1rem;line-height:1.6;overflow-y:auto;height:75vh;min-height:600px;white-space:pre-wrap;word-break:break-word;">Waiting for bot output...</pre>
+        </div>
+      </div>
+      <style>
+        @media (max-width: 1000px) { .futures-bot-grid { grid-template-columns: 1fr !important; font-size: 1em !important; } }
+      </style>
+      </div>
+
       <div class="section-title">Open Positions</div>
       <div id="positions-container">
         <div class="empty-positions">
@@ -1051,6 +1109,207 @@
       await sbClient.auth.signOut();
       window.location.href = 'index.html';
     }
+
+    // ── Futures Bot (Tradovate) control panel ──────────────────────────────
+    (async function initFuturesBot() {
+      // TODO: replace with your deployed server's public URL once hosted
+      // (see tradovate_bot_server.py docstring) — localhost only works for you.
+      const RUNNER_URL = 'http://localhost:8787';
+      const ENV = 'demo';
+      const els = {
+        username: document.getElementById('fb-username'),
+        password: document.getElementById('fb-password'),
+        baseSymbol: document.getElementById('fb-base-symbol'),
+        baseQty: document.getElementById('fb-base-qty'),
+        lossSymbol: document.getElementById('fb-loss-symbol'),
+        lossQty: document.getElementById('fb-loss-qty'),
+        qtyMsg: document.getElementById('fb-qty-msg'),
+        startBtn: document.getElementById('fb-start-btn'),
+        stopBtn: document.getElementById('fb-stop-btn'),
+        clearBtn: document.getElementById('fb-clear-btn'),
+        terminal: document.getElementById('fb-terminal'),
+        errorEl: document.getElementById('fb-error'),
+        statusBadge: document.getElementById('fb-status-badge'),
+      };
+      if (!els.startBtn) return; // panel not present on this page
+
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (!session) return; // init() will redirect to signin
+      const userId = session.user.id;
+
+      // Only show/enable this panel for trusted users: the fixed admin id, or
+      // anyone with bots_enabled=true in user_settings (same flag used to
+      // reveal the "Bots" sidebar link elsewhere in this file).
+      const isAdmin = userId === 'd0bb84ba-f968-446c-9792-9bcff8849e37';
+      let hasAccess = isAdmin;
+      if (!hasAccess) {
+        const { data: us } = await sbClient.from('user_settings').select('bots_enabled').eq('user_id', userId).maybeSingle();
+        hasAccess = !!us?.bots_enabled;
+      }
+      if (!hasAccess) {
+        const locked = document.getElementById('futures-bot-locked');
+        if (locked) locked.style.display = 'block';
+        return;
+      }
+      const section = document.getElementById('futures-bot-section');
+      if (section) section.style.display = '';
+
+      let evtSource = null;
+
+      // Restore saved (non-secret) fields
+      const saved = JSON.parse(localStorage.getItem('fb_creds') || '{}');
+      if (saved.username) els.username.value = saved.username;
+      if (saved.baseSymbol) els.baseSymbol.value = saved.baseSymbol;
+      if (saved.baseQty) els.baseQty.value = saved.baseQty;
+      if (saved.lossSymbol) els.lossSymbol.value = saved.lossSymbol;
+      if (saved.lossQty) els.lossQty.value = saved.lossQty;
+
+      function saveFields() {
+        localStorage.setItem('fb_creds', JSON.stringify({
+          username: els.username.value,
+          baseSymbol: els.baseSymbol.value, baseQty: els.baseQty.value,
+          lossSymbol: els.lossSymbol.value, lossQty: els.lossQty.value,
+        }));
+      }
+
+      function showError(msg) {
+        els.errorEl.textContent = msg;
+        els.errorEl.style.display = msg ? 'block' : 'none';
+      }
+
+      function showQtyMsg(msg, isError) {
+        els.qtyMsg.textContent = msg;
+        els.qtyMsg.style.color = isError ? 'var(--red)' : 'var(--accent)';
+      }
+
+      async function pushConfigLive() {
+        const baseQty = parseInt(els.baseQty.value, 10);
+        const lossQty = parseInt(els.lossQty.value, 10);
+        if (!baseQty || baseQty < 1 || !lossQty || lossQty < 1) {
+          showQtyMsg('Enter valid quantities (1+)', true);
+          return;
+        }
+        saveFields();
+        try {
+          const res = await fetch(`${RUNNER_URL}/api/set-config`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              baseSymbol: els.baseSymbol.value, baseQty,
+              lossSymbol: els.lossSymbol.value, lossQty,
+            }),
+          });
+          const j = await res.json();
+          if (!res.ok) { showQtyMsg(j.error || 'Failed to update config', true); return; }
+          showQtyMsg(`Updated: base=${j.baseQty}x${j.baseSymbol} loss=${j.lossQty}x${j.lossSymbol}`, false);
+        } catch (err) {
+          showQtyMsg(`Could not reach runner at ${RUNNER_URL}`, true);
+        }
+      }
+
+      [els.baseQty, els.lossQty, els.baseSymbol, els.lossSymbol].forEach((el) => {
+        el.addEventListener('keydown', (e) => {
+          if (e.key !== 'Enter') return;
+          e.preventDefault();
+          pushConfigLive();
+        });
+      });
+      els.baseSymbol.addEventListener('change', pushConfigLive);
+      els.lossSymbol.addEventListener('change', pushConfigLive);
+
+      function appendLine(line) {
+        const atBottom = els.terminal.scrollHeight - els.terminal.scrollTop - els.terminal.clientHeight < 40;
+        if (els.terminal.textContent === 'Waiting for bot output...') els.terminal.textContent = '';
+        els.terminal.textContent += line + '\n';
+        if (atBottom) els.terminal.scrollTop = els.terminal.scrollHeight;
+      }
+
+      function setRunning(running) {
+        els.statusBadge.textContent = running ? '● Running' : '○ Stopped';
+        els.statusBadge.style.background = running ? 'rgba(0,230,118,0.12)' : 'rgba(255,255,255,0.05)';
+        els.statusBadge.style.color = running ? 'var(--accent)' : '#555';
+      }
+
+      function connectStream() {
+        const base = RUNNER_URL;
+        if (evtSource) evtSource.close();
+        evtSource = new EventSource(`${base}/api/stream?userId=${encodeURIComponent(userId)}`);
+        evtSource.onmessage = (e) => {
+          try { appendLine(JSON.parse(e.data)); } catch { appendLine(e.data); }
+        };
+        evtSource.onerror = () => {
+          appendLine('[dashboard] Lost connection to runner — retrying...');
+        };
+      }
+
+      async function pollStatus() {
+        const base = RUNNER_URL;
+        try {
+          const res = await fetch(`${base}/api/status?userId=${encodeURIComponent(userId)}`);
+          const j = await res.json();
+          setRunning(!!j.running);
+        } catch {
+          setRunning(false);
+        }
+      }
+
+      els.startBtn.addEventListener('click', async () => {
+        showError('');
+        saveFields();
+        const base = RUNNER_URL;
+        const body = {
+          userId,
+          env: ENV,
+          username: els.username.value,
+          password: els.password.value,
+          baseSymbol: els.baseSymbol.value,
+          baseQty: parseInt(els.baseQty.value, 10) || 1,
+          lossSymbol: els.lossSymbol.value,
+          lossQty: parseInt(els.lossQty.value, 10) || 1,
+        };
+        try {
+          const res = await fetch(`${base}/api/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          const j = await res.json();
+          if (!res.ok) { showError(j.error || 'Failed to start bot'); return; }
+          connectStream();
+          setRunning(true);
+        } catch (e) {
+          showError(`Could not reach runner at ${base} — is tradovate_bot_server.py running?`);
+        }
+      });
+
+      els.stopBtn.addEventListener('click', async () => {
+        showError('');
+        const base = RUNNER_URL;
+        try {
+          await fetch(`${base}/api/stop`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId }),
+          });
+          setRunning(false);
+        } catch (e) {
+          showError(`Could not reach runner at ${base}`);
+        }
+      });
+
+      els.clearBtn.addEventListener('click', () => {
+        els.terminal.textContent = 'Waiting for bot output...';
+      });
+
+      pollStatus().then(() => {
+        fetch(`${RUNNER_URL}/api/status?userId=${encodeURIComponent(userId)}`)
+          .then(r => r.json())
+          .then(j => { if (j.running) connectStream(); })
+          .catch(() => {});
+      });
+      setInterval(pollStatus, 10000);
+    })();
 
     init();
 
