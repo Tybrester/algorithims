@@ -57,6 +57,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": [
     "https://boofcapital.com", "https://www.boofcapital.com",
     "http://localhost:3000", "http://127.0.0.1:5500",
+    "http://localhost:5500", "http://127.0.0.1:3000",
 ]}})
 
 # Optional fallback only — used if a user leaves their own username/API key
