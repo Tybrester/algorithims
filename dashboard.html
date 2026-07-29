@@ -511,16 +511,7 @@
       </div>
       <div class="sidebar-section">Menu</div>
       <a href="dashboard.html" class="sidebar-item active">Dashboard</a>
-      <a href="trades.html" class="sidebar-item">Trades</a>
-      <a href="logs.html" class="sidebar-item">
-        <span class="sidebar-icon"></span> Logs
-      </a>
-      <a href="logs.html" class="sidebar-item">Logs</a>
       <a href="paper-market.html" class="sidebar-item">Paper Market</a>
-      <a href="alerts.html" class="sidebar-item">Systems</a>
-      <a href="accounts.html" class="sidebar-item">Accounts</a>
-      <div class="sidebar-section" style="margin-top:24px;">Bots</div>
-      <a href="bots.html" class="sidebar-item">Bots</a>
       <div class="sidebar-section" style="margin-top:24px;">Help</div>
       <a href="how-it-works.html" class="sidebar-item">How it Works</a>
     </div>
@@ -531,27 +522,8 @@
       <a href="dashboard.html" class="sidebar-item active">
         <span class="sidebar-icon"></span> Dashboard
       </a>
-      <a href="trades.html" class="sidebar-item">
-        <span class="sidebar-icon"></span> Trades
-      </a>
-      <a href="logs.html" class="sidebar-item">
-        <span class="sidebar-icon"></span> Logs
-      </a>
-      <a href="logs.html" class="sidebar-item">
-        <span class="sidebar-icon"></span> Logs
-      </a>
       <a href="paper-market.html" class="sidebar-item">
         <span class="sidebar-icon"></span> Paper Market
-      </a>
-      <a href="alerts.html" class="sidebar-item">
-        <span class="sidebar-icon"></span> Systems
-      </a>
-      <a href="accounts.html" class="sidebar-item">
-        <span class="sidebar-icon"></span> Accounts
-      </a>
-      <div class="sidebar-section" style="margin-top:24px;">Bots</div>
-      <a href="bots.html" class="sidebar-item">
-        <span class="sidebar-icon"></span> Bots
       </a>
       <div class="sidebar-section" style="margin-top:24px;">Help</div>
       <a href="how-it-works.html" class="sidebar-item">
@@ -569,10 +541,6 @@
         <h1>Welcome back, <span id="user-first-name">Trader</span>.</h1>
         <p>Here's an overview of your trading system.</p>
       </div>
-
-      <select id="broker-selector" style="background:#1a1a1a;border:1px solid #2a2a2a;color:#aaa;font-size:0.72rem;font-family:inherit;padding:6px 12px;border-radius:5px;outline:none;cursor:pointer;margin-bottom:16px;">
-        <option value="paper">BoofCapital paper</option>
-      </select>
 
       <div class="stats-row">
         <div class="stat-card" style="position:relative;">
@@ -727,7 +695,6 @@
 
       const balEl = document.getElementById('stat-balance');
       const balSub = document.getElementById('stat-balance-sub');
-      const brokerSel = document.getElementById('broker-selector');
 
       // Account Balance = paper_accounts (manual site trades, separate from bots)
       const { data: paperAcct } = await sbClient.from('paper_accounts').select('balance').eq('user_id', user.id).maybeSingle();
@@ -748,34 +715,8 @@
       if (pnlPctEl) { pnlPctEl.textContent = (manualPct >= 0 ? '+' : '') + manualPct.toFixed(2) + '%'; pnlPctEl.style.color = pnlColor; }
       if (pnlAbsEl) { pnlAbsEl.textContent = (manualPnl >= 0 ? '+$' : '-$') + Math.abs(manualPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); pnlAbsEl.style.color = pnlColor; }
 
-      // Load tastytrade connection
-      const { data: credRow } = await sbClient.from('broker_credentials').select('broker').eq('user_id', user.id).eq('broker', 'tastytrade').maybeSingle();
-      const hasTasty = !!credRow;
-
-      const opt1 = document.createElement('option');
-      opt1.value = 'paper'; opt1.textContent = 'EasyTrade Paper';
-      brokerSel.appendChild(opt1);
-      if (hasTasty) {
-        const opt2 = document.createElement('option');
-        opt2.value = 'tastytrade'; opt2.textContent = 'tastytrade';
-        brokerSel.appendChild(opt2);
-      }
-
-      function showBalance(key) {
-        if (key === 'paper') {
-          balEl.textContent = '$' + paperBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          balSub.textContent = 'EasyTrade Paper · Simulated';
-        } else if (key === 'tastytrade') {
-          balEl.textContent = '—';
-          balSub.textContent = 'tastytrade · Live Account';
-        } else {
-          balEl.textContent = '—'; balSub.textContent = 'Select an account';
-        }
-      }
-
-      brokerSel.value = 'paper';
-      showBalance('paper');
-      brokerSel.addEventListener('change', () => showBalance(brokerSel.value));
+      balEl.textContent = '$' + paperBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      balSub.textContent = 'EasyTrade Paper · Simulated';
 
       function normalizeSymbol(symbol) {
         if (!symbol) return symbol;
@@ -855,10 +796,8 @@
         console.log('TOTAL Unrealized PnL:', unrealizedPnl.toFixed(2));
 
         // Account Balance (stored/base balance)
-        if (brokerSel.value === 'paper') {
-          balEl.textContent = '$' + storedBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          balSub.textContent = 'All Bots · Paper Balance';
-        }
+        balEl.textContent = '$' + storedBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        balSub.textContent = 'All Bots · Paper Balance';
 
         // Unrealized P&L
         const unrealEl = document.getElementById('stat-unrealized');
