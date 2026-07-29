@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tradovate Bot Control Server — MULTI-TENANT
+TopstepX Bot Control Server — MULTI-TENANT
 --------------------------------------------
 Always-on Flask service that the BoofCapital dashboard talks to directly
 (NOT through Supabase — Supabase Edge Functions can't hold a long-running
@@ -9,23 +9,22 @@ process or WebSocket connection, which the futures bot needs all day).
 Each logged-in dashboard user gets their own isolated bot subprocess, runtime
 config file, and log stream, keyed by their Supabase user id (`userId`) — so
 many people can run the bot at once from the same server without stepping on
-each other. Tradovate issues API credentials (App ID/CID/Secret) per trading
-account, not per platform, so each user submits their OWN username, password,
-App ID, CID, and Secret from the dashboard — this server never needs its own.
+each other. TopstepX issues one username + API key per trading account, not
+per platform, so each user submits their OWN username and API key from the
+dashboard — this server never needs its own.
 
 Deploy this once, anywhere reachable by everyone's browser (a small VPS,
 Railway, Render, etc. — NOT your laptop, or it stops working when your PC is
 off/asleep):
 
     pip install flask flask-cors
-    export TRADOVATE_APP_ID=... TRADOVATE_CID=... TRADOVATE_SEC=...
     python tradovate_bot_server.py
 
 Then point the dashboard's RUNNER_URL (in dashboard.html) at that deployment's
 public URL instead of http://localhost:8787.
 
 Endpoints (all take/return JSON; userId is required on every call):
-  POST /api/start      {userId, username, password, env, baseSymbol, baseQty, lossSymbol, lossQty}
+  POST /api/start      {userId, username, apiKey, baseSymbol, baseQty, lossSymbol, lossQty}
   POST /api/stop       {userId}
   POST /api/set-config {userId, baseSymbol, baseQty, lossSymbol, lossQty}  (live update, no restart)
   GET  /api/status?userId=...
@@ -39,15 +38,15 @@ import subprocess
 import sys
 import threading
 import time
-import uuid
 
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # TEMPORARY: pointed at the lightweight connection-test bot while testing the
-# dashboard panel. Switch back to NQ_Tradovate_Copy.py before going live.
-BOT_SCRIPT = os.path.join(BASE_DIR, "tradovate_test_bot.py")
+# dashboard panel. Switch to a TopstepX-native version of boof_futures_live.py
+# before going live.
+BOT_SCRIPT = os.path.join(BASE_DIR, "topstep_test_bot.py")
 # Per-user runtime config files live here — one JSON file per userId so
 # concurrent users' live qty/symbol updates never collide.
 RUNTIME_CONFIG_DIR = os.path.join(BASE_DIR, "bot_runtime_configs")
@@ -60,13 +59,11 @@ CORS(app, resources={r"/api/*": {"origins": [
     "http://localhost:3000", "http://127.0.0.1:5500",
 ]}})
 
-# Optional fallback only — used if a user leaves their own App ID/CID/Secret
+# Optional fallback only — used if a user leaves their own username/API key
 # blank (e.g. for the operator's own testing). Real users provide their own
-# via the dashboard, since Tradovate issues these per trading account.
-APP_ID      = os.environ.get("TRADOVATE_APP_ID", "")
-APP_VERSION = os.environ.get("TRADOVATE_APP_VERSION", "1.0.0")
-APP_CID     = os.environ.get("TRADOVATE_CID", "")
-APP_SEC     = os.environ.get("TRADOVATE_SEC", "")
+# via the dashboard, since TopstepX issues these per trading account.
+PX_USERNAME = os.environ.get("PROJECT_X_USERNAME", "")
+PX_API_KEY  = os.environ.get("PROJECT_X_API_KEY", "")
 
 # ── Per-user session state ──────────────────────────────────────────────────
 # _sessions[user_id] = {
@@ -148,21 +145,14 @@ def start_bot():
     if err:
         return err
 
-    # Each Tradovate user has their OWN API key (App ID/CID/Secret) tied to
-    # their own live funded account (Tradovate's retail API Access add-on) —
-    # this is NOT a single shared platform credential. Prefer whatever the
-    # user submitted; only fall back to the runner's own env vars (useful for
-    # the operator's personal testing) if the user left a field blank.
-    user_app_id = body.get("appId") or APP_ID
-    user_cid    = body.get("cid") or APP_CID
-    user_sec    = body.get("sec") or APP_SEC
-    if not user_app_id or not user_cid or not user_sec:
-        return jsonify({"error": "Missing Tradovate API credentials: App ID, CID, and Secret are required (from your Tradovate Application Settings \u2192 API Access)."}), 400
-
-    required = ["username", "password"]
-    missing = [f for f in required if not body.get(f)]
-    if missing:
-        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+    # TopstepX issues one username + API key per trading account (much
+    # simpler than Tradovate's 5-credential model) — each user submits their
+    # own from the dashboard. Only fall back to the runner's own env vars
+    # (useful for the operator's personal testing) if left blank.
+    user_username = body.get("username") or PX_USERNAME
+    user_api_key  = body.get("apiKey") or PX_API_KEY
+    if not user_username or not user_api_key:
+        return jsonify({"error": "Missing TopstepX credentials: username and API key are required (from TopstepX \u2192 Settings \u2192 API Keys)."}), 400
 
     sess = _get_session(user_id)
 
@@ -171,15 +161,9 @@ def start_bot():
             return jsonify({"error": "Bot is already running. Stop it first."}), 409
 
         env = dict(os.environ)
-        env["TRADOVATE_ENV"]         = body.get("env", "demo")
-        env["TRADOVATE_USERNAME"]    = body["username"]
-        env["TRADOVATE_PASSWORD"]    = body["password"]
-        env["TRADOVATE_APP_ID"]      = user_app_id
-        env["TRADOVATE_APP_VERSION"] = body.get("appVersion") or APP_VERSION
-        env["TRADOVATE_CID"]         = user_cid
-        env["TRADOVATE_SEC"]         = user_sec
-        env["TRADOVATE_DEVICE_ID"]   = body.get("deviceId") or str(uuid.uuid4())
-        env["PYTHONUNBUFFERED"]      = "1"
+        env["PROJECT_X_USERNAME"] = user_username
+        env["PROJECT_X_API_KEY"]  = user_api_key
+        env["PYTHONUNBUFFERED"]   = "1"
         # Tell the bot process which per-user config file to poll.
         env["BOT_RUNTIME_CONFIG_PATH"] = _config_path(user_id)
 
@@ -217,7 +201,7 @@ def start_bot():
         sess["started_at"] = time.time()
         with sess["log_lock"]:
             sess["log_lines"].clear()
-        _broadcast(sess, f"[server] Bot started (env={env['TRADOVATE_ENV']}) pid={proc.pid}")
+        _broadcast(sess, f"[server] Bot started pid={proc.pid}")
 
         t = threading.Thread(target=_reader, args=(sess, proc), daemon=True)
         t.start()

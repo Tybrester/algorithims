@@ -603,25 +603,16 @@
 
       <div id="futures-bot-locked" style="display:none;color:#666;font-size:0.85rem;padding:16px 0;">You don't have access to the Futures Bot yet. Contact an admin to enable it for your account.</div>
       <div id="futures-bot-section" style="display:none;">
-      <div class="section-title" style="margin-top:0;font-size:1.1rem;">Futures Bot (Tradovate)</div>
+      <div class="section-title" style="margin-top:0;font-size:1.1rem;">Futures Bot (TopstepX)</div>
       <div style="display:grid;grid-template-columns:420px 1fr;gap:20px;margin-bottom:20px;align-items:start;font-size:1.25em;" class="futures-bot-grid">
         <div class="panel" style="display:flex;flex-direction:column;gap:14px;padding:24px;">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <h2 style="margin-bottom:0;font-size:1.3rem;">Connect</h2>
             <span id="fb-status-badge" style="font-size:0.85rem;font-weight:700;padding:5px 12px;border-radius:20px;background:rgba(255,255,255,0.05);color:#555;">○ Stopped</span>
           </div>
-          <input id="fb-username" type="text" placeholder="Tradovate Username" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
-          <input id="fb-password" type="password" placeholder="Tradovate Password" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
-          <div style="font-size:0.75rem;color:var(--muted);margin-top:-6px;">Your own Tradovate API key (Web Trader → Application Settings → API Access, $25/mo add-on, requires a live funded account)</div>
-          <input id="fb-app-id" type="text" placeholder="App ID" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
-          <div style="display:flex;gap:12px;">
-            <div style="flex:1;">
-              <input id="fb-cid" type="text" placeholder="CID" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;box-sizing:border-box;">
-            </div>
-            <div style="flex:1;">
-              <input id="fb-sec" type="password" placeholder="Secret" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;box-sizing:border-box;">
-            </div>
-          </div>
+          <input id="fb-username" type="text" placeholder="TopstepX Username" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
+          <input id="fb-api-key" type="password" placeholder="API Key" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:-6px;">Your own TopstepX API key (TopstepX → Settings → API Keys)</div>
           <div style="display:flex;gap:12px;">
             <div style="flex:1;">
               <label for="fb-base-symbol" style="display:block;font-size:0.8rem;color:var(--muted);margin-bottom:6px;">Base Contract</label>
@@ -1120,16 +1111,12 @@
       window.location.href = 'index.html';
     }
 
-    // ── Futures Bot (Tradovate) control panel ──────────────────────────────
+    // ── Futures Bot (TopstepX) control panel ──────────────────────────────
     (async function initFuturesBot() {
       const RUNNER_URL = 'https://algorithims-wjmd.onrender.com';
-      const ENV = 'demo';
       const els = {
         username: document.getElementById('fb-username'),
-        password: document.getElementById('fb-password'),
-        appId: document.getElementById('fb-app-id'),
-        cid: document.getElementById('fb-cid'),
-        sec: document.getElementById('fb-sec'),
+        apiKey: document.getElementById('fb-api-key'),
         baseSymbol: document.getElementById('fb-base-symbol'),
         baseQty: document.getElementById('fb-base-qty'),
         lossSymbol: document.getElementById('fb-loss-symbol'),
@@ -1170,17 +1157,16 @@
       // Restore saved (non-secret) fields
       const saved = JSON.parse(localStorage.getItem('fb_creds') || '{}');
       if (saved.username) els.username.value = saved.username;
-      if (saved.appId) els.appId.value = saved.appId;
       if (saved.baseSymbol) els.baseSymbol.value = saved.baseSymbol;
       if (saved.baseQty) els.baseQty.value = saved.baseQty;
       if (saved.lossSymbol) els.lossSymbol.value = saved.lossSymbol;
       if (saved.lossQty) els.lossQty.value = saved.lossQty;
 
       function saveFields() {
-        // Only non-secret fields are persisted locally — password, CID and
-        // Secret are re-entered each session.
+        // Only non-secret fields are persisted locally — the API key is
+        // re-entered each session.
         localStorage.setItem('fb_creds', JSON.stringify({
-          username: els.username.value, appId: els.appId.value,
+          username: els.username.value,
           baseSymbol: els.baseSymbol.value, baseQty: els.baseQty.value,
           lossSymbol: els.lossSymbol.value, lossQty: els.lossQty.value,
         }));
@@ -1274,12 +1260,8 @@
         const base = RUNNER_URL;
         const body = {
           userId,
-          env: ENV,
           username: els.username.value,
-          password: els.password.value,
-          appId: els.appId.value,
-          cid: els.cid.value,
-          sec: els.sec.value,
+          apiKey: els.apiKey.value,
           baseSymbol: els.baseSymbol.value,
           baseQty: parseInt(els.baseQty.value, 10) || 1,
           lossSymbol: els.lossSymbol.value,
@@ -1296,7 +1278,7 @@
           connectStream();
           setRunning(true);
         } catch (e) {
-          showError(`Could not reach runner at ${base} — is tradovate_bot_server.py running?`);
+          showError(`Could not reach runner at ${base} — is the bot control server running?`);
         }
       });
 
