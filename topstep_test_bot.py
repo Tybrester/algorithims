@@ -38,7 +38,7 @@ API_KEY  = os.environ.get("PROJECT_X_API_KEY", "")
 CONTRACT_SEARCH = {"NQ": "NQ", "MNQ": "MNQ"}
 DEFAULT_SYMBOL_KEY = os.environ.get("TOPSTEP_TEST_SYMBOL", "MNQ")
 DEFAULT_QTY = 1
-INTERVAL_SECONDS = 5 * 60
+INTERVAL_SECONDS = 2 * 60
 
 # Set by tradovate_bot_server.py to a per-user config file — polled each loop
 # iteration so the dashboard's fields can update THIS user's running bot
