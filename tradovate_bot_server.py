@@ -34,6 +34,7 @@ Endpoints (all take/return JSON; userId is required on every call):
 import json
 import os
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -58,6 +59,9 @@ CORS(app, resources={r"/api/*": {"origins": [
     "https://boofcapital.com", "https://www.boofcapital.com",
     "http://localhost:3000", "http://127.0.0.1:5500",
     "http://localhost:5500", "http://127.0.0.1:3000",
+    # Local dev preview tooling (e.g. IDE proxy ports) — origin varies per
+    # session, so allow any localhost/127.0.0.1 port during local testing.
+    re.compile(r"^https?://(localhost|127\.0\.0\.1):\d+$"),
 ]}})
 
 # Optional fallback only — used if a user leaves their own username/API key
