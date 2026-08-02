@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Tradovate Bot Control Server — MULTI-TENANT
+TopstepX Bot Control Server — MULTI-TENANT
 --------------------------------------------
 Always-on Flask service that the BoofCapital dashboard talks to directly
 (NOT through Supabase — Supabase Edge Functions can't hold a long-running
@@ -9,23 +9,22 @@ process or WebSocket connection, which the futures bot needs all day).
 Each logged-in dashboard user gets their own isolated bot subprocess, runtime
 config file, and log stream, keyed by their Supabase user id (`userId`) — so
 many people can run the bot at once from the same server without stepping on
-each other. Users only ever provide their OWN Tradovate username/password;
-the Tradovate APP_ID/CID/SEC (the API app credentials) are shared server-side
-config, set once by whoever deploys this.
+each other. TopstepX issues one username + API key per trading account, not
+per platform, so each user submits their OWN username and API key from the
+dashboard — this server never needs its own.
 
 Deploy this once, anywhere reachable by everyone's browser (a small VPS,
 Railway, Render, etc. — NOT your laptop, or it stops working when your PC is
 off/asleep):
 
     pip install flask flask-cors
-    export TRADOVATE_APP_ID=... TRADOVATE_CID=... TRADOVATE_SEC=...
     python tradovate_bot_server.py
 
 Then point the dashboard's RUNNER_URL (in dashboard.html) at that deployment's
 public URL instead of http://localhost:8787.
 
 Endpoints (all take/return JSON; userId is required on every call):
-  POST /api/start      {userId, username, password, env, baseSymbol, baseQty, lossSymbol, lossQty}
+  POST /api/start      {userId, username, apiKey, baseSymbol, baseQty, lossSymbol, lossQty}
   POST /api/stop       {userId}
   POST /api/set-config {userId, baseSymbol, baseQty, lossSymbol, lossQty}  (live update, no restart)
   GET  /api/status?userId=...
@@ -35,19 +34,29 @@ Endpoints (all take/return JSON; userId is required on every call):
 import json
 import os
 import queue
+import re
 import subprocess
 import sys
 import threading
 import time
-import uuid
+from datetime import datetime, timedelta, timezone
 
+import httpx
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
+TOPSTEP_API_URL = os.environ.get("PROJECT_X_API_URL", "https://api.topstepx.com")
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# TEMPORARY: pointed at the lightweight connection-test bot while testing the
-# dashboard panel. Switch back to NQ_Tradovate_Copy.py before going live.
-BOT_SCRIPT = os.path.join(BASE_DIR, "tradovate_test_bot.py")
+
+# Bot scripts — keyed by botType sent from the dashboard.
+# Each user can run one instance of each type simultaneously.
+BOT_SCRIPTS = {
+    "orb": os.path.join(BASE_DIR, "boof_futures_live.py"),
+    "fade": os.path.join(BASE_DIR, "fade_scalp_live.py"),
+}
+DEFAULT_BOT_TYPE = "orb"
+
 # Per-user runtime config files live here — one JSON file per userId so
 # concurrent users' live qty/symbol updates never collide.
 RUNTIME_CONFIG_DIR = os.path.join(BASE_DIR, "bot_runtime_configs")
@@ -58,16 +67,17 @@ app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": [
     "https://boofcapital.com", "https://www.boofcapital.com",
     "http://localhost:3000", "http://127.0.0.1:5500",
+    "http://localhost:5500", "http://127.0.0.1:3000",
+    # Local dev preview tooling (e.g. IDE proxy ports) — origin varies per
+    # session, so allow any localhost/127.0.0.1 port during local testing.
+    re.compile(r"^https?://(localhost|127\.0\.0\.1):\d+$"),
 ]}})
 
-# App-level credentials (issued once to the BoofCapital Tradovate API app by
-# Tradovate — NOT per-user). Configure these as environment variables on
-# whatever machine runs this server; end users only ever enter their own
-# Tradovate username/password in the dashboard.
-APP_ID      = os.environ.get("TRADOVATE_APP_ID", "")
-APP_VERSION = os.environ.get("TRADOVATE_APP_VERSION", "1.0.0")
-APP_CID     = os.environ.get("TRADOVATE_CID", "")
-APP_SEC     = os.environ.get("TRADOVATE_SEC", "")
+# Optional fallback only — used if a user leaves their own username/API key
+# blank (e.g. for the operator's own testing). Real users provide their own
+# via the dashboard, since TopstepX issues these per trading account.
+PX_USERNAME = os.environ.get("PROJECT_X_USERNAME", "")
+PX_API_KEY  = os.environ.get("PROJECT_X_API_KEY", "")
 
 # ── Per-user session state ──────────────────────────────────────────────────
 # _sessions[user_id] = {
@@ -85,13 +95,18 @@ def _safe_filename(user_id: str) -> str:
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in user_id)
 
 
-def _config_path(user_id: str) -> str:
-    return os.path.join(RUNTIME_CONFIG_DIR, f"{_safe_filename(user_id)}.json")
+def _session_key(user_id: str, bot_type: str) -> str:
+    return f"{user_id}:{bot_type}"
 
 
-def _get_session(user_id: str) -> dict:
+def _config_path(user_id: str, bot_type: str = "orb") -> str:
+    return os.path.join(RUNTIME_CONFIG_DIR, f"{_safe_filename(user_id)}_{bot_type}.json")
+
+
+def _get_session(user_id: str, bot_type: str = "orb") -> dict:
+    key = _session_key(user_id, bot_type)
     with _sessions_lock:
-        sess = _sessions.get(user_id)
+        sess = _sessions.get(key)
         if sess is None:
             sess = {
                 "process": None,
@@ -100,7 +115,7 @@ def _get_session(user_id: str) -> dict:
                 "log_lock": threading.Lock(),
                 "subscribers": [],
             }
-            _sessions[user_id] = sess
+            _sessions[key] = sess
         return sess
 
 
@@ -149,40 +164,31 @@ def start_bot():
     if err:
         return err
 
-    # Each Tradovate user has their OWN API key (App ID/CID/Secret) tied to
-    # their own live funded account (Tradovate's retail API Access add-on) —
-    # this is NOT a single shared platform credential. Prefer whatever the
-    # user submitted; only fall back to the runner's own env vars (useful for
-    # the operator's personal testing) if the user left a field blank.
-    user_app_id = body.get("appId") or APP_ID
-    user_cid    = body.get("cid") or APP_CID
-    user_sec    = body.get("sec") or APP_SEC
-    if not user_app_id or not user_cid or not user_sec:
-        return jsonify({"error": "Missing Tradovate API credentials: App ID, CID, and Secret are required (from your Tradovate Application Settings \u2192 API Access)."}), 400
+    bot_type = body.get("botType", DEFAULT_BOT_TYPE)
+    if bot_type not in BOT_SCRIPTS:
+        return jsonify({"error": f"Unknown botType: {bot_type}. Valid: {list(BOT_SCRIPTS.keys())}"}), 400
 
-    required = ["username", "password"]
-    missing = [f for f in required if not body.get(f)]
-    if missing:
-        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+    # TopstepX issues one username + API key per trading account (much
+    # simpler than Tradovate's 5-credential model) — each user submits their
+    # own from the dashboard. Only fall back to the runner's own env vars
+    # (useful for the operator's personal testing) if left blank.
+    user_username = body.get("username") or PX_USERNAME
+    user_api_key  = body.get("apiKey") or PX_API_KEY
+    if not user_username or not user_api_key:
+        return jsonify({"error": "Missing TopstepX credentials: username and API key are required (from TopstepX \u2192 Settings \u2192 API Keys)."}), 400
 
-    sess = _get_session(user_id)
+    sess = _get_session(user_id, bot_type)
 
     with _sessions_lock:
         if sess["process"] is not None and sess["process"].poll() is None:
-            return jsonify({"error": "Bot is already running. Stop it first."}), 409
+            return jsonify({"error": f"{bot_type.upper()} bot is already running. Stop it first."}), 409
 
         env = dict(os.environ)
-        env["TRADOVATE_ENV"]         = body.get("env", "demo")
-        env["TRADOVATE_USERNAME"]    = body["username"]
-        env["TRADOVATE_PASSWORD"]    = body["password"]
-        env["TRADOVATE_APP_ID"]      = user_app_id
-        env["TRADOVATE_APP_VERSION"] = body.get("appVersion") or APP_VERSION
-        env["TRADOVATE_CID"]         = user_cid
-        env["TRADOVATE_SEC"]         = user_sec
-        env["TRADOVATE_DEVICE_ID"]   = body.get("deviceId") or str(uuid.uuid4())
-        env["PYTHONUNBUFFERED"]      = "1"
+        env["PROJECT_X_USERNAME"] = user_username
+        env["PROJECT_X_API_KEY"]  = user_api_key
+        env["PYTHONUNBUFFERED"]   = "1"
         # Tell the bot process which per-user config file to poll.
-        env["BOT_RUNTIME_CONFIG_PATH"] = _config_path(user_id)
+        env["BOT_RUNTIME_CONFIG_PATH"] = _config_path(user_id, bot_type)
 
         try:
             base_qty = max(1, int(body.get("baseQty", 1)))
@@ -195,7 +201,7 @@ def start_bot():
         base_symbol = body.get("baseSymbol") if body.get("baseSymbol") in ("NQ", "MNQ") else "MNQ"
         loss_symbol = body.get("lossSymbol") if body.get("lossSymbol") in ("NQ", "MNQ") else base_symbol
         try:
-            with open(_config_path(user_id), "w") as f:
+            with open(_config_path(user_id, bot_type), "w") as f:
                 json.dump({
                     "baseSymbol": base_symbol, "baseQty": base_qty,
                     "lossSymbol": loss_symbol, "lossQty": loss_qty,
@@ -203,27 +209,28 @@ def start_bot():
         except Exception:
             pass
 
+        bot_script = BOT_SCRIPTS[bot_type]
         try:
             proc = subprocess.Popen(
-                [sys.executable, BOT_SCRIPT],
+                [sys.executable, bot_script],
                 cwd=BASE_DIR,
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
         except Exception as e:
-            return jsonify({"error": f"Failed to launch bot: {e}"}), 500
+            return jsonify({"error": f"Failed to launch {bot_type} bot: {e}"}), 500
 
         sess["process"] = proc
         sess["started_at"] = time.time()
         with sess["log_lock"]:
             sess["log_lines"].clear()
-        _broadcast(sess, f"[server] Bot started (env={env['TRADOVATE_ENV']}) pid={proc.pid}")
+        _broadcast(sess, f"[server] {bot_type.upper()} bot started pid={proc.pid}")
 
         t = threading.Thread(target=_reader, args=(sess, proc), daemon=True)
         t.start()
 
-    return jsonify({"status": "started", "pid": proc.pid})
+    return jsonify({"status": "started", "botType": bot_type, "pid": proc.pid})
 
 
 @app.route("/api/stop", methods=["POST", "OPTIONS"])
@@ -235,7 +242,8 @@ def stop_bot():
     if err:
         return err
 
-    sess = _get_session(user_id)
+    bot_type = body.get("botType", DEFAULT_BOT_TYPE)
+    sess = _get_session(user_id, bot_type)
     proc = sess["process"]
     if proc is None or proc.poll() is not None:
         return jsonify({"status": "not_running"})
@@ -245,8 +253,8 @@ def stop_bot():
     except subprocess.TimeoutExpired:
         proc.kill()
     sess["process"] = None
-    _broadcast(sess, "[server] Bot stopped by user.")
-    return jsonify({"status": "stopped"})
+    _broadcast(sess, f"[server] {bot_type.upper()} bot stopped by user.")
+    return jsonify({"status": "stopped", "botType": bot_type})
 
 
 @app.route("/api/set-config", methods=["POST", "OPTIONS"])
@@ -258,6 +266,7 @@ def set_config():
     if err:
         return err
 
+    bot_type = body.get("botType", DEFAULT_BOT_TYPE)
     base_symbol = body.get("baseSymbol")
     loss_symbol = body.get("lossSymbol")
     if base_symbol not in ("NQ", "MNQ") or loss_symbol not in ("NQ", "MNQ"):
@@ -271,14 +280,14 @@ def set_config():
         return jsonify({"error": "baseQty and lossQty must be at least 1"}), 400
 
     try:
-        with open(_config_path(user_id), "w") as f:
+        with open(_config_path(user_id, bot_type), "w") as f:
             json.dump({
                 "baseSymbol": base_symbol, "baseQty": base_qty,
                 "lossSymbol": loss_symbol, "lossQty": loss_qty,
             }, f)
     except Exception as e:
         return jsonify({"error": f"Failed to write config: {e}"}), 500
-    sess = _get_session(user_id)
+    sess = _get_session(user_id, bot_type)
     _broadcast(sess, f"[server] Config updated: base={base_qty}x{base_symbol} loss={loss_qty}x{loss_symbol}")
     return jsonify({
         "status": "ok",
@@ -287,17 +296,96 @@ def set_config():
     })
 
 
+@app.route("/", methods=["GET"])
+@app.route("/health", methods=["GET"])
+def health():
+    # No userId required — meant for external uptime pingers (e.g. UptimeRobot)
+    # to keep this free-tier Render service from spinning down mid-trade.
+    return jsonify({"status": "ok"})
+
+
+@app.route("/api/account-info", methods=["POST", "OPTIONS"])
+def account_info():
+    """Fetch TopstepX account balance(s) + recent trade history on demand.
+
+    Stateless — takes the user's own username/API key directly from the
+    request each time (same credentials as /api/start), does a fresh login,
+    and returns account balances plus recent fills. Does not require the bot
+    to be running.
+    """
+    if request.method == "OPTIONS":
+        return ("", 204)
+    body = request.get_json(force=True, silent=True) or {}
+    username = body.get("username")
+    api_key = body.get("apiKey")
+    if not username or not api_key:
+        return jsonify({"error": "Missing TopstepX credentials: username and API key are required."}), 400
+
+    try:
+        client = httpx.Client(timeout=10)
+        resp = client.post(f"{TOPSTEP_API_URL}/api/Auth/loginKey", json={
+            "userName": username, "apiKey": api_key,
+        })
+        data = resp.json()
+    except Exception as e:
+        return jsonify({"error": f"Could not reach TopstepX: {e}"}), 502
+
+    if not data.get("success", False):
+        return jsonify({"error": data.get("errorMessage") or "TopstepX authentication failed"}), 401
+
+    token = data.get("token")
+    if not token:
+        return jsonify({"error": "TopstepX authentication succeeded but no token received"}), 502
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    try:
+        accts_resp = client.post(f"{TOPSTEP_API_URL}/api/Account/search", headers=headers,
+                                  json={"onlyActiveAccounts": True})
+        accounts = accts_resp.json().get("accounts") or []
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch accounts: {e}"}), 502
+
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=7)
+    all_trades = []
+    for acct in accounts:
+        acct_id = acct.get("id")
+        try:
+            tr_resp = client.post(f"{TOPSTEP_API_URL}/api/Trade/search", headers=headers, json={
+                "accountId": acct_id,
+                "startTimestamp": start.isoformat(),
+                "endTimestamp": end.isoformat(),
+            })
+            trades = tr_resp.json().get("trades") or []
+            for t in trades:
+                t["accountName"] = acct.get("name")
+            all_trades.extend(trades)
+        except Exception:
+            pass
+
+    all_trades.sort(key=lambda t: t.get("creationTimestamp", ""), reverse=True)
+
+    return jsonify({
+        "accounts": [{
+            "id": a.get("id"), "name": a.get("name"), "balance": a.get("balance"),
+            "canTrade": a.get("canTrade"), "simulated": a.get("simulated"),
+        } for a in accounts],
+        "trades": all_trades[:50],
+    })
+
+
 @app.route("/api/status", methods=["GET"])
 def status():
     user_id, err = _require_user_id(request.args)
     if err:
         return err
-    sess = _get_session(user_id)
+    bot_type = request.args.get("botType", DEFAULT_BOT_TYPE)
+    sess = _get_session(user_id, bot_type)
     proc = sess["process"]
     running = proc is not None and proc.poll() is None
     pid = proc.pid if running else None
     started_at = sess["started_at"] if running else None
-    return jsonify({"running": running, "pid": pid, "started_at": started_at})
+    return jsonify({"running": running, "pid": pid, "started_at": started_at, "botType": bot_type})
 
 
 @app.route("/api/stream", methods=["GET"])
@@ -305,7 +393,8 @@ def stream():
     user_id, err = _require_user_id(request.args)
     if err:
         return err
-    sess = _get_session(user_id)
+    bot_type = request.args.get("botType", DEFAULT_BOT_TYPE)
+    sess = _get_session(user_id, bot_type)
 
     q = queue.Queue(maxsize=1000)
     with sess["log_lock"]:
