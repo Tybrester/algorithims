@@ -251,6 +251,20 @@
           <label>Email Address</label>
           <input id="email" type="email" placeholder="john@example.com" />
         </div>
+        <div class="form-group">
+          <label>Password</label>
+          <div class="pw-wrap">
+            <input id="password" type="password" placeholder="Create a password (min 6 chars)" minlength="6" />
+            <button type="button" class="pw-toggle" onclick="togglePw('password',this)" tabindex="-1">👁️</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <div class="pw-wrap">
+            <input id="confirm-password" type="password" placeholder="Confirm your password" minlength="6" />
+            <button type="button" class="pw-toggle" onclick="togglePw('confirm-password',this)" tabindex="-1">👁️</button>
+          </div>
+        </div>
 
         <button type="submit" class="btn-submit">Create Account</button>
       </form>
@@ -293,36 +307,76 @@
       const firstName = document.getElementById('first-name').value.trim();
       const lastName = document.getElementById('last-name').value.trim();
       const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
 
-      if (!firstName || !lastName || !email) {
+      if (!firstName || !lastName || !email || !password) {
         return showMsg('Please fill in all fields.', false);
+      }
+      if (password.length < 6) {
+        return showMsg('Password must be at least 6 characters.', false);
+      }
+      if (password !== confirmPassword) {
+        return showMsg('Passwords do not match.', false);
       }
 
       const btn = form.querySelector('.btn-submit');
       btn.textContent = 'Creating account...';
       btn.disabled = true;
 
-      // Create access request instead of direct signup
-      const { data, error } = await sbClient.from('access_requests').insert({
-        email,
-        name: `${firstName} ${lastName}`,
-        status: 'pending',
-        reason: 'Account application'
-      }).select();
+      // Create auth account with Supabase
+      let signUpResult;
+      try {
+        signUpResult = await sbClient.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { first_name: firstName, last_name: lastName }
+          }
+        });
+      } catch (e) {
+        btn.textContent = 'Create Account';
+        btn.disabled = false;
+        return showMsg('Network error — please try again.', false);
+      }
+
+      const { data, error } = signUpResult;
 
       btn.textContent = 'Create Account';
       btn.disabled = false;
 
       if (error) {
-        showMsg(error.message, false);
-      } else {
-        showMsg('Account application submitted! Your account is pending approval. You will receive an email once approved.', true);
-        form.reset();
-        // Redirect to signin after 3 seconds
-        setTimeout(() => {
-          window.location.href = 'signin.html';
-        }, 3000);
+        return showMsg(error.message, false);
       }
+
+      // If user already exists (no identities), show message
+      if (data?.user && data.user.identities && data.user.identities.length === 0) {
+        return showMsg('An account with this email already exists. Please sign in instead.', false);
+      }
+
+      // Log to access_requests for admin tracking
+      const { error: reqErr } = await sbClient.from('access_requests').upsert({
+        email,
+        name: `${firstName} ${lastName}`,
+        status: 'pending',
+        reason: 'Self-registered'
+      }, { onConflict: 'email' });
+      if (reqErr) console.error('access_requests upsert failed:', reqErr.message);
+
+      // If email confirmation is required
+      if (data?.user && !data.session) {
+        showMsg('Account created! Check your email for a confirmation link, then sign in.', true);
+        form.reset();
+        return;
+      }
+
+      // Account created and auto-signed in
+      showMsg('Account created! Redirecting to sign in...', true);
+      form.reset();
+      await sbClient.auth.signOut();
+      setTimeout(() => {
+        window.location.href = 'signin.html?email=' + encodeURIComponent(email);
+      }, 2000);
     });
   </script>
 </body>
