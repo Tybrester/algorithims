@@ -424,5 +424,5 @@ def stream():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8787))
     print(f"Tradovate bot control server (multi-tenant) on http://0.0.0.0:{port}")
-    print(f"Bot script: {BOT_SCRIPT}")
+    print(f"Bot scripts: {BOT_SCRIPTS}")
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
