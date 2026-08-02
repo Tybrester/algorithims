@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+ï»¿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BoofCapital — Admin</title>
+  <title>BoofCapital ï¿½ Admin</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -141,11 +141,11 @@
         <div class="stats-row" style="max-width:480px;">
           <div class="stat-card">
             <div class="label">Total Users</div>
-            <div class="value green" id="stat-users">—</div>
+            <div class="value green" id="stat-users">ï¿½</div>
           </div>
           <div class="stat-card">
             <div class="label">Pending Requests</div>
-            <div class="value" id="stat-requests" style="color:#ffc107;">—</div>
+            <div class="value" id="stat-requests" style="color:#ffc107;">ï¿½</div>
           </div>
         </div>
 
@@ -265,11 +265,11 @@
         </tr></thead>
         <tbody>
           ${users.map(u => {
-            const dt = u.updated_at ? new Date(u.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+            const dt = u.updated_at ? new Date(u.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'ï¿½';
             const on = u.bots_enabled;
             const approved = u.approved;
             return `<tr>
-              <td style="font-size:0.85rem;" title="${u.user_id}">${u.email || u.user_id.slice(0,8) + '…'}</td>
+              <td style="font-size:0.85rem;" title="${u.user_id}">${u.email || u.user_id.slice(0,8) + 'ï¿½'}</td>
               <td>${u.systems}</td>
               <td style="color:#555;">${dt}</td>
               <td>
@@ -358,7 +358,7 @@
             return `<tr>
               <td style="font-size:0.85rem;">${r.name}</td>
               <td style="font-size:0.85rem;">${r.email}</td>
-              <td style="font-size:0.8rem;color:var(--muted);max-width:200px;">${r.reason || '—'}</td>
+              <td style="font-size:0.8rem;color:var(--muted);max-width:200px;">${r.reason || 'ï¿½'}</td>
               <td style="color:#555;font-size:0.82rem;">${dt}</td>
               <td><span class="badge ${badgeClass}">${r.status}</span></td>
               <td>${actions}</td>
@@ -400,7 +400,7 @@
     async function reviewRequest(id, email, status) {
       const label = status === 'approved' ? 'Approve' : 'Deny';
       const msg = status === 'approved'
-        ? `Approve access for ${email}? They can now sign in to the site.`
+        ? `Approve dashboard + bot access for ${email}?`
         : `Deny access for ${email}?`;
       showConfirm(`${label} Request`, msg, async () => {
         // Optimistically update UI immediately
@@ -413,22 +413,31 @@
         // Persist to DB
         await sbClient.from('access_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
         if (status === 'approved') {
+          // Look up auth user by email and enable bot access
           const { data: { session } } = await sbClient.auth.getSession();
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'apikey': SUPABASE_ANON_KEY,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ action: 'approve', email })
-          });
-          const json = await res.json();
-          if (!res.ok) {
-            alert('Approval failed: ' + (json.error || res.status));
+          let authUserId = null;
+          try {
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
+              headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY }
+            });
+            const json = await res.json();
+            const found = (json.users || []).find(u => u.email === email);
+            if (found) authUserId = found.id;
+          } catch (e) {}
+
+          if (authUserId) {
+            // Enable bot access in user_settings
+            const { data: existing } = await sbClient.from('user_settings').select('user_id').eq('user_id', authUserId).maybeSingle();
+            if (existing) {
+              await sbClient.from('user_settings').update({ bots_enabled: true, updated_at: new Date().toISOString() }).eq('user_id', authUserId);
+            } else {
+              await sbClient.from('user_settings').insert({ user_id: authUserId, bots_enabled: true });
+            }
+            alert(`${email} approved! They now have full dashboard + bot access.`);
           } else {
-            alert(`User approved! ${email} can now sign in to the site.`);
+            alert(`Access request approved but could not find auth user for ${email}. They may need to sign up first.`);
           }
+          await loadUsers();
         }
       }, status !== 'approved');
     }
@@ -488,3 +497,4 @@
   </script>
 </body>
 </html>
+
