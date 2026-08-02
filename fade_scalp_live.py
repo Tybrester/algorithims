@@ -678,15 +678,18 @@ class FadeScalpBot:
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: py fade_scalp_live.py <API_KEY> <EMAIL>")
-        sys.exit(1)
-
-    api_key = sys.argv[1]
-    username = sys.argv[2]
-
-    os.environ["PROJECT_X_API_KEY"] = api_key
-    os.environ["PROJECT_X_USERNAME"] = username
+    if len(sys.argv) >= 3:
+        api_key = sys.argv[1]
+        username = sys.argv[2]
+        os.environ["PROJECT_X_API_KEY"] = api_key
+        os.environ["PROJECT_X_USERNAME"] = username
+    else:
+        api_key = os.environ.get("PROJECT_X_API_KEY", "")
+        username = os.environ.get("PROJECT_X_USERNAME", "")
+        if not api_key or not username:
+            print("Usage: py fade_scalp_live.py <API_KEY> <EMAIL>")
+            print("  or set PROJECT_X_API_KEY and PROJECT_X_USERNAME env vars")
+            sys.exit(1)
 
     print("=" * 60)
     print("  Fade Scalp Live Bot — NQ 1m Big Candle Fade")
