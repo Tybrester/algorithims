@@ -412,19 +412,12 @@
         // Persist to DB
         await sbClient.from('access_requests').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id);
         if (status === 'approved') {
-          // Look up auth user by email and enable bot access
-          const { data: { session } } = await sbClient.auth.getSession();
-          let authUserId = null;
-          try {
-            const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-users`, {
-              headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY }
-            });
-            const json = await res.json();
-            const found = (json.users || []).find(u => u.email === email);
-            if (found) authUserId = found.id;
-          } catch (e) {}
+          // Look up auth user ID by email via database function
+          const { data: authUserId, error: rpcErr } = await sbClient.rpc('get_user_id_by_email', { lookup_email: email });
 
-          if (authUserId) {
+          if (rpcErr || !authUserId) {
+            alert(`Access request approved but could not find auth user for ${email}. They may need to sign up first. ${rpcErr ? rpcErr.message : ''}`);
+          } else {
             // Enable bot access in user_settings
             const { data: existing } = await sbClient.from('user_settings').select('user_id').eq('user_id', authUserId).maybeSingle();
             if (existing) {
@@ -433,8 +426,6 @@
               await sbClient.from('user_settings').insert({ user_id: authUserId, bots_enabled: true });
             }
             alert(`${email} approved! They now have full dashboard + bot access.`);
-          } else {
-            alert(`Access request approved but could not find auth user for ${email}. They may need to sign up first.`);
           }
           await loadUsers();
         }
