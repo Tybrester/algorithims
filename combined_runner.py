@@ -131,8 +131,9 @@ class CombinedRunner:
 
         # Cross-strategy guard: cannot enter opposite direction if either strategy is in a position
         def overall_direction():
-            if self.boof.state.in_position:
-                return self.boof.state.direction
+            for state in self.boof.states.values():
+                if state.in_position:
+                    return state.direction
             if self.fade.state.trade.in_position:
                 return self.fade.state.trade.direction
             return ""
