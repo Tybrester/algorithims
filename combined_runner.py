@@ -16,7 +16,8 @@ from signalrcore.hub_connection_builder import HubConnectionBuilder
 from boof_futures_live import BoofBot, TopstepClient, MARKET_HUB, TZ
 from fade_scalp_live import FadeScalpBot
 
-log_dir = r"C:\Users\tybre\Desktop\topstep logs"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+log_dir = os.environ.get("BOT_LOG_DIR", os.path.join(BASE_DIR, "logs"))
 os.makedirs(log_dir, exist_ok=True)
 log_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 logging.basicConfig(

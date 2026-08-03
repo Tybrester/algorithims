@@ -71,7 +71,7 @@ SL_POLL_SEC = 1              # Check SL every second
 COOLDOWN_SEC = 120           # Min seconds between exit and next entry (2 min)
 TICK_CROSS_TIMEOUT = 60      # Max seconds to wait for tick_cross confirmation
 
-_log_dir = os.path.join(os.path.expanduser("~"), "Desktop", "topstep logs")
+_log_dir = os.environ.get("BOT_LOG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
 os.makedirs(_log_dir, exist_ok=True)
 _log_file = os.path.join(_log_dir, f"fade_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 logging.basicConfig(

@@ -54,6 +54,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BOT_SCRIPTS = {
     "orb": os.path.join(BASE_DIR, "boof_futures_live.py"),
     "fade": os.path.join(BASE_DIR, "fade_scalp_live.py"),
+    "combined": os.path.join(BASE_DIR, "combined_runner.py"),
 }
 DEFAULT_BOT_TYPE = "orb"
 

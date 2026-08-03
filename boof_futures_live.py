@@ -691,7 +691,7 @@ class BoofBot:
         """Reload OR levels from today's log files ΓÇö parse 'OR complete' lines"""
         import re, glob, json
         today = str(datetime.now(TZ).date())
-        log_dir = r"C:\Users\tybre\Desktop\topstep logs"
+        log_dir = os.environ.get("BOT_LOG_DIR", os.path.join(os.path.dirname(__file__), "logs"))
         # also try JSON file first (fastest)
         user_tag = self.username.split("@")[0]
         for sym, state in self.states.items():
