@@ -45,8 +45,8 @@ class CombinedRunner:
         self.api_key, self.username = _load_credentials()
         self.client = TopstepClient(self.username, self.api_key)
         self.boof = BoofBot(client=self.client, combined_mode=True)
-        # Temporarily default disable_fade=True due to live trading issues
-        self.disable_fade = os.environ.get("DISABLE_FADE", "true").lower() in ("1", "true", "yes")
+        # Set DISABLE_FADE=true env var to run ORB only
+        self.disable_fade = os.environ.get("DISABLE_FADE", "false").lower() in ("1", "true", "yes")
         if self.disable_fade:
             log.info("Fade bot DISABLED — set DISABLE_FADE=false to re-enable")
             self.fade = None

@@ -495,16 +495,17 @@ class FadeScalpBot:
         for attempt in range(10):
             try:
                 any_in_position = False
+                position_summary = []
                 for acct_id in self.account_ids:
                     positions = self.client.get_positions(acct_id)
                     net = _net_position(positions, self.client.contract_id)
+                    position_summary.append(f"{acct_id}={net}")
                     if net != 0:
                         any_in_position = True
-                        break
+                log.info(f"Entry verification attempt {attempt+1}: positions [{', '.join(position_summary)}]")
                 if any_in_position:
                     verified = True
                     break
-                log.warning(f"Entry verification attempt {attempt+1}: position still flat across accounts")
             except Exception as e:
                 log.warning(f"Entry verification attempt {attempt+1} failed: {e}")
             time.sleep(0.5)
@@ -611,17 +612,18 @@ class FadeScalpBot:
         for attempt in range(40):
             try:
                 all_flat = True
+                position_summary = []
                 for acct_id in self.account_ids:
                     positions = self.client.get_positions(acct_id)
                     net = _net_position(positions, self.client.contract_id)
+                    position_summary.append(f"{acct_id}={net}")
                     if net != 0:
                         all_flat = False
-                        break
+                log.info(f"Flat check attempt {attempt+1}: positions [{', '.join(position_summary)}]")
                 if all_flat:
                     flat_confirmed = True
                     log.info("EXIT confirmed: all accounts flat")
                     break
-                log.warning(f"Flat check attempt {attempt+1}: some accounts still in position")
             except Exception as e:
                 log.warning(f"Flat check attempt {attempt+1} failed: {e}")
             time.sleep(0.5)
