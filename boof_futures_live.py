@@ -135,8 +135,9 @@ EOD_EXIT     = dtime(15, 55)
 BAR_MINUTES  = 5
 SL_POLL_SEC  = 2   # check SL every N seconds
 
-_log_file = os.path.join(os.path.expanduser("~"), "Desktop", "topstep logs", f"bot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-os.makedirs(os.path.dirname(_log_file), exist_ok=True)
+_log_dir = os.environ.get("BOT_LOG_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs"))
+os.makedirs(_log_dir, exist_ok=True)
+_log_file = os.path.join(_log_dir, f"bot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",

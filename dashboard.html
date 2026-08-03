@@ -569,70 +569,29 @@
           <input id="fb-api-key" type="password" placeholder="API Key" style="background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:1rem;font-family:inherit;padding:13px 16px;border-radius:8px;outline:none;">
           <div style="font-size:0.75rem;color:var(--muted);margin-top:-6px;">Your own TopstepX API key (TopstepX → Settings → API Keys)</div>
 
-          <!-- ORB Bot Config -->
           <div style="border:1px solid #2a2a2a;border-radius:10px;padding:14px 16px;background:#0e0e0e;">
-            <div style="font-size:0.85rem;font-weight:700;color:var(--accent);margin-bottom:10px;">ORB Bot</div>
-            <div style="display:flex;gap:12px;">
-              <div style="flex:1;">
-                <label for="fb-base-symbol" style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:4px;">Contract</label>
-                <select id="fb-base-symbol" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:0.95rem;font-family:inherit;padding:11px 14px;border-radius:8px;outline:none;box-sizing:border-box;">
-                  <option value="MNQ">MNQ (Micro)</option>
-                  <option value="NQ">NQ (Full-size)</option>
-                </select>
-              </div>
-              <div style="flex:1;">
-                <label for="fb-base-qty" style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:4px;">Qty</label>
-                <input id="fb-base-qty" type="number" min="1" step="1" value="1" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:0.95rem;font-family:inherit;padding:11px 14px;border-radius:8px;outline:none;box-sizing:border-box;">
-              </div>
-              <div style="flex:1;">
-                <label for="fb-loss-symbol" style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:4px;">Loss Contract</label>
-                <select id="fb-loss-symbol" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:0.95rem;font-family:inherit;padding:11px 14px;border-radius:8px;outline:none;box-sizing:border-box;">
-                  <option value="MNQ">MNQ (Micro)</option>
-                  <option value="NQ">NQ (Full-size)</option>
-                </select>
-              </div>
-              <div style="flex:1;">
-                <label for="fb-loss-qty" style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:4px;">Loss Qty</label>
-                <input id="fb-loss-qty" type="number" min="1" step="1" value="1" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:0.95rem;font-family:inherit;padding:11px 14px;border-radius:8px;outline:none;box-sizing:border-box;">
-              </div>
+            <div style="font-size:0.85rem;font-weight:700;color:var(--accent);margin-bottom:8px;">Combined ORB + Fade Bot</div>
+            <div style="font-size:0.75rem;color:#777;line-height:1.5;">
+              Runs ORB and Fade under one shared TopstepX connection.
+              <br>Default sizing: ORB 8 MNQ / Fade 1 MNQ.
+              <br>To change sizing, update environment variables on Render or run locally.
             </div>
-          </div>
-
-          <!-- Fade Bot Config -->
-          <div style="border:1px solid #2a2a2a;border-radius:10px;padding:14px 16px;background:#0e0e0e;">
-            <div style="font-size:0.85rem;font-weight:700;color:var(--accent);margin-bottom:10px;">Fade Scalp Bot</div>
-            <div style="display:flex;gap:12px;">
-              <div style="flex:1;">
-                <label for="fade-base-symbol" style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:4px;">Contract</label>
-                <select id="fade-base-symbol" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:0.95rem;font-family:inherit;padding:11px 14px;border-radius:8px;outline:none;box-sizing:border-box;">
-                  <option value="MNQ">MNQ (Micro)</option>
-                  <option value="NQ">NQ (Full-size)</option>
-                </select>
-              </div>
-              <div style="flex:1;">
-                <label for="fade-base-qty" style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:4px;">Qty</label>
-                <input id="fade-base-qty" type="number" min="1" step="1" value="1" style="width:100%;background:#1a1a1a;border:1px solid #2a2a2a;color:var(--text);font-size:0.95rem;font-family:inherit;padding:11px 14px;border-radius:8px;outline:none;box-sizing:border-box;">
-              </div>
-            </div>
-            <div style="font-size:0.7rem;color:#555;margin-top:8px;">SL=25 | Floor=7 | Trail=3 | MaxHold=15min | Cooldown=120s | Kill=-$300</div>
           </div>
 
           <div id="fb-qty-msg" style="font-size:0.8rem;min-height:1.1em;"></div>
           <div style="display:flex;gap:12px;margin-top:6px;">
-            <button id="fb-start-btn" class="btn-primary" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;">Start Both Bots</button>
-            <button id="fb-stop-btn" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">Stop All</button>
+            <button id="fb-start-btn" class="btn-primary" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;">Start Bot</button>
+            <button id="fb-stop-btn" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">Stop Bot</button>
           </div>
           <div id="fb-error" style="font-size:0.9rem;color:var(--red);display:none;"></div>
         </div>
         <div class="panel" style="display:flex;flex-direction:column;padding:0;overflow:hidden;">
           <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
-            <button id="tab-orb" style="background:var(--accent);color:#000;font-size:0.85rem;font-weight:700;padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;">ORB</button>
-            <button id="tab-fade" style="background:transparent;color:var(--muted);font-size:0.85rem;font-weight:700;padding:6px 16px;border-radius:6px;border:1px solid #333;cursor:pointer;font-family:inherit;">Fade</button>
+            <span style="font-size:0.85rem;font-weight:700;color:var(--muted);">Combined Output</span>
             <span style="flex:1;"></span>
             <button id="fb-clear-btn" style="background:none;border:1px solid #333;color:var(--muted);font-size:0.85rem;padding:6px 14px;border-radius:5px;cursor:pointer;font-family:inherit;">Clear</button>
           </div>
           <pre id="fb-terminal" style="flex:1;margin:0;padding:20px 22px;background:#050505;color:#00e676;font-family:'Consolas','Menlo',monospace;font-size:1rem;line-height:1.6;overflow-y:auto;height:75vh;min-height:600px;white-space:pre-wrap;word-break:break-word;">Waiting for bot output...</pre>
-          <pre id="fade-terminal" style="display:none;flex:1;margin:0;padding:20px 22px;background:#050505;color:#00e676;font-family:'Consolas','Menlo',monospace;font-size:1rem;line-height:1.6;overflow-y:auto;height:75vh;min-height:600px;white-space:pre-wrap;word-break:break-word;">Waiting for bot output...</pre>
         </div>
       </div>
 
@@ -717,25 +676,14 @@
       const els = {
         username: document.getElementById('fb-username'),
         apiKey: document.getElementById('fb-api-key'),
-        // ORB config
-        baseSymbol: document.getElementById('fb-base-symbol'),
-        baseQty: document.getElementById('fb-base-qty'),
-        lossSymbol: document.getElementById('fb-loss-symbol'),
-        lossQty: document.getElementById('fb-loss-qty'),
-        // Fade config
-        fadeSymbol: document.getElementById('fade-base-symbol'),
-        fadeQty: document.getElementById('fade-base-qty'),
         // UI
         qtyMsg: document.getElementById('fb-qty-msg'),
         startBtn: document.getElementById('fb-start-btn'),
         stopBtn: document.getElementById('fb-stop-btn'),
         clearBtn: document.getElementById('fb-clear-btn'),
         orbTerminal: document.getElementById('fb-terminal'),
-        fadeTerminal: document.getElementById('fade-terminal'),
         errorEl: document.getElementById('fb-error'),
         statusBadge: document.getElementById('fb-status-badge'),
-        tabOrb: document.getElementById('tab-orb'),
-        tabFade: document.getElementById('tab-fade'),
         accountRefreshBtn: document.getElementById('fb-account-refresh-btn'),
         accountError: document.getElementById('fb-account-error'),
         accountsList: document.getElementById('fb-accounts-list'),
@@ -761,43 +709,16 @@
       const section = document.getElementById('futures-bot-section');
       if (section) section.style.display = '';
 
-      let orbEvtSource = null;
-      let fadeEvtSource = null;
-      let orbRunning = false, fadeRunning = false;
-      let activeTab = 'orb';
-
-      // Tab switching
-      els.tabOrb.addEventListener('click', () => {
-        activeTab = 'orb';
-        els.orbTerminal.style.display = '';
-        els.fadeTerminal.style.display = 'none';
-        els.tabOrb.style.background = 'var(--accent)'; els.tabOrb.style.color = '#000'; els.tabOrb.style.border = 'none';
-        els.tabFade.style.background = 'transparent'; els.tabFade.style.color = 'var(--muted)'; els.tabFade.style.border = '1px solid #333';
-      });
-      els.tabFade.addEventListener('click', () => {
-        activeTab = 'fade';
-        els.orbTerminal.style.display = 'none';
-        els.fadeTerminal.style.display = '';
-        els.tabFade.style.background = 'var(--accent)'; els.tabFade.style.color = '#000'; els.tabFade.style.border = 'none';
-        els.tabOrb.style.background = 'transparent'; els.tabOrb.style.color = 'var(--muted)'; els.tabOrb.style.border = '1px solid #333';
-      });
+      let botEvtSource = null;
+      let botRunning = false;
 
       // Restore saved fields
       const saved = JSON.parse(localStorage.getItem('fb_creds') || '{}');
       if (saved.username) els.username.value = saved.username;
-      if (saved.baseSymbol) els.baseSymbol.value = saved.baseSymbol;
-      if (saved.baseQty) els.baseQty.value = saved.baseQty;
-      if (saved.lossSymbol) els.lossSymbol.value = saved.lossSymbol;
-      if (saved.lossQty) els.lossQty.value = saved.lossQty;
-      if (saved.fadeSymbol) els.fadeSymbol.value = saved.fadeSymbol;
-      if (saved.fadeQty) els.fadeQty.value = saved.fadeQty;
 
       function saveFields() {
         localStorage.setItem('fb_creds', JSON.stringify({
           username: els.username.value,
-          baseSymbol: els.baseSymbol.value, baseQty: els.baseQty.value,
-          lossSymbol: els.lossSymbol.value, lossQty: els.lossQty.value,
-          fadeSymbol: els.fadeSymbol.value, fadeQty: els.fadeQty.value,
         }));
       }
 
@@ -807,11 +728,8 @@
       }
 
       function updateBadge() {
-        if (orbRunning || fadeRunning) {
-          const parts = [];
-          if (orbRunning) parts.push('ORB');
-          if (fadeRunning) parts.push('Fade');
-          els.statusBadge.textContent = `● ${parts.join(' + ')}`;
+        if (botRunning) {
+          els.statusBadge.textContent = '● Combined Running';
           els.statusBadge.style.background = 'rgba(0,230,118,0.12)';
           els.statusBadge.style.color = 'var(--accent)';
         } else {
@@ -821,52 +739,34 @@
         }
       }
 
-      function appendOrb(line) {
+      function appendLine(line) {
         const t = els.orbTerminal;
         const atBottom = t.scrollHeight - t.scrollTop - t.clientHeight < 40;
         if (t.textContent === 'Waiting for bot output...') t.textContent = '';
         t.textContent += line + '\n';
         if (atBottom) t.scrollTop = t.scrollHeight;
       }
-      function appendFade(line) {
-        const t = els.fadeTerminal;
-        const atBottom = t.scrollHeight - t.scrollTop - t.clientHeight < 40;
-        if (t.textContent === 'Waiting for bot output...') t.textContent = '';
-        t.textContent += line + '\n';
-        if (atBottom) t.scrollTop = t.scrollHeight;
-      }
 
-      function connectOrbStream() {
-        if (orbEvtSource) orbEvtSource.close();
-        orbEvtSource = new EventSource(`${RUNNER_URL}/api/stream?userId=${encodeURIComponent(userId)}&botType=orb`);
-        orbEvtSource.onmessage = (e) => { try { appendOrb(JSON.parse(e.data)); } catch { appendOrb(e.data); } };
-        orbEvtSource.onerror = () => { appendOrb('[dashboard] Lost ORB connection — retrying...'); };
-      }
-      function connectFadeStream() {
-        if (fadeEvtSource) fadeEvtSource.close();
-        fadeEvtSource = new EventSource(`${RUNNER_URL}/api/stream?userId=${encodeURIComponent(userId)}&botType=fade`);
-        fadeEvtSource.onmessage = (e) => { try { appendFade(JSON.parse(e.data)); } catch { appendFade(e.data); } };
-        fadeEvtSource.onerror = () => { appendFade('[dashboard] Lost Fade connection — retrying...'); };
+      function connectBotStream() {
+        if (botEvtSource) botEvtSource.close();
+        botEvtSource = new EventSource(`${RUNNER_URL}/api/stream?userId=${encodeURIComponent(userId)}&botType=combined`);
+        botEvtSource.onmessage = (e) => { try { appendLine(JSON.parse(e.data)); } catch { appendLine(e.data); } };
+        botEvtSource.onerror = () => { appendLine('[dashboard] Lost bot connection — retrying...'); };
       }
 
       async function pollStatus() {
         try {
-          const [orbRes, fadeRes] = await Promise.all([
-            fetch(`${RUNNER_URL}/api/status?userId=${encodeURIComponent(userId)}&botType=orb`),
-            fetch(`${RUNNER_URL}/api/status?userId=${encodeURIComponent(userId)}&botType=fade`),
-          ]);
-          const orbJ = await orbRes.json();
-          const fadeJ = await fadeRes.json();
-          orbRunning = !!orbJ.running;
-          fadeRunning = !!fadeJ.running;
+          const res = await fetch(`${RUNNER_URL}/api/status?userId=${encodeURIComponent(userId)}&botType=combined`);
+          const j = await res.json();
+          botRunning = !!j.running;
           updateBadge();
         } catch {
-          orbRunning = false; fadeRunning = false;
+          botRunning = false;
           updateBadge();
         }
       }
 
-      // Start BOTH bots
+      // Start combined bot
       els.startBtn.addEventListener('click', async () => {
         showError('');
         saveFields();
@@ -874,47 +774,39 @@
         const apiKey = els.apiKey.value;
         if (!username || !apiKey) { showError('Enter your TopstepX credentials.'); return; }
 
-        const orbBody = {
-          userId, botType: 'orb', username, apiKey,
-          baseSymbol: els.baseSymbol.value,
-          baseQty: parseInt(els.baseQty.value, 10) || 1,
-          lossSymbol: els.lossSymbol.value,
-          lossQty: parseInt(els.lossQty.value, 10) || 1,
-        };
-        const fadeBody = {
-          userId, botType: 'fade', username, apiKey,
-          baseSymbol: els.fadeSymbol.value,
-          baseQty: parseInt(els.fadeQty.value, 10) || 1,
+        const body = {
+          userId, botType: 'combined', username, apiKey,
         };
 
         try {
-          const [orbRes, fadeRes] = await Promise.all([
-            fetch(`${RUNNER_URL}/api/start`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(orbBody) }),
-            fetch(`${RUNNER_URL}/api/start`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(fadeBody) }),
-          ]);
-          const orbJ = await orbRes.json();
-          const fadeJ = await fadeRes.json();
-          const errors = [];
-          if (!orbRes.ok) errors.push(`ORB: ${orbJ.error}`);
-          if (!fadeRes.ok) errors.push(`Fade: ${fadeJ.error}`);
-          if (errors.length) { showError(errors.join(' | ')); }
-          if (orbRes.ok) { connectOrbStream(); orbRunning = true; }
-          if (fadeRes.ok) { connectFadeStream(); fadeRunning = true; }
-          updateBadge();
+          const res = await fetch(`${RUNNER_URL}/api/start`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(body)
+          });
+          const j = await res.json();
+          if (!res.ok) {
+            showError(j.error || 'Failed to start bot');
+          } else {
+            connectBotStream();
+            botRunning = true;
+            updateBadge();
+          }
         } catch (e) {
           showError(`Could not reach runner at ${RUNNER_URL}`);
         }
       });
 
-      // Stop BOTH bots
+      // Stop combined bot
       els.stopBtn.addEventListener('click', async () => {
         showError('');
         try {
-          await Promise.all([
-            fetch(`${RUNNER_URL}/api/stop`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ userId, botType: 'orb' }) }),
-            fetch(`${RUNNER_URL}/api/stop`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ userId, botType: 'fade' }) }),
-          ]);
-          orbRunning = false; fadeRunning = false;
+          await fetch(`${RUNNER_URL}/api/stop`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ userId, botType: 'combined' })
+          });
+          botRunning = false;
           updateBadge();
         } catch (e) {
           showError(`Could not reach runner at ${RUNNER_URL}`);
@@ -922,8 +814,7 @@
       });
 
       els.clearBtn.addEventListener('click', () => {
-        if (activeTab === 'orb') els.orbTerminal.textContent = 'Waiting for bot output...';
-        else els.fadeTerminal.textContent = 'Waiting for bot output...';
+        els.orbTerminal.textContent = 'Waiting for bot output...';
       });
 
       function showAccountError(msg) {
@@ -1001,10 +892,9 @@
       }
       els.accountRefreshBtn.addEventListener('click', refreshAccountInfo);
 
-      // Initial status check + auto-connect streams if running
+      // Initial status check + auto-connect stream if running
       pollStatus().then(() => {
-        if (orbRunning) connectOrbStream();
-        if (fadeRunning) connectFadeStream();
+        if (botRunning) connectBotStream();
       });
       setInterval(pollStatus, 10000);
     })();

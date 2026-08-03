@@ -5,6 +5,12 @@ One TopstepX login, one WebSocket, both bots run in separate threads.
 
 import os
 import sys
+
+# Combined runner uses its own built-in defaults (ORB on NQ strategy with
+# MNQ micro contract, Fade on MNQ). Ignore any dashboard per-user runtime
+# config so ORB and Fade settings don't collide.
+if "BOT_RUNTIME_CONFIG_PATH" in os.environ:
+    del os.environ["BOT_RUNTIME_CONFIG_PATH"]
 import time
 import threading
 import logging
