@@ -767,6 +767,7 @@
       // Restore saved fields
       const saved = JSON.parse(localStorage.getItem('fb_creds') || '{}');
       if (saved.username) els.username.value = saved.username;
+      if (saved.apiKey) els.apiKey.value = saved.apiKey;
       if (saved.baseSymbol) els.baseSymbol.value = saved.baseSymbol;
       if (saved.baseQty) els.baseQty.value = saved.baseQty;
       if (saved.lossSymbol) els.lossSymbol.value = saved.lossSymbol;
@@ -777,10 +778,20 @@
       function saveFields() {
         localStorage.setItem('fb_creds', JSON.stringify({
           username: els.username.value,
+          apiKey: els.apiKey.value,
           baseSymbol: els.baseSymbol.value, baseQty: els.baseQty.value,
           lossSymbol: els.lossSymbol.value, lossQty: els.lossQty.value,
           fadeSymbol: els.fadeSymbol.value, fadeQty: els.fadeQty.value,
         }));
+      }
+
+      function updateButtons() {
+        const running = orbRunning || fadeRunning;
+        els.startBtn.disabled = running;
+        els.startBtn.style.opacity = running ? '0.4' : '1';
+        els.startBtn.style.cursor = running ? 'not-allowed' : 'pointer';
+        els.startBtn.textContent = running ? 'Bots Running...' : 'Start Both Bots';
+        els.stopBtn.style.display = running ? '' : '';
       }
 
       function showError(msg) {
@@ -852,11 +863,19 @@
           orbRunning = !!orbJ.running;
           fadeRunning = !!fadeJ.running;
           updateBadge();
+          updateButtons();
+          // Auto-connect streams if running
+          if (orbRunning && !orbEvtSource) connectOrbStream();
+          if (fadeRunning && !fadeEvtSource) connectFadeStream();
         } catch {
           orbRunning = false; fadeRunning = false;
           updateBadge();
+          updateButtons();
         }
       }
+
+      // Poll status on page load to detect already-running bots
+      await pollStatus();
 
       // Start BOTH bots
       els.startBtn.addEventListener('click', async () => {
@@ -893,6 +912,7 @@
           if (orbRes.ok) { connectOrbStream(); orbRunning = true; }
           if (fadeRes.ok) { connectFadeStream(); fadeRunning = true; }
           updateBadge();
+          updateButtons();
         } catch (e) {
           showError(`Could not reach runner at ${RUNNER_URL}`);
         }
@@ -908,6 +928,7 @@
           ]);
           orbRunning = false; fadeRunning = false;
           updateBadge();
+          updateButtons();
         } catch (e) {
           showError(`Could not reach runner at ${RUNNER_URL}`);
         }
