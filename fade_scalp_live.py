@@ -280,6 +280,7 @@ class FadeScalpBot:
                 accounts = matched
 
         self.account_ids = [a["id"] for a in accounts]
+        self.account_id = self.account_ids[0]
         self.client.account_id = self.account_ids[0]
         for account in accounts:
             log.info(f"Trading account: {account['name']} (id={account['id']})")
