@@ -242,6 +242,7 @@ class FadeScalpBot:
         self._last_quote_time: float = 0.0
         self._ws_closed = False
         self._combined_mode = combined_mode
+        self._external_can_enter = lambda direction: True  # overridden by combined runner
 
     def setup(self):
         if not getattr(self.client, "jwt_token", None):
@@ -455,6 +456,9 @@ class FadeScalpBot:
 
     def _enter_trade(self, direction: str, price: float):
         """Enter a fade trade on all funded accounts"""
+        if not self._external_can_enter(direction):
+            log.info(f"Fade {direction.upper()} entry blocked — opposite-direction position active")
+            return
         side = 0 if direction == "long" else 1  # 0=Buy, 1=Sell
 
         order_results = {}

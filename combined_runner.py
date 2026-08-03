@@ -129,6 +129,21 @@ class CombinedRunner:
         # Authenticate once
         self.client.authenticate()
 
+        # Cross-strategy guard: cannot enter opposite direction if either strategy is in a position
+        def overall_direction():
+            if self.boof.state.in_position:
+                return self.boof.state.direction
+            if self.fade.state.trade.in_position:
+                return self.fade.state.trade.direction
+            return ""
+
+        def can_enter(direction: str) -> bool:
+            cur = overall_direction()
+            return not cur or cur == direction
+
+        self.boof._external_can_enter = can_enter
+        self.fade._external_can_enter = can_enter
+
         # Start bot threads. Each bot does its own setup() and enters its main loop.
         # In combined_mode their websocket setup is a no-op; we provide the shared hub below.
         self._running = True

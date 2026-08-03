@@ -541,6 +541,7 @@ class BoofBot:
         self._ws_closed = False
         self._last_quote_time: float = 0.0  # epoch seconds of last received quote
         self._last_reconnect_at: float = 0.0  # throttle reconnect attempts
+        self._external_can_enter = lambda direction: True  # overridden by combined runner
         # Dynamic position sizing
         self.dynamic_qty: int = 1   # base qty ΓÇö per-instrument cfg["qty"] is used directly
         self.win_streak:  int = 0
@@ -1601,6 +1602,9 @@ class BoofBot:
     def enter(self, state: InstrumentState, direction: str, trade_type: str):
         if state.in_position or state.entry_in_progress:
             return  # should have been flipped before calling enter
+        if not self._external_can_enter(direction):
+            log.info(f"{state.sym} {trade_type} {direction.upper()} entry blocked — opposite-direction position active")
+            return
         if state.sym == "NQ" and state.cfg.get("cooldown_minutes") and state.cooldown_until and datetime.now(TZ) < state.cooldown_until:
             return
         
