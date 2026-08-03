@@ -11,6 +11,8 @@ import sys
 # config so ORB and Fade settings don't collide.
 if "BOT_RUNTIME_CONFIG_PATH" in os.environ:
     del os.environ["BOT_RUNTIME_CONFIG_PATH"]
+# Website/combined mode should trade all active Topstep accounts.
+os.environ["ACCOUNT_NAME_FILTER"] = ""
 import time
 import threading
 import logging
