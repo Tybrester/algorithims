@@ -934,7 +934,7 @@ class BoofBot:
 
         self._hub.on("GatewayQuote", self._on_quote)
         self._hub.on("GatewayTrade", self._on_quote)
-        self._hub.on("GatewayLogout", lambda d: log.warning(f"GatewayLogout: {d}"))
+        self._hub.on("GatewayLogout", self._on_logout)
         self._hub.on_close(self._on_ws_close)
         self._hub.start()
         time.sleep(2)
@@ -956,6 +956,10 @@ class BoofBot:
 
     def _on_ws_close(self):
         log.warning("WS disconnected ΓÇö scheduling reconnect")
+        self._ws_closed = True
+
+    def _on_logout(self, data):
+        log.warning(f"GatewayLogout: {data}")
         self._ws_closed = True
 
     def _on_quote(self, data):

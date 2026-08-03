@@ -237,6 +237,7 @@ class FadeScalpBot:
         self._hub = None
         self._running = False
         self._last_quote_time: float = 0.0
+        self._ws_closed = False
 
     def setup(self):
         self.client.authenticate()
@@ -649,8 +650,8 @@ class FadeScalpBot:
 
         self._hub.on("GatewayQuote", self._on_quote)
         self._hub.on("GatewayTrade", self._on_quote)
-        self._hub.on("GatewayLogout", lambda d: log.warning(f"GatewayLogout: {d}"))
-        self._hub.on_close(lambda: log.warning("WebSocket disconnected"))
+        self._hub.on("GatewayLogout", self._on_logout)
+        self._hub.on_close(self._on_ws_close)
 
         self._hub.start()
         time.sleep(2)
@@ -663,6 +664,14 @@ class FadeScalpBot:
             log.info(f"Subscribed to quotes+trades for {cid}")
         except Exception as e:
             log.warning(f"Subscribe send failed: {e}")
+
+    def _on_ws_close(self):
+        log.warning("WebSocket disconnected")
+        self._ws_closed = True
+
+    def _on_logout(self, data):
+        log.warning(f"GatewayLogout: {data}")
+        self._ws_closed = True
 
     def _on_quote(self, data):
         """Handle incoming quote from SignalR"""
@@ -749,7 +758,9 @@ class FadeScalpBot:
                     pos_str = "FLAT"
                 last_str = f"lastTrade=${self.state.last_trade_pnl:+.0f}({self.state.last_trade_reason})" if self.state.last_trade_reason else ""
                 halted_str = " HALTED" if self.state.halted else ""
-                if self._use_polling:
+                if self._ws_closed:
+                    conn_status = "DISCONNECTED"
+                elif self._use_polling:
                     conn_status = "POLLING"
                 elif self._last_quote_time > 0 and (time.time() - self._last_quote_time) < 15:
                     conn_status = "CONNECTED"
