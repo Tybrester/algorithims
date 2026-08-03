@@ -1,10 +1,10 @@
-"""
-Fade Scalp Live Bot — NQ 1-Minute Big Candle Fade (v2 Optimized)
+﻿"""
+Fade Scalp Live Bot ΓÇö NQ 1-Minute Big Candle Fade (v2 Optimized)
 TopstepX via REST API + SignalR WebSocket
 
 Strategy:
   When a 1m NQ candle has body >= 20pts, fade it (enter opposite direction).
-  Confirmation: tick_cross — wait for price to tick back past big candle close (60s timeout).
+  Confirmation: tick_cross ΓÇö wait for price to tick back past big candle close (60s timeout).
   Exit: Trailing stop with SL=25, Floor=7, Trail=3, MaxHold=15min.
   Position: 1 MNQ ($2/pt)
 
@@ -29,8 +29,20 @@ from typing import Optional
 import httpx
 from signalrcore.hub_connection_builder import HubConnectionBuilder
 
+# ΓöÇΓöÇ RUNTIME CONFIG (from dashboard) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+_SYMBOL_MAP = {"MNQ": "MNQU26", "NQ": "NQU26"}
+_MV_MAP     = {"MNQ": 2, "NQ": 20}
+_runtime_cfg = {}
+_cfg_path = os.environ.get("BOT_RUNTIME_CONFIG_PATH", "")
+if _cfg_path and os.path.isfile(_cfg_path):
+    try:
+        with open(_cfg_path) as _f:
+            _runtime_cfg = json.load(_f)
+            print(f"[FADE] Loaded runtime config: {_runtime_cfg}")
+    except Exception as _e:
+        print(f"[FADE] Could not read runtime config: {_e}")
 
-# ── CONFIG ────────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ CONFIG ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 TZ = ZoneInfo("America/New_York")
 
@@ -38,10 +50,10 @@ API_URL    = "https://api.topstepx.com"
 MARKET_HUB = "wss://rtc.topstepx.com/hubs/market"
 
 # Strategy parameters (optimized v2: tick_cross + 120s cooldown)
-CONTRACT_NAME = "MNQU26"   # Micro NQ Sep 2026
-QTY = 1                     # 1 MNQ contract (start small, scale up once validated)
-MV = 2                      # $2 per point per MNQ
-DOLLAR_PER_PT = QTY * MV    # $2/pt total (1 MNQ)
+CONTRACT_NAME = _SYMBOL_MAP.get(_runtime_cfg.get("baseSymbol", ""), "MNQU26")
+QTY = _runtime_cfg.get("baseQty", 1)
+MV = _MV_MAP.get(_runtime_cfg.get("baseSymbol", ""), 2)
+DOLLAR_PER_PT = QTY * MV
 
 CANDLE_THRESH = 20.0        # 20pt body triggers signal
 SL_PTS = 25.0               # Stop loss: 25 pts
@@ -75,7 +87,7 @@ log = logging.getLogger("FadeScalp")
 log.info(f"Log file: {_log_file}")
 
 
-# ── STATE ─────────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ STATE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @dataclass
 class TradeState:
@@ -121,7 +133,7 @@ class BotState:
     last_exit_time: Optional[datetime] = None
 
 
-# ── API CLIENT ────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ API CLIENT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class TopstepClient:
     def __init__(self, username: str, api_key: str):
@@ -161,7 +173,7 @@ class TopstepClient:
         if not contracts:
             raise ValueError(f"No contract found for: {name}")
         contract = contracts[0]
-        log.info(f"Contract resolved: {name} → id={contract['id']}")
+        log.info(f"Contract resolved: {name} ΓåÆ id={contract['id']}")
         return contract
 
     def place_market_order(self, account_id: int, side: int, qty: int):
@@ -190,7 +202,7 @@ class TopstepClient:
         return resp.json().get("positions", [])
 
 
-# ── BOT ───────────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ BOT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class FadeScalpBot:
     def __init__(self, api_key: str, username: str):
@@ -203,7 +215,7 @@ class FadeScalpBot:
     def setup(self):
         self.client.authenticate()
 
-        # Get accounts — same logic as ORB bot
+        # Get accounts ΓÇö same logic as ORB bot
         accounts = self.client.get_accounts()
         if not accounts:
             raise RuntimeError("No active accounts found")
@@ -296,7 +308,7 @@ class FadeScalpBot:
         if self.state.pending_signal and not self.state.trade.in_position:
             elapsed = (now - self.state.pending_signal_time).total_seconds() if self.state.pending_signal_time else 999
             if elapsed > TICK_CROSS_TIMEOUT:
-                log.info(f"TICK_CROSS timeout ({elapsed:.0f}s) — signal expired")
+                log.info(f"TICK_CROSS timeout ({elapsed:.0f}s) ΓÇö signal expired")
                 self.state.pending_signal = False
             else:
                 fade_dir = self.state.pending_fade_dir
@@ -307,7 +319,7 @@ class FadeScalpBot:
                 elif fade_dir == "long" and price > big_close:
                     crossed = True
                 if crossed:
-                    log.info(f"TICK_CROSS confirmed: px={price:.2f} crossed big_close={big_close:.2f} → ENTER {fade_dir.upper()}")
+                    log.info(f"TICK_CROSS confirmed: px={price:.2f} crossed big_close={big_close:.2f} ΓåÆ ENTER {fade_dir.upper()}")
                     self.state.pending_signal = False
                     self._enter_trade(fade_dir, price)
 
@@ -320,7 +332,7 @@ class FadeScalpBot:
         bar_minute = now.replace(second=0, microsecond=0)
 
         if self.state.bar_start is None or bar_minute > self.state.bar_start:
-            # New bar — process previous bar first
+            # New bar ΓÇö process previous bar first
             if self.state.bar_start is not None and self.state.bar_tick_count > 0:
                 self._on_bar_close()
             
@@ -339,7 +351,7 @@ class FadeScalpBot:
             self.state.bar_tick_count += 1
 
     def _on_bar_close(self):
-        """Called when a 1m bar closes — check for signal"""
+        """Called when a 1m bar closes ΓÇö check for signal"""
         bar_open = self.state.bar_open
         bar_close = self.state.bar_close
         body = abs(bar_close - bar_open)
@@ -371,9 +383,9 @@ class FadeScalpBot:
         fade_dir = "short" if candle_dir == "up" else "long"
 
         self.state.signals_today += 1
-        log.info(f"SIGNAL #{self.state.signals_today}: {body:.1f}pt {candle_dir.upper()} candle | Bar O={bar_open:.2f} C={bar_close:.2f} | FADE → {fade_dir.upper()} | awaiting tick_cross")
+        log.info(f"SIGNAL #{self.state.signals_today}: {body:.1f}pt {candle_dir.upper()} candle | Bar O={bar_open:.2f} C={bar_close:.2f} | FADE ΓåÆ {fade_dir.upper()} | awaiting tick_cross")
 
-        # Set pending — actual entry happens in _on_tick when price crosses back
+        # Set pending ΓÇö actual entry happens in _on_tick when price crosses back
         self.state.pending_signal = True
         self.state.pending_fade_dir = fade_dir
         self.state.pending_big_close = bar_close
@@ -404,7 +416,7 @@ class FadeScalpBot:
             else:
                 log.error(f"ORDER REJECTED acct {acct_id}: {res}")
         if not any_ok:
-            log.error(f"ENTRY ABORTED — no account accepted order")
+            log.error(f"ENTRY ABORTED ΓÇö no account accepted order")
             return
 
         now = self._now_et()
@@ -495,11 +507,11 @@ class FadeScalpBot:
         for acct_id, res in order_results.items():
             err = res.get("error") if isinstance(res, dict) else None
             if err:
-                log.critical(f"EXIT FAILED acct {acct_id}: {err} — MANUAL INTERVENTION NEEDED")
+                log.critical(f"EXIT FAILED acct {acct_id}: {err} ΓÇö MANUAL INTERVENTION NEEDED")
             else:
                 log.info(f"EXIT ORDER acct {acct_id}: orderId={res.get('orderId') if isinstance(res, dict) else res}")
         if not any_ok:
-            log.critical(f"EXIT FAILED ALL ACCOUNTS — MANUAL INTERVENTION NEEDED")
+            log.critical(f"EXIT FAILED ALL ACCOUNTS ΓÇö MANUAL INTERVENTION NEEDED")
             return
 
         # Calculate PnL
@@ -541,7 +553,7 @@ class FadeScalpBot:
         # Kill switch
         if self.state.daily_pnl <= MAX_DAILY_LOSS:
             self.state.halted = True
-            log.warning(f"DAILY LOSS LIMIT HIT: ${self.state.daily_pnl:.0f} <= ${MAX_DAILY_LOSS:.0f} — HALTED")
+            log.warning(f"DAILY LOSS LIMIT HIT: ${self.state.daily_pnl:.0f} <= ${MAX_DAILY_LOSS:.0f} ΓÇö HALTED")
 
     def _connect_websocket(self):
         """Connect to TopstepX SignalR market data hub"""
@@ -624,14 +636,14 @@ class FadeScalpBot:
             self._connect_websocket()
             log.info("Running on WebSocket feed")
         except Exception as e:
-            log.warning(f"WebSocket failed: {e} — using REST polling")
+            log.warning(f"WebSocket failed: {e} ΓÇö using REST polling")
             self._use_polling = True
             poll_thread = threading.Thread(target=self._polling_fallback, daemon=True)
             poll_thread.start()
 
         log.info("=" * 60)
         log.info("FADE SCALP BOT v2 (tick_cross + optimized)")
-        log.info(f"  Signal: 1m candle body >= {CANDLE_THRESH}pts → FADE")
+        log.info(f"  Signal: 1m candle body >= {CANDLE_THRESH}pts ΓåÆ FADE")
         log.info(f"  Confirm: tick_cross ({TICK_CROSS_TIMEOUT}s timeout)")
         log.info(f"  Exit: SL={SL_PTS} Floor={FLOOR_PTS} Trail={TRAIL_PTS}")
         log.info(f"  Size: {QTY} MNQ | MaxHold={MAX_HOLD_MIN}min | Cooldown={COOLDOWN_SEC}s")
@@ -662,20 +674,20 @@ class FadeScalpBot:
             if is_rth and self._last_quote_time > 0 and not self._use_polling:
                 secs_since = time.time() - self._last_quote_time
                 if secs_since > 120:
-                    log.warning(f"[WS] No quotes for {secs_since:.0f}s — reconnecting...")
+                    log.warning(f"[WS] No quotes for {secs_since:.0f}s ΓÇö reconnecting...")
                     try:
                         self.client.authenticate()
                         self._connect_websocket()
                         self._last_quote_time = time.time()
                         log.info("[WS] Reconnected successfully")
                     except Exception as e:
-                        log.error(f"[WS] Reconnect failed: {e} — switching to REST polling")
+                        log.error(f"[WS] Reconnect failed: {e} ΓÇö switching to REST polling")
                         self._use_polling = True
                         poll_thread = threading.Thread(target=self._polling_fallback, daemon=True)
                         poll_thread.start()
 
 
-# ── MAIN ──────────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ MAIN ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 if __name__ == "__main__":
     if len(sys.argv) >= 3:
@@ -692,7 +704,7 @@ if __name__ == "__main__":
             sys.exit(1)
 
     print("=" * 60)
-    print("  Fade Scalp Live Bot — NQ 1m Big Candle Fade")
+    print("  Fade Scalp Live Bot ΓÇö NQ 1m Big Candle Fade")
     print("  TopstepX REST + SignalR")
     print("=" * 60)
 
@@ -701,10 +713,10 @@ if __name__ == "__main__":
 
     def _sigint_handler(sig, frame):
         if _confirm_exit[0]:
-            print("\n[FADE] Confirmed — shutting down.")
+            print("\n[FADE] Confirmed ΓÇö shutting down.")
             os._exit(0)
         _confirm_exit[0] = True
-        print("\n*** Ctrl+C detected — press Ctrl+C again within 5 seconds to stop, or wait to continue...")
+        print("\n*** Ctrl+C detected ΓÇö press Ctrl+C again within 5 seconds to stop, or wait to continue...")
         def _reset():
             time.sleep(5)
             if _confirm_exit[0]:
@@ -719,10 +731,10 @@ if __name__ == "__main__":
             bot = FadeScalpBot(api_key, username)
             bot.run()
         except KeyboardInterrupt:
-            print("\n[FADE] Keyboard interrupt — shutting down.")
+            print("\n[FADE] Keyboard interrupt ΓÇö shutting down.")
             break
         except Exception as e:
             import traceback
             traceback.print_exc()
-            log.error(f"[FADE] Crashed: {e} — restarting in 15 seconds...")
+            log.error(f"[FADE] Crashed: {e} ΓÇö restarting in 15 seconds...")
             time.sleep(15)

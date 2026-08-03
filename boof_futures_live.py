@@ -1,14 +1,14 @@
-"""
+﻿"""
 Boof ORB + VWAP/Pullback Futures Live Bot
 NQ + YM | TopstepX via REST API + SignalR WebSocket
 
 Strategies:
-  NQ — ORB (9-bar OR) + TWAP Reclaim + PDH/PDL fallback + Bounce x2
+  NQ ΓÇö ORB (9-bar OR) + TWAP Reclaim + PDH/PDL fallback + Bounce x2
     ORB:  SL=3pts TP=50pts | PF=1.83 backtested 2yr
     TWAP: cross signal, fires after ORB exits | PF=1.80 backtested 2yr
     Exit: Hard SL (intrabar poll) | Trail (bar close) | EOD 15:55 ET
 
-  YM — ORB (4-bar OR) + Pullback + Bounce x1 (MYM micro)
+  YM ΓÇö ORB (4-bar OR) + Pullback + Bounce x1 (MYM micro)
     ORB:  SL=10pts TP=60pts | PF=1.68 backtested 2yr
     PB:   First retest of OR level after ORB | PF=1.61
     Exit: Hard SL | TP | EOD 15:55 ET
@@ -32,11 +32,25 @@ from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from typing import Optional
 
+import json
+
 import httpx
 from signalrcore.hub_connection_builder import HubConnectionBuilder
 
+# ΓöÇΓöÇ RUNTIME CONFIG (from dashboard) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+_SYMBOL_MAP = {"MNQ": "MNQU26", "NQ": "NQU26"}
+_MV_MAP     = {"MNQ": 2, "NQ": 20}
+_runtime_cfg = {}
+_cfg_path = os.environ.get("BOT_RUNTIME_CONFIG_PATH", "")
+if _cfg_path and os.path.isfile(_cfg_path):
+    try:
+        with open(_cfg_path) as _f:
+            _runtime_cfg = json.load(_f)
+            print(f"[ORB] Loaded runtime config: {_runtime_cfg}")
+    except Exception as _e:
+        print(f"[ORB] Could not read runtime config: {_e}")
 
-# ── CONFIG ────────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ CONFIG ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 TZ = ZoneInfo("America/New_York")
 
@@ -45,9 +59,9 @@ MARKET_HUB   = "wss://rtc.topstepx.com/hubs/market"
 
 INSTRUMENTS = {
     "NQ": {
-        "contract_id": None,        # filled at startup via /Contract/search for "MNQU26"
-        "contract_name": "MNQU26",  # Micro NQ Sep 2026 expiry
-        "mv": 2,                    # $2 per point for MNQ
+        "contract_id": None,        # filled at startup via /Contract/search
+        "contract_name": _SYMBOL_MAP.get(_runtime_cfg.get("baseSymbol", ""), "MNQU26"),
+        "mv": _MV_MAP.get(_runtime_cfg.get("baseSymbol", ""), 2),
         "or_bars": 3,
         "orb_max_bars_after": 1,   # allow 1 extra bar after OR for directional breakout
         "sl": 20.0,
@@ -67,12 +81,12 @@ INSTRUMENTS = {
         "daily_profit_trigger": 600.0,
         "daily_profit_floor": 500.0,
         "failed_orb_filter_dows": ["Friday"],
-        "qty": 8,                   # 7 MNQ contracts after a win
+        "qty": _runtime_cfg.get("baseQty", 8),
         # Reduced size contract (used after loss streak)
-        "reduced_contract_name": "MNQU26",
+        "reduced_contract_name": _SYMBOL_MAP.get(_runtime_cfg.get("lossSymbol", ""), "MNQU26"),
         "reduced_contract_id": None,
-        "reduced_mv": 2,            # $2 per point for MNQ
-        "reduced_qty": 4,           # 3 MNQ after a loss
+        "reduced_mv": _MV_MAP.get(_runtime_cfg.get("lossSymbol", ""), 2),
+        "reduced_qty": _runtime_cfg.get("lossQty", 4),
     },
     "ES": {
         "contract_id": None,      # filled at startup via /Contract/search for "MES"
@@ -87,7 +101,7 @@ INSTRUMENTS = {
         "vwap_max_trades": 2,
         "vwap_time_cutoff": "15:00",
     },
-    # YM disabled — no edge confirmed after correcting mv to $0.50/pt
+    # YM disabled ΓÇö no edge confirmed after correcting mv to $0.50/pt
     # "YM": {
     #     "contract_id": None,
     #     "contract_name": "MYM",
@@ -133,7 +147,7 @@ logging.basicConfig(
 log = logging.getLogger("BoofFutures")
 log.info(f"Log file: {_log_file}")
 
-# ── INSTRUMENT STATE ──────────────────────────────────────────────────────────
+# ΓöÇΓöÇ INSTRUMENT STATE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 @dataclass
 class InstrumentState:
@@ -178,15 +192,15 @@ class InstrumentState:
     last_price: float = 0.0
     day: Optional[str] = None
     daily_trades: int = 0  # Track daily trade count
-    max_daily_trades: int = 10  # High limit — bounce counters control per-side limits
+    max_daily_trades: int = 10  # High limit ΓÇö bounce counters control per-side limits
     daily_pnl: float = 0.0  # Estimated realized PnL today (for dynamic sizing)
     daily_profit_floor_armed: bool = False
     daily_profit_halted: bool = False
-    # OR-based SL — set at entry to OR low (long) or OR high (short)
+    # OR-based SL ΓÇö set at entry to OR low (long) or OR high (short)
     or_sl_price: float = 0.0
     atr_sl: float = 0.0          # ATR-based stop distance set at entry (0 = use fixed cfg[sl])
     last_trail_check: float = 0.0
-    # Retest tracking — price must return to OR level before re-entry allowed
+    # Retest tracking ΓÇö price must return to OR level before re-entry allowed
     or_retested_low: bool = True   # True = price has touched OR_L since last short entry (or no entry yet)
     or_retested_high: bool = True  # True = price has touched OR_H since last long entry (or no entry yet)
     # Consecutive loss/win streak + size tier management
@@ -207,14 +221,14 @@ class InstrumentState:
     pending_orb_direction: str = ""
     pending_orb_strategy: str = ""
     pending_orb_boundary: float = 0.0
-    # Active contract info — set at entry, used at exit (so exit matches entry contract)
+    # Active contract info ΓÇö set at entry, used at exit (so exit matches entry contract)
     active_contract_id: Optional[int] = None
     active_qty: int = 1
     active_mv: float = 20.0
     active_account_qty: Optional[dict] = None
     entry_in_progress: bool = False
     exit_in_progress: bool = False
-    next_exit_retry_at: float = 0.0  # time.time() gate — prevents retry storms on every tick after a failed exit
+    next_exit_retry_at: float = 0.0  # time.time() gate ΓÇö prevents retry storms on every tick after a failed exit
     ladder_qty: int = 1
     cooldown_until: Optional[datetime] = None
     last_trade_pnl: float = 0.0
@@ -349,7 +363,7 @@ class InstrumentState:
         self.orb_filter_bar_close = 0.0
         # Don't reset previous day levels - they persist for next day
 
-# ── API CLIENT ────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ API CLIENT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class TopstepClient:
     def __init__(self, username: str, api_key: str):
@@ -480,7 +494,7 @@ class TopstepClient:
         return []
 
     def get_quote(self, contract_id: str) -> Optional[float]:
-        """Poll last price via REST — no WebSocket needed"""
+        """Poll last price via REST ΓÇö no WebSocket needed"""
         try:
             resp = self.http.post(f"{API_URL}/api/Quote/search", headers=self._headers(),
                                  json={"contractId": contract_id}, timeout=3)
@@ -494,7 +508,7 @@ class TopstepClient:
             pass
         return None
 
-# ── MAIN BOT ──────────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ MAIN BOT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class BoofBot:
     def __init__(self):
@@ -505,7 +519,7 @@ class BoofBot:
         if not self.username or not self.api_key:
             raise ValueError("Missing PROJECT_X_USERNAME or PROJECT_X_API_KEY environment variables")
         
-        print(f"✅ Using credentials - Username: {self.username}")
+        print(f"Γ£à Using credentials - Username: {self.username}")
         self.client = TopstepClient(self.username, self.api_key)
         self.states   = {sym: InstrumentState(sym=sym, cfg=dict(cfg))
                          for sym, cfg in INSTRUMENTS.items() if sym in ENABLED_SYMBOLS}
@@ -515,7 +529,7 @@ class BoofBot:
         self._hub = None
         self._last_quote_time: float = 0.0  # epoch seconds of last received quote
         # Dynamic position sizing
-        self.dynamic_qty: int = 1   # base qty — per-instrument cfg["qty"] is used directly
+        self.dynamic_qty: int = 1   # base qty ΓÇö per-instrument cfg["qty"] is used directly
         self.win_streak:  int = 0
         self.loss_streak: int = 0
         self._sizing_trigger: int = 3  # consecutive days to trigger size change
@@ -531,7 +545,7 @@ class BoofBot:
         if not accounts:
             raise RuntimeError("No active accounts found")
 
-        # Optional explicit allowlist — set TRADE_ACCOUNT_IDS="123,456,789" to restrict
+        # Optional explicit allowlist ΓÇö set TRADE_ACCOUNT_IDS="123,456,789" to restrict
         # trading to specific accounts even if TopstepX's API still reports others as active
         # (e.g. a blown/closed account that hasn't been marked inactive yet). Takes priority
         # over ACCOUNT_NAME_FILTER below if both are set.
@@ -549,7 +563,7 @@ class BoofBot:
             if not accounts:
                 raise RuntimeError("TRADE_ACCOUNT_IDS allowlist matched zero accounts from the API")
         else:
-            # Filter by account name prefix — default "EXPRESS" so evaluation/funded (TC) accounts
+            # Filter by account name prefix ΓÇö default "EXPRESS" so evaluation/funded (TC) accounts
             # are never traded even though the API reports them as active. This is more robust than
             # a hardcoded ID list since eval accounts get recycled with new IDs on reset.
             # Set ACCOUNT_NAME_FILTER="" to disable and trade every active account.
@@ -596,7 +610,7 @@ class BoofBot:
     def _save_or_levels(self, state: InstrumentState):
         """Save OR levels and signal flags to disk so they survive bot restarts"""
         if not state.or_complete:
-            return  # never save stale/unbuilt OR — prevents yesterday's levels getting today's date
+            return  # never save stale/unbuilt OR ΓÇö prevents yesterday's levels getting today's date
         import json
         user_tag = self.username.split("@")[0]
         path = os.path.join(os.path.dirname(__file__), f"or_levels_{state.sym}_{user_tag}.json")
@@ -646,7 +660,7 @@ class BoofBot:
         with open(path, "w") as f: json.dump(data, f)
 
     def _restore_or_levels(self):
-        """Reload OR levels from today's log files — parse 'OR complete' lines"""
+        """Reload OR levels from today's log files ΓÇö parse 'OR complete' lines"""
         import re, glob, json
         today = str(datetime.now(TZ).date())
         log_dir = r"C:\Users\tybre\Desktop\topstep logs"
@@ -726,7 +740,7 @@ class BoofBot:
                             state.orb_filter_bar_low = float(data.get("orb_filter_bar_low", 0.0))
                             state.orb_filter_bar_close = float(data.get("orb_filter_bar_close", 0.0))
                             if state.orb_disabled:
-                                log.warning(f"{sym} FAILED ORB state restored — ORB remains disabled for rest of day")
+                                log.warning(f"{sym} FAILED ORB state restored ΓÇö ORB remains disabled for rest of day")
                         log.info(f"{sym} OR restored from JSON: H={state.or_high:.2f} L={state.or_low:.2f} bo_fired={state.bo_fired}")
                         continue
             except Exception:
@@ -794,13 +808,13 @@ class BoofBot:
             if now.time() < dtime(9, 30):
                 continue  # before open, nothing to seed
             if sym != "ES" and state.or_complete and not state.or_seeded:
-                continue  # already restored from file — skip history fetch
+                continue  # already restored from file ΓÇö skip history fetch
             try:
                 # Prefer MNQ for history (full NQ may not return bars via TopstepX history API)
                 history_cid = state.cfg.get("reduced_contract_id") or state.cfg["contract_id"]
                 bars = self.client.get_history(history_cid, units_back=or_bars+30)
                 if not bars:
-                    log.warning(f"{sym} no history bars returned — OR will build from live feed")
+                    log.warning(f"{sym} no history bars returned ΓÇö OR will build from live feed")
                     continue
                 # filter to today's session 9:30 onward
                 session_bars = []
@@ -833,11 +847,11 @@ class BoofBot:
                     state.or_low  = or_lo
                     state.or_bars_collected = min(len(session_bars), or_bars)
                     state.or_complete = True
-                    # Mark as seeded (inaccurate large bars) — blocks trading today
+                    # Mark as seeded (inaccurate large bars) ΓÇö blocks trading today
                     state.or_seeded = True
-                    log.warning(f"{sym} OR seeded from history (large bars — trades blocked today): H={or_hi:.2f} L={or_lo:.2f} ({state.or_bars_collected} bars)")
+                    log.warning(f"{sym} OR seeded from history (large bars ΓÇö trades blocked today): H={or_hi:.2f} L={or_lo:.2f} ({state.or_bars_collected} bars)")
             except Exception as e:
-                log.warning(f"{sym} OR seed failed: {e} — will build from live feed")
+                log.warning(f"{sym} OR seed failed: {e} ΓÇö will build from live feed")
 
     def _recover_positions(self):
         """Check for existing positions and recover state if bot restarted"""
@@ -854,7 +868,7 @@ class BoofBot:
                         entry_px = float(pos.get("avgPrice", 0))
                         qty = abs(int(pos.get("size") or pos.get("quantity") or pos.get("netPosition") or state.cfg["qty"]))
                         if state.in_position and state.direction != direction:
-                            log.critical(f"{sym} position mismatch across accounts — account {account_id} is {direction}, expected {state.direction}")
+                            log.critical(f"{sym} position mismatch across accounts ΓÇö account {account_id} is {direction}, expected {state.direction}")
                             continue
                         state.in_position = True
                         state.direction = direction
@@ -903,7 +917,7 @@ class BoofBot:
                 except: pass
 
     def _on_ws_close(self):
-        log.warning("WS disconnected — scheduling reconnect")
+        log.warning("WS disconnected ΓÇö scheduling reconnect")
         self._ws_closed = True
 
     def _on_quote(self, data):
@@ -929,7 +943,7 @@ class BoofBot:
 
             # GatewayTrade payloads carry a `type` (Buy/Sell) field and a per-trade `volume`.
             # GatewayQuote payloads have no `type` field and their `volume` is the CUMULATIVE
-            # session total (not incremental) — only accumulate from actual trade ticks.
+            # session total (not incremental) ΓÇö only accumulate from actual trade ticks.
             is_trade_tick = "type" in quote
             trade_size = quote.get("volume") if is_trade_tick else None
 
@@ -949,10 +963,10 @@ class BoofBot:
                 if state.or_complete:
                     if last < state.or_low:
                         state.or_retested_low = False
-                        log.info(f"[LIVE] {state.sym} started {state.or_low - last:.0f}pt below OR_L — waiting for price to close back above OR_L before next short")
+                        log.info(f"[LIVE] {state.sym} started {state.or_low - last:.0f}pt below OR_L ΓÇö waiting for price to close back above OR_L before next short")
                     elif last > state.or_high:
                         state.or_retested_high = False
-                        log.info(f"[LIVE] {state.sym} started {last - state.or_high:.0f}pt above OR_H — waiting for price to close back below OR_H before next long")
+                        log.info(f"[LIVE] {state.sym} started {last - state.or_high:.0f}pt above OR_H ΓÇö waiting for price to close back below OR_H before next long")
             previous_price = state.last_price
             state.last_price = last
             if not state.or_complete and trade_size:
@@ -1021,12 +1035,12 @@ class BoofBot:
         return datetime.now(TZ).strftime("%A") in dows
 
     def _check_or15_volume_filter(self, state: InstrumentState):
-        """Informational only — reports OR-window volume if the feed provides it.
+        """Informational only ΓÇö reports OR-window volume if the feed provides it.
         Does NOT affect trading in any way (no orb_disabled, no entry blocking)."""
         if state.or15_volume_ticks < 10:
             log.info(f"{state.sym} OR15 volume: unavailable (only {state.or15_volume_ticks} sized ticks seen)")
             return
-        log.info(f"{state.sym} OR15 volume: {state.or15_volume:.0f} ({state.or15_volume_ticks} ticks) — info only, not affecting trading")
+        log.info(f"{state.sym} OR15 volume: {state.or15_volume:.0f} ({state.or15_volume_ticks} ticks) ΓÇö info only, not affecting trading")
 
     def _update_bar(self, state: InstrumentState, price: float, now: datetime):
         """Accumulate ticks into 5m bars and 15m bars for the failed-ORB filter"""
@@ -1076,7 +1090,7 @@ class BoofBot:
         if closed_inside:
             state.orb_disabled = True
             log.warning(
-                f"{state.sym} FAILED ORB FILTER: {state.failed_orb_direction.upper()} entry reversed inside OR on 15m close — "
+                f"{state.sym} FAILED ORB FILTER: {state.failed_orb_direction.upper()} entry reversed inside OR on 15m close ΓÇö "
                 f"ORB disabled for rest of day | 15m bar OHLC={state.orb_filter_bar_open:.2f}/{state.orb_filter_bar_high:.2f}/{state.orb_filter_bar_low:.2f}/{bcl:.2f} "
                 f"OR={state.or_high:.2f}/{state.or_low:.2f}"
             )
@@ -1127,11 +1141,11 @@ class BoofBot:
         day_str = bar_time.strftime("%Y-%m-%d")
         if state.day != day_str:
             if state.in_position:
-                log.critical(f"{state.sym} still has an open position at day reset — retrying flatten before reset")
+                log.critical(f"{state.sym} still has an open position at day reset ΓÇö retrying flatten before reset")
                 self.exit_position(state, "EOD_RECOVERY")
                 if state.in_position:
                     return
-            log.info(f"New day — resetting {state.sym}")
+            log.info(f"New day ΓÇö resetting {state.sym}")
             if state.day:
                 previous_week = datetime.strptime(state.day, "%Y-%m-%d").isocalendar()[:2]
                 current_week = bar_time.isocalendar()[:2]
@@ -1142,7 +1156,7 @@ class BoofBot:
                     state.consecutive_losing_days += 1
                     if state.consecutive_losing_days >= 3:
                         state.weekly_pause_until = (bar_time + timedelta(days=4 - bar_time.weekday())).strftime("%Y-%m-%d")
-                        log.warning(f"{state.sym} weekly pause active after 3 consecutive losing days — no entries through {state.weekly_pause_until}")
+                        log.warning(f"{state.sym} weekly pause active after 3 consecutive losing days ΓÇö no entries through {state.weekly_pause_until}")
                 else:
                     state.consecutive_losing_days = 0
 
@@ -1178,7 +1192,7 @@ class BoofBot:
                 self._check_or15_volume_filter(state)
                 self._save_or_levels(state)
             elif t >= or_end_time and state.or_bars_collected >= 1:
-                # Bot started late — past OR window but collected some bars; use what we have
+                # Bot started late ΓÇö past OR window but collected some bars; use what we have
                 state.or_complete = True
                 log.warning(f"{state.sym} OR late-complete ({state.or_bars_collected}/{cfg['or_bars']} bars): H={state.or_high:.2f} L={state.or_low:.2f} | OR15_vol={state.or15_volume:.0f}")
                 self._check_or15_volume_filter(state)
@@ -1190,7 +1204,7 @@ class BoofBot:
         # Trail check at bar close while in position
         if state.in_position:
             self._check_trail(state, bcl)
-            # Don't return — still check for flip signals below
+            # Don't return ΓÇö still check for flip signals below
 
 
 
@@ -1200,8 +1214,8 @@ class BoofBot:
         or_h = state.or_high
         or_l = state.or_low
 
-        # Breakout signal — NQ only (YM has its own ORB block below)
-        # NQ: ORB is fallback only — skip if VWAP already fired today
+        # Breakout signal ΓÇö NQ only (YM has its own ORB block below)
+        # NQ: ORB is fallback only ΓÇö skip if VWAP already fired today
         if state.sym == "NQ" and state.or_complete and not state.vwap_fired:
             # Count OR boundary rejections: touched OR level but closed back inside = chop
             if bhi >= or_h and bcl < or_h:
@@ -1221,17 +1235,17 @@ class BoofBot:
                     state.or_chop_mode_since = None
                     state.or_high_rejections = 0
                     state.or_low_rejections = 0
-                    log.warning(f"{state.sym} CHOP MODE EXPIRED after {chop_hours} hour(s) — ORB entries re-enabled")
+                    log.warning(f"{state.sym} CHOP MODE EXPIRED after {chop_hours} hour(s) ΓÇö ORB entries re-enabled")
             if not state.or_chop_mode:
                 if (state.or_high_rejections >= chop_high_thresh and state.or_low_rejections >= chop_low_thresh) or \
                    (state.or_low_rejections >= chop_high_thresh and state.or_high_rejections >= chop_low_thresh):
                     state.or_chop_mode = True
                     state.or_chop_mode_since = bar_time
-                    log.warning(f"{state.sym} CHOP MODE: {state.or_high_rejections} high rejections, {state.or_low_rejections} low rejections — ALL entries (ORB + bounces) skipped for {chop_hours} hour(s)")
+                    log.warning(f"{state.sym} CHOP MODE: {state.or_high_rejections} high rejections, {state.or_low_rejections} low rejections ΓÇö ALL entries (ORB + bounces) skipped for {chop_hours} hour(s)")
 
             breakout_triggered = False
 
-            # Check OR breakout — fire when a bar closes beyond OR level while flat
+            # Check OR breakout ΓÇö fire when a bar closes beyond OR level while flat
             # Directional filter: breakout bar must close in the direction of the trade.
             # Freshness filter: previous bar must have closed inside OR (no chasing).
             pending_direction = ""
@@ -1284,16 +1298,16 @@ class BoofBot:
                         log.info(f"{state.sym} REPEAT ORB {candidate_direction.upper()} armed | first close={bcl:.2f} beyond {candidate_boundary:.2f}; waiting for second close")
                         self._save_or_levels(state)
             elif not ORB_ENABLED and not state.in_position and not getattr(state, "_orb_disabled_logged", False):
-                log.info(f"{state.sym} ORB disabled — bounces only (re-enable when NQ > 30,600)")
+                log.info(f"{state.sym} ORB disabled ΓÇö bounces only (re-enable when NQ > 30,600)")
                 state._orb_disabled_logged = True
             elif state.or_chop_mode and not state.in_position:
-                log.info(f"{state.sym} ORB breakout blocked — chop mode active")
+                log.info(f"{state.sym} ORB breakout blocked ΓÇö chop mode active")
             # Reset retest flags only when price closes back inside OR range
             if or_l <= bcl <= or_h:
                 state.or_retested_low = True
                 state.or_retested_high = True
 
-        # ── EMA-20 (NQ only — disabled, kept for heartbeat display) ──
+        # ΓöÇΓöÇ EMA-20 (NQ only ΓÇö disabled, kept for heartbeat display) ΓöÇΓöÇ
         if state.sym == "NQ":
             state.vol_sum += 1.0
             alpha = 2.0 / (20 + 1)
@@ -1303,11 +1317,11 @@ class BoofBot:
                 state.ema20 = bcl * alpha + state.ema20 * (1 - alpha)
             state.prev_bar_close = bcl
 
-        # ── YM: ORB + Pullback + Bounce1 ──────────────────────────────────────
+        # ΓöÇΓöÇ YM: ORB + Pullback + Bounce1 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if state.sym == "YM" and state.or_complete:
             blo_bar = state.bar_low; bhi_bar = state.bar_high
 
-            # ORB — primary breakout entry
+            # ORB ΓÇö primary breakout entry
             if state.bo_fired < 10 and not state.in_position:
                 if bcl > or_h:
                     log.info(f"{state.sym} ORB LONG | close={bcl:.2f} > OR_H {or_h:.2f}")
@@ -1326,7 +1340,7 @@ class BoofBot:
             state.ym_twap_bars += 1
             ym_twap_val = state.ym_twap_sum / state.ym_twap_bars
 
-            # Pullback — first retest of OR level after ORB exits
+            # Pullback ΓÇö first retest of OR level after ORB exits
             if state.bo_fired > 0 and not state.pb_fired and not state.in_position and state.pb_or_broke:
                 if state.pb_or_broke == "long" and blo_bar <= or_h and bcl > or_h:
                     log.info(f"{state.sym} PULLBACK LONG | retested OR_H={or_h:.2f}, closed above @ {bcl:.2f}")
@@ -1337,9 +1351,9 @@ class BoofBot:
                     self.enter(state, "short", "PB_OR")
                     state.pb_fired = True
 
-            state.ym_prev_bar_close = bcl  # TWAP signal disabled — no edge on YM (PF=0.94 over 2yr)
+            state.ym_prev_bar_close = bcl  # TWAP signal disabled ΓÇö no edge on YM (PF=0.94 over 2yr)
 
-            # Bounce1 — single fade off OR level (PF 1.52 verified)
+            # Bounce1 ΓÇö single fade off OR level (PF 1.52 verified)
             # Directional filter: bounce candle must close in the direction of the trade
             if bhi_bar >= or_h and bcl < or_h and bcl < state.bar_open and state.bounce_high_count < 1:
                 if not state.in_position:
@@ -1352,7 +1366,7 @@ class BoofBot:
                     self.enter(state, "long", "BOUNCE")
                     state.bounce_low_count += 1
 
-        # ── ES: VWAP mean-reversion signal ────────────────────────────────────
+        # ΓöÇΓöÇ ES: VWAP mean-reversion signal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
         if state.sym == "ES" and state.vwap_bars >= 3 and not state.in_position:
             sigma = cfg.get("vwap_sigma", 1.0)
             vwap_upper = state.vwap + sigma * state.vwap_std
@@ -1373,27 +1387,27 @@ class BoofBot:
 
                 cooldown_ok = state.bar_num > state.vwap_last_entry_bar + 1
                 if direction and cooldown_ok:
-                    log.info(f"{state.sym} VWAP {direction.upper()} | close={bcl:.2f} vs VWAP={state.vwap:.2f} +/-{sigma}σ [{vwap_upper:.2f}/{vwap_lower:.2f}] | prev_range={state.prev_day_low:.2f}-{state.prev_day_high:.2f}")
+                    log.info(f"{state.sym} VWAP {direction.upper()} | close={bcl:.2f} vs VWAP={state.vwap:.2f} +/-{sigma}╧â [{vwap_upper:.2f}/{vwap_lower:.2f}] | prev_range={state.prev_day_low:.2f}-{state.prev_day_high:.2f}")
                     self.enter(state, direction, "VWAP_REV")
                     state.vwap_last_entry_bar = state.bar_num
 
-        # Bounce signal — NQ only (YM bounce handled above, ES/RTY bounces verified negative PF)
+        # Bounce signal ΓÇö NQ only (YM bounce handled above, ES/RTY bounces verified negative PF)
         if state.sym not in ("NQ",):
             return
         max_bounce = cfg.get("max_bounces_per_side", 1)
 
         if state.bounce_high_count >= max_bounce and bhi >= or_h and bcl < or_h:
-            log.info(f"{state.sym} BOUNCE SHORT skipped — already took {state.bounce_high_count} high bounce(s)")
+            log.info(f"{state.sym} BOUNCE SHORT skipped ΓÇö already took {state.bounce_high_count} high bounce(s)")
         if state.bounce_low_count >= max_bounce and blo <= or_l and bcl > or_l:
-            log.info(f"{state.sym} BOUNCE LONG skipped — already took {state.bounce_low_count} low bounce(s)")
+            log.info(f"{state.sym} BOUNCE LONG skipped ΓÇö already took {state.bounce_low_count} low bounce(s)")
 
         if bhi >= or_h and bcl < or_h and state.bounce_high_count < max_bounce and (state.bar_open is None or state.bar_open <= or_h or state.reclaim_count < cfg.get("max_reclaims", 2)):
             if state.or_chop_mode:
-                log.info(f"{state.sym} BOUNCE SHORT skipped — chop mode active")
+                log.info(f"{state.sym} BOUNCE SHORT skipped ΓÇö chop mode active")
             else:
                 log.info(f"{state.sym} BOUNCE SHORT #{state.bounce_high_count+1} | touched OR_H={or_h:.2f}, closed below @ {bcl:.2f}")
                 if state.in_position and state.direction == "long":
-                    log.info(f"{state.sym} BOUNCE SHORT skipped — already in long position")
+                    log.info(f"{state.sym} BOUNCE SHORT skipped ΓÇö already in long position")
                 if not state.in_position:
                     is_reclaim = state.bar_open is not None and state.bar_open > or_h
                     self.enter(state, "short", "BOUNCE")
@@ -1405,11 +1419,11 @@ class BoofBot:
 
         elif blo <= or_l and bcl > or_l and state.bounce_low_count < max_bounce and (state.bar_open is None or state.bar_open >= or_l or state.reclaim_count < cfg.get("max_reclaims", 2)):
             if state.or_chop_mode:
-                log.info(f"{state.sym} BOUNCE LONG skipped — chop mode active")
+                log.info(f"{state.sym} BOUNCE LONG skipped ΓÇö chop mode active")
             else:
                 log.info(f"{state.sym} BOUNCE LONG #{state.bounce_low_count+1} | touched OR_L={or_l:.2f}, closed above @ {bcl:.2f}")
                 if state.in_position and state.direction == "short":
-                    log.info(f"{state.sym} BOUNCE LONG skipped — already in short position")
+                    log.info(f"{state.sym} BOUNCE LONG skipped ΓÇö already in short position")
                 if not state.in_position:
                     is_reclaim = state.bar_open is not None and state.bar_open < or_l
                     self.enter(state, "long", "BOUNCE")
@@ -1422,7 +1436,7 @@ class BoofBot:
 
 
     def _check_trail_intrabar(self, state: InstrumentState):
-        """Tick-based trail — polled every 30 seconds"""
+        """Tick-based trail ΓÇö polled every 30 seconds"""
         if not state.in_position:
             return
         last = state.last_price
@@ -1452,7 +1466,7 @@ class BoofBot:
                 self.exit_position(state, "TRAIL")
 
     def _check_sl(self, state: InstrumentState):
-        """Hard SL — polled every SL_POLL_SEC seconds"""
+        """Hard SL ΓÇö polled every SL_POLL_SEC seconds"""
         if not state.in_position:
             return
         last = state.last_price
@@ -1465,21 +1479,21 @@ class BoofBot:
         sl_px = state.entry_px - sl_dist if state.direction == "long" else state.entry_px + sl_dist
         if state.direction == "long":
             if last <= sl_px - EMERGENCY_BUFFER:
-                log.warning(f"{state.sym} EMERGENCY STOP LONG — price {last:.2f} blew {EMERGENCY_BUFFER}pt past SL {sl_px:.2f}, market order")
+                log.warning(f"{state.sym} EMERGENCY STOP LONG ΓÇö price {last:.2f} blew {EMERGENCY_BUFFER}pt past SL {sl_px:.2f}, market order")
                 self.exit_position(state, "EMERGENCY")
             elif last <= sl_px:
                 log.warning(f"{state.sym} SL LONG hit @ {last:.2f}")
                 self.exit_position(state, "SL")
         elif state.direction == "short":
             if last >= sl_px + EMERGENCY_BUFFER:
-                log.warning(f"{state.sym} EMERGENCY STOP SHORT — price {last:.2f} blew {EMERGENCY_BUFFER}pt past SL {sl_px:.2f}, market order")
+                log.warning(f"{state.sym} EMERGENCY STOP SHORT ΓÇö price {last:.2f} blew {EMERGENCY_BUFFER}pt past SL {sl_px:.2f}, market order")
                 self.exit_position(state, "EMERGENCY")
             elif last >= sl_px:
                 log.warning(f"{state.sym} SL SHORT hit @ {last:.2f}")
                 self.exit_position(state, "SL")
 
     def _check_tp(self, state: InstrumentState):
-        """Take Profit — checked every SL_POLL_SEC seconds"""
+        """Take Profit ΓÇö checked every SL_POLL_SEC seconds"""
         if not state.in_position:
             return
         last = state.last_price
@@ -1496,7 +1510,7 @@ class BoofBot:
                 self.exit_position(state, "TP")
 
     def _check_trail(self, state: InstrumentState, bar_close: float):
-        """Trail SL — checked at bar close"""
+        """Trail SL ΓÇö checked at bar close"""
         cfg = state.cfg
         activate = cfg.get("trail_activate", cfg["trail"])
         profit_floor = cfg.get("trail_profit_floor", 0.0)
@@ -1532,7 +1546,7 @@ class BoofBot:
         # Block entries if OR was seeded from session range (bot started late).
         # VWAP/TWAP signals are still allowed because they don't depend on the OR window.
         if state.or_seeded and not trade_type.startswith(("VWAP", "TWAP")):
-            log.warning(f"{state.sym} entry blocked — OR was seeded (bot started late), wait for tomorrow")
+            log.warning(f"{state.sym} entry blocked ΓÇö OR was seeded (bot started late), wait for tomorrow")
             return
 
         # Check daily trade limit
@@ -1543,14 +1557,14 @@ class BoofBot:
         combined_pnl = self._combined_marked_pnl()
         day_str = datetime.now(TZ).strftime("%Y-%m-%d")
         if state.weekly_pause_until and day_str <= state.weekly_pause_until:
-            log.warning(f"{state.sym} weekly pause active through {state.weekly_pause_until} — no new entries today")
+            log.warning(f"{state.sym} weekly pause active through {state.weekly_pause_until} ΓÇö no new entries today")
             return
         if self.daily_halt_day == day_str or combined_pnl <= DAILY_LOSS_LIMIT:
             self.daily_halt_day = day_str
-            log.warning(f"{state.sym} daily loss limit active (${combined_pnl:+,.0f}) — no new entries today")
+            log.warning(f"{state.sym} daily loss limit active (${combined_pnl:+,.0f}) ΓÇö no new entries today")
             return
         if state.daily_profit_halted:
-            log.warning(f"{state.sym} daily profit floor active — no new entries today")
+            log.warning(f"{state.sym} daily profit floor active ΓÇö no new entries today")
             return
 
         side = 0 if direction == "long" else 1
@@ -1600,11 +1614,11 @@ class BoofBot:
                 else:
                     log.error(f"{state.sym} entry order rejected for account {acct_id}: {res}")
             if not successful_accounts:
-                log.critical(f"{state.sym} entry aborted — no account accepted the order")
+                log.critical(f"{state.sym} entry aborted ΓÇö no account accepted the order")
                 return
             if len(successful_accounts) != len(self.account_ids):
                 failed_accounts = sorted(set(self.account_ids) - set(successful_accounts))
-                log.critical(f"{state.sym} partial entry — active accounts={sorted(successful_accounts)}, failed accounts={failed_accounts}")
+                log.critical(f"{state.sym} partial entry ΓÇö active accounts={sorted(successful_accounts)}, failed accounts={failed_accounts}")
             state.active_contract_id = cid
             state.active_qty = qty
             state.active_mv = mv
@@ -1630,9 +1644,9 @@ class BoofBot:
                         state.atr_sl = min(round(ATR_MULT * atr, 2), NQ_ATR_MAX_STOP)
                         log.info(f"{state.sym} ATR({ATR_PERIOD})={atr:.2f} => SL={state.atr_sl:.2f}pt ({ATR_MULT}x, cap={NQ_ATR_MAX_STOP:.0f})")
                 except Exception as e:
-                    log.warning(f"{state.sym} ATR calc failed: {e} — using fixed SL")
+                    log.warning(f"{state.sym} ATR calc failed: {e} ΓÇö using fixed SL")
 
-            # Assume filled — market orders on TopstepX fill immediately
+            # Assume filled ΓÇö market orders on TopstepX fill immediately
             state.in_position = True
             state.direction = direction
             state.trade_type = trade_type
@@ -1653,14 +1667,14 @@ class BoofBot:
         if not state.in_position or state.exit_in_progress:
             return
         if time.time() < state.next_exit_retry_at:
-            return  # backoff active — avoid hammering the API every tick after a failed exit
+            return  # backoff active ΓÇö avoid hammering the API every tick after a failed exit
         side = 1 if state.direction == "long" else 0
         cid = state.active_contract_id
         targets = dict(state.active_account_qty) if state.active_account_qty else {
             account_id: state.active_qty for account_id in self.account_ids
         }
         if not cid or not targets:
-            log.critical(f"{state.sym} exit blocked — missing active contract or account quantities")
+            log.critical(f"{state.sym} exit blocked ΓÇö missing active contract or account quantities")
             return
         state.exit_in_progress = True
         try:
@@ -1721,7 +1735,7 @@ class BoofBot:
                     if state.consec_wins_since_reduce >= state.cfg.get("recovery_wins", 3):
                         state.size_tier = 0
                         state.consec_wins_since_reduce = 0
-                        log.info(f"{state.sym} SIZE UP: {state.cfg.get('recovery_wins', 3)} win(s) → {state.cfg['qty']} MNQ")
+                        log.info(f"{state.sym} SIZE UP: {state.cfg.get('recovery_wins', 3)} win(s) ΓåÆ {state.cfg['qty']} MNQ")
             else:
                 state.consecutive_wins = 0
                 state.consecutive_losses += 1
@@ -1731,7 +1745,7 @@ class BoofBot:
                     state.size_tier = 1
                     state.consecutive_losses = 0
                     if state.size_tier != old_tier:
-                        log.warning(f"{state.sym} SIZE DOWN: {NQ_SIZE_DOWN_LOSSES} loss(es) → {state.cfg['reduced_qty']} MNQ")
+                        log.warning(f"{state.sym} SIZE DOWN: {NQ_SIZE_DOWN_LOSSES} loss(es) ΓåÆ {state.cfg['reduced_qty']} MNQ")
             if state.sym == "NQ" and state.cfg.get("cooldown_minutes"):
                 state.cooldown_until = datetime.now(TZ) + timedelta(minutes=state.cfg["cooldown_minutes"])
             outcome = "PROFIT" if pnl > 0 else "LOSS" if pnl < 0 else "FLAT"
@@ -1755,10 +1769,10 @@ class BoofBot:
                 log.info(f"{state.sym} RETEST GUARD: loss exit, both ORB directions locked until price returns to OR")
             elif exited_direction == "long":
                 state.or_retested_high = False
-                log.info(f"{state.sym} RETEST GUARD: long exit — wait for price to return to OR before next long ORB")
+                log.info(f"{state.sym} RETEST GUARD: long exit ΓÇö wait for price to return to OR before next long ORB")
             elif exited_direction == "short":
                 state.or_retested_low = False
-                log.info(f"{state.sym} RETEST GUARD: short exit — wait for price to return to OR before next short ORB")
+                log.info(f"{state.sym} RETEST GUARD: short exit ΓÇö wait for price to return to OR before next short ORB")
             self._save_or_levels(state)
         except Exception as e:
             log.error(f"{state.sym} exit failed: {e}")
@@ -1793,7 +1807,7 @@ class BoofBot:
             self._save_or_levels(state)
         if state.daily_profit_floor_armed and marked_pnl <= floor:
             state.daily_profit_halted = True
-            log.warning(f"{state.sym} DAILY PROFIT FLOOR HIT: marked PnL=${marked_pnl:+,.0f} <= ${floor:,.0f} — flattening and blocking entries until tomorrow")
+            log.warning(f"{state.sym} DAILY PROFIT FLOOR HIT: marked PnL=${marked_pnl:+,.0f} <= ${floor:,.0f} ΓÇö flattening and blocking entries until tomorrow")
             if state.in_position:
                 self.exit_position(state, "DAILY_PROFIT_FLOOR")
             self._save_or_levels(state)
@@ -1810,7 +1824,7 @@ class BoofBot:
         if marked_pnl > DAILY_LOSS_LIMIT:
             return False
         self.daily_halt_day = day_str
-        log.critical(f"DAILY LOSS LIMIT HIT: marked PnL=${marked_pnl:+,.0f} <= ${DAILY_LOSS_LIMIT:,.0f} — flattening and blocking entries until tomorrow")
+        log.critical(f"DAILY LOSS LIMIT HIT: marked PnL=${marked_pnl:+,.0f} <= ${DAILY_LOSS_LIMIT:,.0f} ΓÇö flattening and blocking entries until tomorrow")
         for state in self.states.values():
             if state.in_position:
                 self.exit_position(state, "DAILY_LOSS_LIMIT")
@@ -1833,12 +1847,12 @@ class BoofBot:
             # Daily reset at start of day
             day_str = now.strftime("%Y-%m-%d")
             if self.daily_halt_day is not None and self.daily_halt_day != day_str:
-                log.info("Daily loss halt reset — trading re-enabled")
+                log.info("Daily loss halt reset ΓÇö trading re-enabled")
                 self.daily_halt_day = None
             for state in self.states.values():
                 if state.day != day_str:
                     if state.in_position:
-                        log.critical(f"{state.sym} still has an open position at day reset — retrying flatten before reset")
+                        log.critical(f"{state.sym} still has an open position at day reset ΓÇö retrying flatten before reset")
                         self.exit_position(state, "EOD_RECOVERY")
                         if state.in_position:
                             continue
@@ -1860,13 +1874,13 @@ class BoofBot:
                             if self.win_streak >= self._sizing_trigger:
                                 self.dynamic_qty = min(self.dynamic_qty + 1, self._max_qty)
                                 self.win_streak = 0
-                                log.info(f"DYNAMIC SIZING: {self._sizing_trigger} win days → qty now {self.dynamic_qty}")
+                                log.info(f"DYNAMIC SIZING: {self._sizing_trigger} win days ΓåÆ qty now {self.dynamic_qty}")
                         elif combined_day_pnl < 0:
                             self.loss_streak += 1; self.win_streak = 0
                             if self.loss_streak >= self._sizing_trigger:
                                 self.dynamic_qty = max(self.dynamic_qty - 1, self._min_qty)
                                 self.loss_streak = 0
-                                log.info(f"DYNAMIC SIZING: {self._sizing_trigger} loss days → qty now {self.dynamic_qty}")
+                                log.info(f"DYNAMIC SIZING: {self._sizing_trigger} loss days ΓåÆ qty now {self.dynamic_qty}")
                     state.reset_day()
                     state.day = day_str
 
@@ -1877,7 +1891,7 @@ class BoofBot:
                 if not daily_halted and ENTRY_START <= t < EOD_EXIT:
                     for state in self.states.values():
                         self._check_sl(state)
-                        # self._check_tp(state)  # disabled — trail handles all exits
+                        # self._check_tp(state)  # disabled ΓÇö trail handles all exits
                         self._check_trail_intrabar(state)
 
                 # EOD hard exit
@@ -1901,19 +1915,19 @@ class BoofBot:
                     else:
                         pos = "flat"
                     orb_status = " ORB_DISABLED" if s.orb_disabled else ""
-                    parts.append(f"{s.sym} px={s.last_price:.2f} OR[{s.or_high:.2f}/{s.or_low:.2f}]{'✓' if s.or_complete else '…'} OR15_vol={s.or15_volume:.0f} {pos}{orb_status} bounces[H={s.bounce_high_count}/L={s.bounce_low_count}] dayPnL=${s.daily_pnl:+.0f} lastTrade=${s.last_trade_pnl:+.0f}")
+                    parts.append(f"{s.sym} px={s.last_price:.2f} OR[{s.or_high:.2f}/{s.or_low:.2f}]{'Γ£ô' if s.or_complete else 'ΓÇª'} OR15_vol={s.or15_volume:.0f} {pos}{orb_status} bounces[H={s.bounce_high_count}/L={s.bounce_low_count}] dayPnL=${s.daily_pnl:+.0f} lastTrade=${s.last_trade_pnl:+.0f}")
                 nq_state = self.states.get("NQ")
                 next_qty = INSTRUMENTS["NQ"]["reduced_qty"] if nq_state and nq_state.size_tier > 0 else INSTRUMENTS["NQ"]["qty"]
                 log.info(f"[HEARTBEAT] {' | '.join(parts)} | next_qty={next_qty} MNQ")
 
-            # WS reconnect — on explicit close event or stale feed during RTH
+            # WS reconnect ΓÇö on explicit close event or stale feed during RTH
             now_et = datetime.now(TZ)
             is_rth = dtime(9, 0) <= now_et.time() <= dtime(16, 30)
             needs_reconnect = getattr(self, '_ws_closed', False)
             if not needs_reconnect and is_rth and self._last_quote_time > 0:
                 secs_since = time.time() - self._last_quote_time
                 if secs_since > 120:
-                    log.warning(f"[WS] No quotes for {secs_since:.0f}s — stale feed detected")
+                    log.warning(f"[WS] No quotes for {secs_since:.0f}s ΓÇö stale feed detected")
                     needs_reconnect = True
             if needs_reconnect:
                 log.warning("[WS] Reconnecting market feed...")
@@ -1929,7 +1943,7 @@ class BoofBot:
 
             time.sleep(SL_POLL_SEC)
 
-# ── ENTRY POINT ───────────────────────────────────────────────────────────────
+# ΓöÇΓöÇ ENTRY POINT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 if __name__ == "__main__":
     import sys
@@ -1951,10 +1965,10 @@ if __name__ == "__main__":
 
     def _sigint_handler(sig, frame):
         if _confirm_exit[0]:
-            print("\n[BOT] Confirmed — shutting down.")
+            print("\n[BOT] Confirmed ΓÇö shutting down.")
             os._exit(0)
         _confirm_exit[0] = True
-        print("\n*** Ctrl+C detected — press Ctrl+C again within 5 seconds to stop, or wait to continue...")
+        print("\n*** Ctrl+C detected ΓÇö press Ctrl+C again within 5 seconds to stop, or wait to continue...")
         import threading
         def _reset():
             import time; time.sleep(5)
@@ -1970,10 +1984,10 @@ if __name__ == "__main__":
             bot = BoofBot()
             bot.run()
         except KeyboardInterrupt:
-            print("\n[BOT] Keyboard interrupt — shutting down.")
+            print("\n[BOT] Keyboard interrupt ΓÇö shutting down.")
             break
         except Exception as e:
             import traceback
             traceback.print_exc()
-            log.error(f"[BOT] Crashed: {e} — restarting in 15 seconds...")
+            log.error(f"[BOT] Crashed: {e} ΓÇö restarting in 15 seconds...")
             time.sleep(15)
