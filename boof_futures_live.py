@@ -24,6 +24,7 @@ Setup:
 
 import asyncio
 import os
+import sys
 import logging
 import threading
 import time
@@ -512,12 +513,16 @@ class TopstepClient:
 
 class BoofBot:
     def __init__(self):
-        # Get credentials from environment variables
-        self.username = os.environ.get("PROJECT_X_USERNAME", "")
-        self.api_key  = os.environ.get("PROJECT_X_API_KEY", "")
+        # Get credentials from command-line args (key, username) or environment variables
+        if len(sys.argv) >= 3:
+            self.api_key  = sys.argv[1]
+            self.username = sys.argv[2]
+        else:
+            self.username = os.environ.get("PROJECT_X_USERNAME", "")
+            self.api_key  = os.environ.get("PROJECT_X_API_KEY", "")
         
         if not self.username or not self.api_key:
-            raise ValueError("Missing PROJECT_X_USERNAME or PROJECT_X_API_KEY environment variables")
+            raise ValueError("Missing credentials: pass as arguments (api_key username) or set PROJECT_X_USERNAME and PROJECT_X_API_KEY environment variables")
         
         print(f"Γ£à Using credentials - Username: {self.username}")
         self.client = TopstepClient(self.username, self.api_key)
