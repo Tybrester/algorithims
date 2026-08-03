@@ -45,7 +45,13 @@ class CombinedRunner:
         self.api_key, self.username = _load_credentials()
         self.client = TopstepClient(self.username, self.api_key)
         self.boof = BoofBot(client=self.client, combined_mode=True)
-        self.fade = FadeScalpBot(client=self.client, combined_mode=True)
+        # Temporarily default disable_fade=True due to live trading issues
+        self.disable_fade = os.environ.get("DISABLE_FADE", "true").lower() in ("1", "true", "yes")
+        if self.disable_fade:
+            log.info("Fade bot DISABLED — set DISABLE_FADE=false to re-enable")
+            self.fade = None
+        else:
+            self.fade = FadeScalpBot(client=self.client, combined_mode=True)
         self._hub = None
         self._running = False
         self._threads = []
@@ -56,20 +62,23 @@ class CombinedRunner:
                 self.boof._on_quote(data)
             except Exception as e:
                 log.error(f"ORB quote error: {e}")
-            try:
-                self.fade._on_quote(data)
-            except Exception as e:
-                log.error(f"Fade quote error: {e}")
+            if self.fade:
+                try:
+                    self.fade._on_quote(data)
+                except Exception as e:
+                    log.error(f"Fade quote error: {e}")
 
         def _on_logout(data):
             log.warning(f"GatewayLogout: {data}")
             self.boof._ws_closed = True
-            self.fade._ws_closed = True
+            if self.fade:
+                self.fade._ws_closed = True
 
         def _on_close():
             log.warning("Shared WebSocket disconnected")
             self.boof._ws_closed = True
-            self.fade._ws_closed = True
+            if self.fade:
+                self.fade._ws_closed = True
 
         hub.on("GatewayQuote", _on_quote)
         hub.on("GatewayTrade", _on_quote)
@@ -83,10 +92,11 @@ class CombinedRunner:
         except Exception as e:
             log.error(f"ORB subscribe failed: {e}")
         # Fade subscription
-        try:
-            self.fade._subscribe_contract(hub)
-        except Exception as e:
-            log.error(f"Fade subscribe failed: {e}")
+        if self.fade:
+            try:
+                self.fade._subscribe_contract(hub)
+            except Exception as e:
+                log.error(f"Fade subscribe failed: {e}")
 
     def _connect_hub(self):
         if self._hub:
@@ -101,9 +111,10 @@ class CombinedRunner:
         time.sleep(2)
         self._subscribe_all(self._hub)
         self.boof._ws_closed = False
-        self.fade._ws_closed = False
         self.boof._last_quote_time = time.time()
-        self.fade._last_quote_time = time.time()
+        if self.fade:
+            self.fade._ws_closed = False
+            self.fade._last_quote_time = time.time()
         log.info("Shared hub connected and subscribed")
 
     def _reconnect(self):
@@ -134,7 +145,7 @@ class CombinedRunner:
             for state in self.boof.states.values():
                 if state.in_position:
                     return state.direction
-            if self.fade.state.trade.in_position:
+            if self.fade and self.fade.state.trade.in_position:
                 return self.fade.state.trade.direction
             return ""
 
@@ -143,16 +154,19 @@ class CombinedRunner:
             return not cur or cur == direction
 
         self.boof._external_can_enter = can_enter
-        self.fade._external_can_enter = can_enter
+        if self.fade:
+            self.fade._external_can_enter = can_enter
 
         # Start bot threads. Each bot does its own setup() and enters its main loop.
         # In combined_mode their websocket setup is a no-op; we provide the shared hub below.
         self._running = True
         t1 = threading.Thread(target=self._bot_loop, args=(self.boof, "ORB"), daemon=True)
-        t2 = threading.Thread(target=self._bot_loop, args=(self.fade, "Fade"), daemon=True)
-        self._threads = [t1, t2]
+        self._threads = [t1]
         t1.start()
-        t2.start()
+        if self.fade:
+            t2 = threading.Thread(target=self._bot_loop, args=(self.fade, "Fade"), daemon=True)
+            self._threads.append(t2)
+            t2.start()
 
         # Give bots a moment to resolve accounts/contracts
         time.sleep(4)
@@ -171,7 +185,6 @@ class CombinedRunner:
                 if now - last_heartbeat >= 60:
                     last_heartbeat = now
                     orb_conn = "DISCONNECTED" if self.boof._ws_closed else "CONNECTED" if now - self.boof._last_quote_time < 15 else "STALE"
-                    fade_conn = "DISCONNECTED" if self.fade._ws_closed else "CONNECTED" if now - self.fade._last_quote_time < 15 else "STALE"
 
                     orb_pos = "flat"
                     for st in self.boof.states.values():
@@ -181,26 +194,29 @@ class CombinedRunner:
                     orb_pnl = sum(st.daily_pnl for st in self.boof.states.values())
                     orb_trades = sum(st.daily_trades for st in self.boof.states.values())
 
-                    fade_trade = self.fade.state.trade
-                    fade_pos = f"{fade_trade.direction.upper()} @ {fade_trade.entry_px:.2f}" if fade_trade.in_position else "flat"
-                    fade_pnl = self.fade.state.daily_pnl
-                    fade_trades = self.fade.state.daily_trades
-
-                    combined_pnl = orb_pnl + fade_pnl
-                    combined_trades = orb_trades + fade_trades
-                    log.info(f"[HEARTBEAT] COMBINED pnl=${combined_pnl:+.0f} trades={combined_trades} | "
-                             f"ORB={orb_conn} trading={orb_pos} pnl=${orb_pnl:+.0f} trades={orb_trades} | "
-                             f"FADE={fade_conn} trading={fade_pos} pnl=${fade_pnl:+.0f} trades={fade_trades}")
+                    if self.fade:
+                        fade_conn = "DISCONNECTED" if self.fade._ws_closed else "CONNECTED" if now - self.fade._last_quote_time < 15 else "STALE"
+                        fade_trade = self.fade.state.trade
+                        fade_pos = f"{fade_trade.direction.upper()} @ {fade_trade.entry_px:.2f}" if fade_trade.in_position else "flat"
+                        fade_pnl = self.fade.state.daily_pnl
+                        fade_trades = self.fade.state.daily_trades
+                        combined_pnl = orb_pnl + fade_pnl
+                        combined_trades = orb_trades + fade_trades
+                        log.info(f"[HEARTBEAT] COMBINED pnl=${combined_pnl:+.0f} trades={combined_trades} | "
+                                 f"ORB={orb_conn} trading={orb_pos} pnl=${orb_pnl:+.0f} trades={orb_trades} | "
+                                 f"FADE={fade_conn} trading={fade_pos} pnl=${fade_pnl:+.0f} trades={fade_trades}")
+                    else:
+                        log.info(f"[HEARTBEAT] ORB={orb_conn} trading={orb_pos} pnl=${orb_pnl:+.0f} trades={orb_trades} | FADE=DISABLED")
 
                 now_et = datetime.now(TZ)
                 is_rth = dtime(9, 0) <= now_et.time() <= dtime(16, 30)
 
-                needs_reconnect = self.boof._ws_closed or self.fade._ws_closed
+                needs_reconnect = self.boof._ws_closed or (self.fade._ws_closed if self.fade else False)
                 if not needs_reconnect and is_rth:
                     stale = False
                     if self.boof._last_quote_time > 0 and time.time() - self.boof._last_quote_time > 120:
                         stale = True
-                    if self.fade._last_quote_time > 0 and time.time() - self.fade._last_quote_time > 120:
+                    if self.fade and self.fade._last_quote_time > 0 and time.time() - self.fade._last_quote_time > 120:
                         stale = True
                     if stale:
                         log.warning("[WS] Stale feed detected")
@@ -213,7 +229,7 @@ class CombinedRunner:
                 if not t1.is_alive():
                     log.error("ORB bot thread died")
                     self._running = False
-                if not t2.is_alive():
+                if self.fade and not t2.is_alive():
                     log.error("Fade bot thread died")
                     self._running = False
         except KeyboardInterrupt:
@@ -221,7 +237,8 @@ class CombinedRunner:
         finally:
             self._running = False
             self.boof._running = False
-            self.fade._running = False
+            if self.fade:
+                self.fade._running = False
             if self._hub:
                 try:
                     self._hub.stop()
