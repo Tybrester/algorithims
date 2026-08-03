@@ -66,9 +66,9 @@ INSTRUMENTS = {
         "or_bars": 3,
         "orb_max_bars_after": 1,   # allow 1 extra bar after OR for directional breakout
         "sl": 20.0,
-        "trail": 10.0,
-        "trail_activate": 10.0,
-        "trail_profit_floor": 5.0,
+        "trail": 5.0,
+        "trail_activate": 8.0,
+        "trail_profit_floor": 0.0,
         "max_reclaims": 999,
         "max_bounces_per_side": 0,
         "max_daily_trades": 999,
@@ -594,8 +594,8 @@ class BoofBot:
                     raise RuntimeError(f"No accounts matched ACCOUNT_NAME_FILTER={name_filter!r}")
                 accounts = matched
 
-        # Filter out accounts with insufficient balance to avoid partial fills / rejected orders
-        min_balance = float(os.environ.get("MIN_ACCOUNT_BALANCE", "100").strip() or "100")
+        # Optional balance filter: set MIN_ACCOUNT_BALANCE to exclude low-balance accounts
+        min_balance = float(os.environ.get("MIN_ACCOUNT_BALANCE", "0").strip() or "0")
         funded_accounts = [a for a in accounts if a.get("balance", 0) is not None and a.get("balance", 0) >= min_balance]
         underfunded = [a for a in accounts if a not in funded_accounts]
         if underfunded:
@@ -1737,21 +1737,7 @@ class BoofBot:
                 except Exception as e:
                     log.warning(f"{state.sym} ATR calc failed: {e} ΓÇö using fixed SL")
 
-            # Verify position was actually created before marking in_position
-            # Retry briefly, but trust the order fill if broker position search lags
-            entry_verified = False
-            for attempt in range(5):
-                try:
-                    net = self._aggregate_position_for_contract(cid)
-                    if net != 0:
-                        entry_verified = True
-                        break
-                except Exception as e:
-                    log.warning(f"{state.sym} entry position check attempt {attempt+1} failed: {e}")
-                time.sleep(0.3)
-            if not entry_verified:
-                log.warning(f"{state.sym} ENTRY WARNING: could not verify broker position after order(s) accepted ΓÇö managing position anyway")
-                # Preserve active_account_qty so exit orders go to the accounts that accepted the entry
+            # Original bot behavior: trust the order fill confirmation and manage the trade
 
             state.in_position = True
             state.direction = direction
