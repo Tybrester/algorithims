@@ -489,14 +489,21 @@ class FadeScalpBot:
             return
 
         # Safety: double-check we are actually in a position before marking in_position
-        try:
-            positions = self.client.get_positions(self.account_id)
-            net = _net_position(positions, self.client.contract_id)
-            if net == 0:
-                log.warning(f"ENTRY WARNING: order reported success but broker position is still flat — marking flat")
-                return
-        except Exception as e:
-            log.warning(f"Entry position verification failed: {e}")
+        # Retry briefly — TopstepX position search can lag a few seconds after fill
+        verified = False
+        for attempt in range(10):
+            try:
+                positions = self.client.get_positions(self.account_id)
+                net = _net_position(positions, self.client.contract_id)
+                if net != 0:
+                    verified = True
+                    break
+                log.warning(f"Entry verification attempt {attempt+1}: position still flat")
+            except Exception as e:
+                log.warning(f"Entry verification attempt {attempt+1} failed: {e}")
+            time.sleep(0.5)
+        if not verified:
+            log.warning(f"ENTRY WARNING: could not verify broker position, but order(s) were accepted — managing position anyway")
 
         now = self._now_et()
         self.state.trade = TradeState(
