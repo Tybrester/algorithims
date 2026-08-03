@@ -231,16 +231,21 @@ def _is_flat(positions, contract_id):
 # ΓöÇΓöÇ BOT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class FadeScalpBot:
-    def __init__(self, api_key: str, username: str):
-        self.client = TopstepClient(username, api_key)
+    def __init__(self, api_key: str = "", username: str = "", client: Optional[TopstepClient] = None, hub=None, combined_mode: bool = False):
+        if client is not None:
+            self.client = client
+        else:
+            self.client = TopstepClient(username, api_key)
         self.state = BotState()
-        self._hub = None
+        self._hub = hub  # may be shared with ORB bot
         self._running = False
         self._last_quote_time: float = 0.0
         self._ws_closed = False
+        self._combined_mode = combined_mode
 
     def setup(self):
-        self.client.authenticate()
+        if not getattr(self.client, "jwt_token", None):
+            self.client.authenticate()
 
         # Get accounts ΓÇö same logic as ORB bot
         accounts = self.client.get_accounts()
@@ -640,6 +645,9 @@ class FadeScalpBot:
 
     def _connect_websocket(self):
         """Connect to TopstepX SignalR market data hub"""
+        if self._combined_mode:
+            return  # shared hub managed by combined runner
+
         if self._hub:
             try: self._hub.stop()
             except: pass
@@ -648,19 +656,24 @@ class FadeScalpBot:
         hub_url = f"{MARKET_HUB}?access_token={self.client.jwt_token}"
         self._hub = HubConnectionBuilder().with_url(hub_url).build()
 
-        self._hub.on("GatewayQuote", self._on_quote)
-        self._hub.on("GatewayTrade", self._on_quote)
-        self._hub.on("GatewayLogout", self._on_logout)
-        self._hub.on_close(self._on_ws_close)
-
+        self._setup_hub_callbacks(self._hub)
         self._hub.start()
         time.sleep(2)
+        self._subscribe_contract(self._hub)
 
-        # Subscribe to MNQ contract quotes and trades
+    def _setup_hub_callbacks(self, hub):
+        """Attach callbacks to a hub (used for shared hub in combined mode)"""
+        hub.on("GatewayQuote", self._on_quote)
+        hub.on("GatewayTrade", self._on_quote)
+        hub.on("GatewayLogout", self._on_logout)
+        hub.on_close(self._on_ws_close)
+
+    def _subscribe_contract(self, hub):
+        """Subscribe to MNQ contract quotes and trades on the given hub"""
         cid = self.client.contract_id
         try:
-            self._hub.send("SubscribeContractQuotes", [cid])
-            self._hub.send("SubscribeContractTrades", [cid])
+            hub.send("SubscribeContractQuotes", [cid])
+            hub.send("SubscribeContractTrades", [cid])
             log.info(f"Subscribed to quotes+trades for {cid}")
         except Exception as e:
             log.warning(f"Subscribe send failed: {e}")
@@ -769,21 +782,23 @@ class FadeScalpBot:
                 log.info(f"[HEARTBEAT] {conn_status} | px={self.state.last_price:.2f} {pos_str} | dayPnL=${self.state.daily_pnl:+.0f} W={self.state.wins} L={self.state.losses} signals={self.state.signals_today} {last_str}{halted_str}")
 
             # WS reconnect on stale feed during RTH
-            is_rth = dtime(9, 0) <= now.time() <= dtime(16, 30)
-            if is_rth and self._last_quote_time > 0 and not self._use_polling:
-                secs_since = time.time() - self._last_quote_time
-                if secs_since > 120:
-                    log.warning(f"[WS] No quotes for {secs_since:.0f}s ΓÇö reconnecting...")
-                    try:
-                        self.client.authenticate()
-                        self._connect_websocket()
-                        self._last_quote_time = time.time()
-                        log.info("[WS] Reconnected successfully")
-                    except Exception as e:
-                        log.error(f"[WS] Reconnect failed: {e} ΓÇö switching to REST polling")
-                        self._use_polling = True
-                        poll_thread = threading.Thread(target=self._polling_fallback, daemon=True)
-                        poll_thread.start()
+            # In combined mode the runner handles reconnect centrally
+            if not self._combined_mode:
+                is_rth = dtime(9, 0) <= now.time() <= dtime(16, 30)
+                if is_rth and self._last_quote_time > 0 and not self._use_polling:
+                    secs_since = time.time() - self._last_quote_time
+                    if secs_since > 120:
+                        log.warning(f"[WS] No quotes for {secs_since:.0f}s ΓÇö reconnecting...")
+                        try:
+                            self.client.authenticate()
+                            self._connect_websocket()
+                            self._last_quote_time = time.time()
+                            log.info("[WS] Reconnected successfully")
+                        except Exception as e:
+                            log.error(f"[WS] Reconnect failed: {e} ΓÇö switching to REST polling")
+                            self._use_polling = True
+                            poll_thread = threading.Thread(target=self._polling_fallback, daemon=True)
+                            poll_thread.start()
 
 
 # ΓöÇΓöÇ MAIN ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ

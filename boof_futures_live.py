@@ -1,4 +1,4 @@
-﻿"""
+"""
 Boof ORB + VWAP/Pullback Futures Live Bot
 NQ + YM | TopstepX via REST API + SignalR WebSocket
 
@@ -512,26 +512,32 @@ class TopstepClient:
 # ΓöÇΓöÇ MAIN BOT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class BoofBot:
-    def __init__(self):
+    def __init__(self, client: Optional[TopstepClient] = None, hub=None, combined_mode: bool = False):
         # Get credentials from command-line args (key, username) or environment variables
-        if len(sys.argv) >= 3:
-            self.api_key  = sys.argv[1]
-            self.username = sys.argv[2]
+        if client is not None:
+            self.client = client
+            self.username = getattr(client, "username", "")
+            self.api_key = getattr(client, "api_key", "")
         else:
-            self.username = os.environ.get("PROJECT_X_USERNAME", "")
-            self.api_key  = os.environ.get("PROJECT_X_API_KEY", "")
-        
-        if not self.username or not self.api_key:
-            raise ValueError("Missing credentials: pass as arguments (api_key username) or set PROJECT_X_USERNAME and PROJECT_X_API_KEY environment variables")
-        
-        print(f"Γ£à Using credentials - Username: {self.username}")
-        self.client = TopstepClient(self.username, self.api_key)
+            if len(sys.argv) >= 3:
+                self.api_key  = sys.argv[1]
+                self.username = sys.argv[2]
+            else:
+                self.username = os.environ.get("PROJECT_X_USERNAME", "")
+                self.api_key  = os.environ.get("PROJECT_X_API_KEY", "")
+            
+            if not self.username or not self.api_key:
+                raise ValueError("Missing credentials: pass as arguments (api_key username) or set PROJECT_X_USERNAME and PROJECT_X_API_KEY environment variables")
+            
+            print(f"Γ£à Using credentials - Username: {self.username}")
+            self.client = TopstepClient(self.username, self.api_key)
         self.states   = {sym: InstrumentState(sym=sym, cfg=dict(cfg))
                          for sym, cfg in INSTRUMENTS.items() if sym in ENABLED_SYMBOLS}
         self.account_id: Optional[int] = None
         self.account_ids: list = []  # all accounts to trade
         self._poll_active = False
-        self._hub = None
+        self._hub = hub  # may be shared with fade bot
+        self._combined_mode = combined_mode
         self._ws_closed = False
         self._last_quote_time: float = 0.0  # epoch seconds of last received quote
         self._last_reconnect_at: float = 0.0  # throttle reconnect attempts
@@ -546,7 +552,8 @@ class BoofBot:
 
     def setup(self):
         """Authenticate, resolve account and contract IDs"""
-        self.client.authenticate()
+        if not getattr(self.client, "jwt_token", None):
+            self.client.authenticate()
 
         accounts = self.client.get_accounts()
         if not accounts:
@@ -926,6 +933,9 @@ class BoofBot:
 
     def start_market_feed(self):
         """Connect SignalR WebSocket for real-time quotes"""
+        if self._combined_mode:
+            return  # shared hub managed by combined runner
+
         if self._hub:
             try: self._hub.stop()
             except: pass
@@ -934,26 +944,33 @@ class BoofBot:
         hub_url = f"{MARKET_HUB}?access_token={self.client.jwt_token}"
         self._hub = HubConnectionBuilder().with_url(hub_url).build()
 
-        self._hub.on("GatewayQuote", self._on_quote)
-        self._hub.on("GatewayTrade", self._on_quote)
-        self._hub.on("GatewayLogout", self._on_logout)
-        self._hub.on_close(self._on_ws_close)
+        self._setup_hub_callbacks(self._hub)
         self._hub.start()
         time.sleep(2)
+        self._subscribe_contracts(self._hub)
 
+    def _setup_hub_callbacks(self, hub):
+        """Attach callbacks to a hub (used for shared hub in combined mode)"""
+        hub.on("GatewayQuote", self._on_quote)
+        hub.on("GatewayTrade", self._on_quote)
+        hub.on("GatewayLogout", self._on_logout)
+        hub.on_close(self._on_ws_close)
+
+    def _subscribe_contracts(self, hub):
+        """Subscribe to contract quotes and trades on the given hub"""
         for sym, state in self.states.items():
             cid = state.cfg["contract_id"]
             parts = cid.split('.')
             state.cfg["symbol_id"] = '.'.join(parts[1:-1]) if len(parts) >= 4 else cid
             try:
-                self._hub.send("SubscribeContractQuotes", [cid])
-                self._hub.send("SubscribeContractTrades", [cid])
+                hub.send("SubscribeContractQuotes", [cid])
+                hub.send("SubscribeContractTrades", [cid])
                 log.info(f"Subscribed (send): {sym} {cid}")
             except Exception as e:
                 log.warning(f"send failed ({e}), trying invoke")
                 try:
-                    self._hub.send("SubscribeContractQuotes", [cid])
-                    self._hub.send("SubscribeContractTrades", [cid])
+                    hub.send("SubscribeContractQuotes", [cid])
+                    hub.send("SubscribeContractTrades", [cid])
                 except: pass
 
     def _on_ws_close(self):
@@ -2003,25 +2020,27 @@ class BoofBot:
                 log.info(f"[HEARTBEAT] {conn_status} | {' | '.join(parts)} | next_qty={next_qty} MNQ")
 
             # WS reconnect ΓÇö on explicit close event or stale feed during RTH
-            now_et = datetime.now(TZ)
-            is_rth = dtime(9, 0) <= now_et.time() <= dtime(16, 30)
-            needs_reconnect = getattr(self, '_ws_closed', False)
-            if not needs_reconnect and is_rth and self._last_quote_time > 0:
-                secs_since = time.time() - self._last_quote_time
-                if secs_since > 120:
-                    log.warning(f"[WS] No quotes for {secs_since:.0f}s ΓÇö stale feed detected")
-                    needs_reconnect = True
-            if needs_reconnect:
-                log.warning("[WS] Reconnecting market feed...")
-                self._ws_closed = False
-                try:
-                    self.client.authenticate()  # refresh JWT
-                    self.start_market_feed()
-                    self._last_quote_time = time.time()
-                    log.info("[WS] Market feed reconnected successfully")
-                except Exception as re:
-                    log.error(f"[WS] Reconnect failed: {re}")
-                    raise RuntimeError(f"[WS] Reconnect failed: {re}") from re
+            # In combined mode the runner handles reconnect centrally
+            if not self._combined_mode:
+                now_et = datetime.now(TZ)
+                is_rth = dtime(9, 0) <= now_et.time() <= dtime(16, 30)
+                needs_reconnect = getattr(self, '_ws_closed', False)
+                if not needs_reconnect and is_rth and self._last_quote_time > 0:
+                    secs_since = time.time() - self._last_quote_time
+                    if secs_since > 120:
+                        log.warning(f"[WS] No quotes for {secs_since:.0f}s ΓÇö stale feed detected")
+                        needs_reconnect = True
+                if needs_reconnect:
+                    log.warning("[WS] Reconnecting market feed...")
+                    self._ws_closed = False
+                    try:
+                        self.client.authenticate()  # refresh JWT
+                        self.start_market_feed()
+                        self._last_quote_time = time.time()
+                        log.info("[WS] Market feed reconnected successfully")
+                    except Exception as re:
+                        log.error(f"[WS] Reconnect failed: {re}")
+                        raise RuntimeError(f"[WS] Reconnect failed: {re}") from re
 
             time.sleep(SL_POLL_SEC)
 
