@@ -820,7 +820,12 @@ class FadeScalpBot:
                     conn_status = "CONNECTED"
                 else:
                     conn_status = "STALE"
-                log.info(f"[HEARTBEAT] {conn_status} | px={self.state.last_price:.2f} {pos_str} | dayPnL=${self.state.daily_pnl:+.0f} W={self.state.wins} L={self.state.losses} signals={self.state.signals_today} {last_str}{halted_str}")
+                if self.state.bar_start:
+                    bar_body = abs(self.state.bar_close - self.state.bar_open)
+                    bar_str = f"bar O={self.state.bar_open:.2f} H={self.state.bar_high:.2f} L={self.state.bar_low:.2f} C={self.state.bar_close:.2f} body={bar_body:.1f}"
+                else:
+                    bar_str = "bar=none"
+                log.info(f"[HEARTBEAT] {conn_status} | px={self.state.last_price:.2f} {pos_str} | {bar_str} | dayPnL=${self.state.daily_pnl:+.0f} W={self.state.wins} L={self.state.losses} signals={self.state.signals_today} {last_str}{halted_str}")
 
             # WS reconnect on stale feed during RTH
             # In combined mode the runner handles reconnect centrally
