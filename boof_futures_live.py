@@ -532,7 +532,9 @@ class BoofBot:
         self.account_ids: list = []  # all accounts to trade
         self._poll_active = False
         self._hub = None
+        self._ws_closed = False
         self._last_quote_time: float = 0.0  # epoch seconds of last received quote
+        self._last_reconnect_at: float = 0.0  # throttle reconnect attempts
         # Dynamic position sizing
         self.dynamic_qty: int = 1   # base qty ΓÇö per-instrument cfg["qty"] is used directly
         self.win_streak:  int = 0
