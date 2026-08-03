@@ -1988,7 +1988,13 @@ class BoofBot:
                     parts.append(f"{s.sym} px={s.last_price:.2f} OR[{s.or_high:.2f}/{s.or_low:.2f}]{'Γ£ô' if s.or_complete else 'ΓÇª'} OR15_vol={s.or15_volume:.0f} {pos}{orb_status} bounces[H={s.bounce_high_count}/L={s.bounce_low_count}] dayPnL=${s.daily_pnl:+.0f} lastTrade=${s.last_trade_pnl:+.0f}")
                 nq_state = self.states.get("NQ")
                 next_qty = INSTRUMENTS["NQ"]["reduced_qty"] if nq_state and nq_state.size_tier > 0 else INSTRUMENTS["NQ"]["qty"]
-                log.info(f"[HEARTBEAT] {' | '.join(parts)} | next_qty={next_qty} MNQ")
+                if getattr(self, '_ws_closed', False):
+                    conn_status = "DISCONNECTED"
+                elif self._last_quote_time > 0 and (time.time() - self._last_quote_time) < 15:
+                    conn_status = "CONNECTED"
+                else:
+                    conn_status = "STALE"
+                log.info(f"[HEARTBEAT] {conn_status} | {' | '.join(parts)} | next_qty={next_qty} MNQ")
 
             # WS reconnect ΓÇö on explicit close event or stale feed during RTH
             now_et = datetime.now(TZ)

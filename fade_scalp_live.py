@@ -749,7 +749,13 @@ class FadeScalpBot:
                     pos_str = "FLAT"
                 last_str = f"lastTrade=${self.state.last_trade_pnl:+.0f}({self.state.last_trade_reason})" if self.state.last_trade_reason else ""
                 halted_str = " HALTED" if self.state.halted else ""
-                log.info(f"[HEARTBEAT] px={self.state.last_price:.2f} {pos_str} | dayPnL=${self.state.daily_pnl:+.0f} W={self.state.wins} L={self.state.losses} signals={self.state.signals_today} {last_str}{halted_str}")
+                if self._use_polling:
+                    conn_status = "POLLING"
+                elif self._last_quote_time > 0 and (time.time() - self._last_quote_time) < 15:
+                    conn_status = "CONNECTED"
+                else:
+                    conn_status = "STALE"
+                log.info(f"[HEARTBEAT] {conn_status} | px={self.state.last_price:.2f} {pos_str} | dayPnL=${self.state.daily_pnl:+.0f} W={self.state.wins} L={self.state.losses} signals={self.state.signals_today} {last_str}{halted_str}")
 
             # WS reconnect on stale feed during RTH
             is_rth = dtime(9, 0) <= now.time() <= dtime(16, 30)
