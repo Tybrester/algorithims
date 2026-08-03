@@ -23,8 +23,8 @@ import time
 import threading
 from datetime import datetime, time as dtime, timedelta
 from zoneinfo import ZoneInfo
-from dataclasses import dataclass, field
 from typing import Optional
+from dataclasses import dataclass, field
 
 import httpx
 from signalrcore.hub_connection_builder import HubConnectionBuilder
@@ -193,9 +193,11 @@ class TopstepClient:
             log.error(f"ORDER REJECTED: {result}")
         return result
 
-    def get_positions(self):
+    def get_positions(self, account_id: Optional[int] = None):
+        if account_id is None:
+            account_id = self.account_id
         resp = self.http.post(f"{API_URL}/api/Position/search", headers=self._headers(),
-                             json={"accountId": self.account_id})
+                             json={"accountId": account_id})
         if resp.status_code == 404:
             return []
         resp.raise_for_status()
@@ -291,7 +293,7 @@ class FadeScalpBot:
 
         # Reconcile any pre-existing position at startup
         try:
-            positions = self.client.get_positions()
+            positions = self.client.get_positions(self.account_id)
             net = _net_position(positions, self.client.contract_id)
             if net != 0:
                 direction = "long" if net > 0 else "short"
@@ -487,7 +489,7 @@ class FadeScalpBot:
 
         # Safety: double-check we are actually in a position before marking in_position
         try:
-            positions = self.client.get_positions()
+            positions = self.client.get_positions(self.account_id)
             net = _net_position(positions, self.client.contract_id)
             if net == 0:
                 log.warning(f"ENTRY WARNING: order reported success but broker position is still flat — marking flat")
@@ -594,7 +596,7 @@ class FadeScalpBot:
         flat_confirmed = False
         for attempt in range(40):
             try:
-                if _is_flat(self.client.get_positions(), self.client.contract_id):
+                if _is_flat(self.client.get_positions(self.account_id), self.client.contract_id):
                     flat_confirmed = True
                     log.info("EXIT confirmed: position is flat")
                     break
