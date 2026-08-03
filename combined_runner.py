@@ -172,7 +172,22 @@ class CombinedRunner:
                     last_heartbeat = now
                     orb_conn = "DISCONNECTED" if self.boof._ws_closed else "CONNECTED" if now - self.boof._last_quote_time < 15 else "STALE"
                     fade_conn = "DISCONNECTED" if self.fade._ws_closed else "CONNECTED" if now - self.fade._last_quote_time < 15 else "STALE"
-                    log.info(f"[HEARTBEAT] ORB={orb_conn} | FADE={fade_conn}")
+
+                    orb_pos = "flat"
+                    for st in self.boof.states.values():
+                        if st.in_position:
+                            orb_pos = f"{st.direction.upper()} @ {st.entry_px:.2f}"
+                            break
+                    orb_pnl = sum(st.daily_pnl for st in self.boof.states.values())
+                    orb_trades = sum(st.daily_trades for st in self.boof.states.values())
+
+                    fade_trade = self.fade.state.trade
+                    fade_pos = f"{fade_trade.direction.upper()} @ {fade_trade.entry_px:.2f}" if fade_trade.in_position else "flat"
+                    fade_pnl = self.fade.state.daily_pnl
+                    fade_trades = self.fade.state.daily_trades
+
+                    log.info(f"[HEARTBEAT] ORB={orb_conn} trading={orb_pos} pnl=${orb_pnl:+.0f} trades={orb_trades} | "
+                             f"FADE={fade_conn} trading={fade_pos} pnl=${fade_pnl:+.0f} trades={fade_trades}")
 
                 now_et = datetime.now(TZ)
                 is_rth = dtime(9, 0) <= now_et.time() <= dtime(16, 30)
