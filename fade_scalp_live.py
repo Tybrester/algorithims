@@ -202,6 +202,32 @@ class TopstepClient:
         return resp.json().get("positions", [])
 
 
+# ΓöçΓöÉ POSITION HELPERS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+def _net_position(positions, contract_id):
+    """Return net position size across positions for this contract (positive=long, negative=short)."""
+    net = 0
+    for p in positions:
+        if p.get("contractId") != contract_id and p.get("contract_id") != contract_id:
+            continue
+        qty = int(p.get("qty", 0) or p.get("quantity", 0) or 0)
+        side = str(p.get("side", "")).lower()
+        if side in ("buy", "long", "0"):
+            net += qty
+        elif side in ("sell", "short", "1"):
+            net -= qty
+        else:
+            # netPosition field if available
+            net_pos = p.get("netPosition") or p.get("netPos") or p.get("position")
+            if net_pos is not None:
+                net += int(float(net_pos))
+    return net
+
+
+def _is_flat(positions, contract_id):
+    return _net_position(positions, contract_id) == 0
+
+
 # ΓöÇΓöÇ BOT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 class FadeScalpBot:
@@ -255,6 +281,36 @@ class FadeScalpBot:
         contract = self.client.search_contract(CONTRACT_NAME)
         self.client.contract_id = contract["id"]
         log.info(f"Contract: {CONTRACT_NAME} (id={contract['id']})")
+
+        # Reconcile any pre-existing position at startup
+        try:
+            positions = self.client.get_positions()
+            net = _net_position(positions, self.client.contract_id)
+            if net != 0:
+                direction = "long" if net > 0 else "short"
+                # Estimate entry from avg price if available, otherwise last price
+                entry_px = 0.0
+                for p in positions:
+                    if p.get("contractId") == self.client.contract_id or p.get("contract_id") == self.client.contract_id:
+                        entry_px = float(p.get("avgPrice") or p.get("avg_entry_price") or p.get("price") or 0)
+                        break
+                if entry_px <= 0:
+                    entry_px = self.state.last_price or 0
+                self.state.trade = TradeState(
+                    in_position=True,
+                    direction=direction,
+                    entry_px=entry_px,
+                    entry_time=self._now_et(),
+                    best_px=entry_px,
+                    trail_active=False,
+                    current_stop=(entry_px - SL_PTS if direction == "long" else entry_px + SL_PTS),
+                )
+                self.state.daily_trades += 1
+                log.warning(f"RECONCILE: found {net:+d} contract position ({direction.upper()}) @ {entry_px:.2f} — bot will manage existing trade")
+            else:
+                log.info("Position reconciliation: flat")
+        except Exception as e:
+            log.warning(f"Position reconciliation failed: {e}")
 
         log.info(f"Strategy: Fade 1m candles >= {CANDLE_THRESH}pts")
         log.info(f"Exit: SL={SL_PTS} Floor={FLOOR_PTS} Trail={TRAIL_PTS} MaxHold={MAX_HOLD_MIN}min")
@@ -419,6 +475,16 @@ class FadeScalpBot:
             log.error(f"ENTRY ABORTED ΓÇö no account accepted order")
             return
 
+        # Safety: double-check we are actually in a position before marking in_position
+        try:
+            positions = self.client.get_positions()
+            net = _net_position(positions, self.client.contract_id)
+            if net == 0:
+                log.warning(f"ENTRY WARNING: order reported success but broker position is still flat — marking flat")
+                return
+        except Exception as e:
+            log.warning(f"Entry position verification failed: {e}")
+
         now = self._now_et()
         self.state.trade = TradeState(
             in_position=True,
@@ -512,6 +578,22 @@ class FadeScalpBot:
                 log.info(f"EXIT ORDER acct {acct_id}: orderId={res.get('orderId') if isinstance(res, dict) else res}")
         if not any_ok:
             log.critical(f"EXIT FAILED ALL ACCOUNTS ΓÇö MANUAL INTERVENTION NEEDED")
+            return
+
+        # Verify actually flat before resetting state
+        flat_confirmed = False
+        for attempt in range(15):
+            try:
+                if _is_flat(self.client.get_positions(), self.client.contract_id):
+                    flat_confirmed = True
+                    log.info("EXIT confirmed: position is flat")
+                    break
+            except Exception as e:
+                log.warning(f"Flat check attempt {attempt+1} failed: {e}")
+            time.sleep(0.5)
+        if not flat_confirmed:
+            log.critical(f"EXIT WARNING: broker still shows open position after exit ΓÇö MANUAL INTERVENTION NEEDED")
+            # Do not reset trade state; keep managing the position
             return
 
         # Calculate PnL
