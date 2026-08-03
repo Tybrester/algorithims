@@ -186,7 +186,10 @@ class CombinedRunner:
                     fade_pnl = self.fade.state.daily_pnl
                     fade_trades = self.fade.state.daily_trades
 
-                    log.info(f"[HEARTBEAT] ORB={orb_conn} trading={orb_pos} pnl=${orb_pnl:+.0f} trades={orb_trades} | "
+                    combined_pnl = orb_pnl + fade_pnl
+                    combined_trades = orb_trades + fade_trades
+                    log.info(f"[HEARTBEAT] COMBINED pnl=${combined_pnl:+.0f} trades={combined_trades} | "
+                             f"ORB={orb_conn} trading={orb_pos} pnl=${orb_pnl:+.0f} trades={orb_trades} | "
                              f"FADE={fade_conn} trading={fade_pos} pnl=${fade_pnl:+.0f} trades={fade_trades}")
 
                 now_et = datetime.now(TZ)
