@@ -572,7 +572,7 @@ class BoofBot:
             # are never traded even though the API reports them as active. This is more robust than
             # a hardcoded ID list since eval accounts get recycled with new IDs on reset.
             # Set ACCOUNT_NAME_FILTER="" to disable and trade every active account.
-            name_filter = os.environ.get("ACCOUNT_NAME_FILTER", "TC").strip().upper()
+            name_filter = os.environ.get("ACCOUNT_NAME_FILTER", "EXPRESS").strip().upper()
             if name_filter:
                 matched = [a for a in accounts if name_filter in a.get("name", "").upper()]
                 excluded = [a for a in accounts if a not in matched]

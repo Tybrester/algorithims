@@ -260,7 +260,7 @@ class FadeScalpBot:
             if not accounts:
                 raise RuntimeError("TRADE_ACCOUNT_IDS allowlist matched zero accounts from the API")
         else:
-            name_filter = os.environ.get("ACCOUNT_NAME_FILTER", "TC").strip().upper()
+            name_filter = os.environ.get("ACCOUNT_NAME_FILTER", "EXPRESS").strip().upper()
             if name_filter:
                 matched = [a for a in accounts if name_filter in a.get("name", "").upper()]
                 excluded = [a for a in accounts if a not in matched]
