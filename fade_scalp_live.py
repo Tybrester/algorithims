@@ -109,6 +109,12 @@ class BotState:
     bar_start: Optional[datetime] = None
     bar_tick_count: int = 0
     last_price: float = 0.0
+    # Completed previous bar (for heartbeat comparison)
+    prev_bar_open: float = 0.0
+    prev_bar_high: float = 0.0
+    prev_bar_low: float = 0.0
+    prev_bar_close: float = 0.0
+    prev_bar_body: float = 0.0
     
     # Trade
     trade: TradeState = field(default_factory=TradeState)
@@ -432,6 +438,13 @@ class FadeScalpBot:
         bar_open = self.state.bar_open
         bar_close = self.state.bar_close
         body = abs(bar_close - bar_open)
+
+        # Save completed bar for heartbeat logging
+        self.state.prev_bar_open = bar_open
+        self.state.prev_bar_high = self.state.bar_high
+        self.state.prev_bar_low = self.state.bar_low
+        self.state.prev_bar_close = bar_close
+        self.state.prev_bar_body = body
 
         if body < CANDLE_THRESH:
             return
@@ -820,11 +833,10 @@ class FadeScalpBot:
                     conn_status = "CONNECTED"
                 else:
                     conn_status = "STALE"
-                if self.state.bar_start:
-                    bar_body = abs(self.state.bar_close - self.state.bar_open)
-                    bar_str = f"bar O={self.state.bar_open:.2f} H={self.state.bar_high:.2f} L={self.state.bar_low:.2f} C={self.state.bar_close:.2f} body={bar_body:.1f}"
+                if self.state.prev_bar_body > 0:
+                    bar_str = f"lastBar O={self.state.prev_bar_open:.2f} H={self.state.prev_bar_high:.2f} L={self.state.prev_bar_low:.2f} C={self.state.prev_bar_close:.2f} body={self.state.prev_bar_body:.1f}"
                 else:
-                    bar_str = "bar=none"
+                    bar_str = "lastBar=none"
                 log.info(f"[HEARTBEAT] {conn_status} | px={self.state.last_price:.2f} {pos_str} | {bar_str} | dayPnL=${self.state.daily_pnl:+.0f} W={self.state.wins} L={self.state.losses} signals={self.state.signals_today} {last_str}{halted_str}")
 
             # WS reconnect on stale feed during RTH
