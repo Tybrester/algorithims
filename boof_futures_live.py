@@ -1732,9 +1732,9 @@ class BoofBot:
                     log.warning(f"{state.sym} ATR calc failed: {e} ΓÇö using fixed SL")
 
             # Verify position was actually created before marking in_position
-            # Retry more aggressively when sharing a client with fade bot (network/position lag)
+            # Retry briefly, but trust the order fill if broker position search lags
             entry_verified = False
-            for attempt in range(15):
+            for attempt in range(5):
                 try:
                     net = self._aggregate_position_for_contract(cid)
                     if net != 0:
@@ -1742,12 +1742,10 @@ class BoofBot:
                         break
                 except Exception as e:
                     log.warning(f"{state.sym} entry position check attempt {attempt+1} failed: {e}")
-                time.sleep(0.5)
+                time.sleep(0.3)
             if not entry_verified:
-                log.critical(f"{state.sym} ENTRY WARNING: order accepted but broker position is still flat ΓÇö aborting local trade state")
-                state.active_account_qty = {}
-                state.active_contract_id = None
-                return
+                log.warning(f"{state.sym} ENTRY WARNING: could not verify broker position after order(s) accepted ΓÇö managing position anyway")
+                # Preserve active_account_qty so exit orders go to the accounts that accepted the entry
 
             state.in_position = True
             state.direction = direction
