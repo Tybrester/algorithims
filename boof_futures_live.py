@@ -884,6 +884,39 @@ class BoofBot:
             except Exception as e:
                 log.warning(f"Failed to recover positions for account {account_id}: {e}")
 
+    def _account_position_for_contract(self, account_id: int, contract_id) -> int:
+        """Return signed net position for a given account/contract (positive=long, negative=short)."""
+        if not contract_id:
+            return 0
+        try:
+            positions = self.client.get_positions(account_id)
+        except Exception as e:
+            log.warning(f"Position check failed for account {account_id}: {e}")
+            return 0
+        net = 0
+        for p in positions:
+            pid = p.get("contractId") or p.get("contract_id")
+            if pid != contract_id:
+                continue
+            qty = int(p.get("size") or p.get("quantity") or p.get("netPosition") or p.get("qty") or 0)
+            side = str(p.get("side", "")).lower()
+            if side in ("buy", "long", "0"):
+                net += qty
+            elif side in ("sell", "short", "1"):
+                net -= qty
+            else:
+                net += qty  # assume netPosition already signed
+        return net
+
+    def _all_accounts_flat(self, contract_id) -> bool:
+        for account_id in self.account_ids:
+            if self._account_position_for_contract(account_id, contract_id) != 0:
+                return False
+        return True
+
+    def _aggregate_position_for_contract(self, contract_id) -> int:
+        return sum(self._account_position_for_contract(a, contract_id) for a in self.account_ids)
+
     def start_market_feed(self):
         """Connect SignalR WebSocket for real-time quotes"""
         if self._hub:
@@ -1646,7 +1679,23 @@ class BoofBot:
                 except Exception as e:
                     log.warning(f"{state.sym} ATR calc failed: {e} ΓÇö using fixed SL")
 
-            # Assume filled ΓÇö market orders on TopstepX fill immediately
+            # Verify position was actually created before marking in_position
+            entry_verified = False
+            for attempt in range(5):
+                try:
+                    net = self._aggregate_position_for_contract(cid)
+                    if net != 0:
+                        entry_verified = True
+                        break
+                except Exception as e:
+                    log.warning(f"{state.sym} entry position check attempt {attempt+1} failed: {e}")
+                time.sleep(0.3)
+            if not entry_verified:
+                log.critical(f"{state.sym} ENTRY WARNING: order accepted but broker position is still flat ΓÇö aborting local trade state")
+                state.active_account_qty = {}
+                state.active_contract_id = None
+                return
+
             state.in_position = True
             state.direction = direction
             state.trade_type = trade_type
@@ -1709,6 +1758,22 @@ class BoofBot:
                 state.active_qty = next(iter(failed_accounts.values()))
                 state.next_exit_retry_at = time.time() + 2.0
                 log.critical(f"{state.sym} remains active locally for failed exit accounts {sorted(failed_accounts)}; exit will retry in 2s")
+                return
+
+            # Verify broker actually shows flat before resetting state
+            flat_verified = False
+            for attempt in range(10):
+                try:
+                    if self._all_accounts_flat(cid):
+                        flat_verified = True
+                        log.info(f"{state.sym} exit confirmed: all accounts flat")
+                        break
+                except Exception as e:
+                    log.warning(f"{state.sym} flat check attempt {attempt+1} failed: {e}")
+                time.sleep(0.5)
+            if not flat_verified:
+                log.critical(f"{state.sym} EXIT WARNING: broker still reports open position after accepted exit orders ΓÇö will retry")
+                state.next_exit_retry_at = time.time() + 2.0
                 return
 
             exited_direction = state.direction
