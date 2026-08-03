@@ -622,8 +622,8 @@
 
           <div id="fb-qty-msg" style="font-size:0.8rem;min-height:1.1em;"></div>
           <div style="display:flex;gap:12px;margin-top:6px;">
-            <button id="fb-start-btn" class="btn-primary" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;">Start Both Bots</button>
-            <button id="fb-stop-btn" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">Stop All</button>
+            <button id="fb-start-btn" class="btn-primary" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;">Start</button>
+            <button id="fb-stop-btn" style="margin-top:0;flex:1;padding:14px 0;font-size:1.05rem;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;">Stop</button>
           </div>
           <div id="fb-error" style="font-size:0.9rem;color:var(--red);display:none;"></div>
         </div>
@@ -790,7 +790,7 @@
         els.startBtn.disabled = running;
         els.startBtn.style.opacity = running ? '0.4' : '1';
         els.startBtn.style.cursor = running ? 'not-allowed' : 'pointer';
-        els.startBtn.textContent = running ? 'Bots Running...' : 'Start Both Bots';
+        els.startBtn.textContent = running ? 'Running...' : 'Start';
         els.stopBtn.style.display = running ? '' : '';
       }
 
