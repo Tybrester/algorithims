@@ -59,7 +59,7 @@ CANDLE_THRESH = 20.0        # 20pt body triggers signal
 SL_PTS = 25.0               # Stop loss: 25 pts
 FLOOR_PTS = 7.0             # Trail activates after 7 pts favorable
 TRAIL_PTS = 3.0             # Trail follows 3 pts behind peak
-MAX_HOLD_MIN = 15           # Max hold time: 15 minutes
+MAX_HOLD_MIN = 2            # Max hold time: 2 minutes (backtest optimized)
 MAX_DAILY_LOSS = -300.0     # Kill switch: stop trading after $300 daily loss
 MAX_DAILY_TRADES = 30       # Safety cap
 
