@@ -55,6 +55,7 @@ class CombinedRunner:
         self._hub = None
         self._running = False
         self._threads = []
+        self._gateway_logged_out = False
 
     def _setup_callbacks(self, hub):
         def _on_quote(data):
@@ -70,6 +71,7 @@ class CombinedRunner:
 
         def _on_logout(data):
             log.warning(f"GatewayLogout: {data}")
+            self._gateway_logged_out = True
             self.boof._ws_closed = True
             if self.fade:
                 self.fade._ws_closed = True
@@ -207,6 +209,11 @@ class CombinedRunner:
                                  f"FADE={fade_conn} trading={fade_pos} pnl=${fade_pnl:+.0f} trades={fade_trades}")
                     else:
                         log.info(f"[HEARTBEAT] ORB={orb_conn} trading={orb_pos} pnl=${orb_pnl:+.0f} trades={orb_trades} | FADE=DISABLED")
+
+                if self._gateway_logged_out:
+                    log.critical("GatewayLogout received — shutting down to avoid multiple session conflict")
+                    self._running = False
+                    break
 
                 now_et = datetime.now(TZ)
                 is_rth = dtime(9, 0) <= now_et.time() <= dtime(16, 30)
