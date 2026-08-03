@@ -490,15 +490,21 @@ class FadeScalpBot:
 
         # Safety: double-check we are actually in a position before marking in_position
         # Retry briefly — TopstepX position search can lag a few seconds after fill
+        # Check all accounts; some accounts may not have filled
         verified = False
         for attempt in range(10):
             try:
-                positions = self.client.get_positions(self.account_id)
-                net = _net_position(positions, self.client.contract_id)
-                if net != 0:
+                any_in_position = False
+                for acct_id in self.account_ids:
+                    positions = self.client.get_positions(acct_id)
+                    net = _net_position(positions, self.client.contract_id)
+                    if net != 0:
+                        any_in_position = True
+                        break
+                if any_in_position:
                     verified = True
                     break
-                log.warning(f"Entry verification attempt {attempt+1}: position still flat")
+                log.warning(f"Entry verification attempt {attempt+1}: position still flat across accounts")
             except Exception as e:
                 log.warning(f"Entry verification attempt {attempt+1} failed: {e}")
             time.sleep(0.5)
@@ -600,14 +606,22 @@ class FadeScalpBot:
             log.critical(f"EXIT FAILED ALL ACCOUNTS ΓÇö MANUAL INTERVENTION NEEDED")
             return
 
-        # Verify actually flat before resetting state
+        # Verify actually flat before resetting state (check all accounts)
         flat_confirmed = False
         for attempt in range(40):
             try:
-                if _is_flat(self.client.get_positions(self.account_id), self.client.contract_id):
+                all_flat = True
+                for acct_id in self.account_ids:
+                    positions = self.client.get_positions(acct_id)
+                    net = _net_position(positions, self.client.contract_id)
+                    if net != 0:
+                        all_flat = False
+                        break
+                if all_flat:
                     flat_confirmed = True
-                    log.info("EXIT confirmed: position is flat")
+                    log.info("EXIT confirmed: all accounts flat")
                     break
+                log.warning(f"Flat check attempt {attempt+1}: some accounts still in position")
             except Exception as e:
                 log.warning(f"Flat check attempt {attempt+1} failed: {e}")
             time.sleep(0.5)
