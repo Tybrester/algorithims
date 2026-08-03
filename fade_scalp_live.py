@@ -176,11 +176,11 @@ class TopstepClient:
         log.info(f"Contract resolved: {name} ΓåÆ id={contract['id']}")
         return contract
 
-    def place_market_order(self, account_id: int, side: int, qty: int):
+    def place_market_order(self, account_id: int, contract_id: int, side: int, qty: int):
         """side: 0=Buy, 1=Sell"""
         payload = {
             "accountId": account_id,
-            "contractId": self.contract_id,
+            "contractId": contract_id,
             "type": 2,  # Market
             "side": side,
             "size": qty,
@@ -464,7 +464,7 @@ class FadeScalpBot:
         order_results = {}
         def _place(acct_id):
             try:
-                order_results[acct_id] = self.client.place_market_order(acct_id, side, QTY)
+                order_results[acct_id] = self.client.place_market_order(acct_id, self.client.contract_id, side, QTY)
             except Exception as e:
                 order_results[acct_id] = {"error": str(e)}
         threads = [threading.Thread(target=_place, args=(a,)) for a in self.account_ids]
@@ -573,7 +573,7 @@ class FadeScalpBot:
         order_results = {}
         def _place_exit(acct_id):
             try:
-                order_results[acct_id] = self.client.place_market_order(acct_id, exit_side, QTY)
+                order_results[acct_id] = self.client.place_market_order(acct_id, self.client.contract_id, exit_side, QTY)
             except Exception as e:
                 order_results[acct_id] = {"error": str(e)}
         threads = [threading.Thread(target=_place_exit, args=(a,)) for a in self.account_ids]
