@@ -1736,7 +1736,7 @@ class BoofBot:
             state.entry_px = state.last_price
             state.next_exit_retry_at = 0.0
             state.daily_trades += 1
-            log.info(f"{state.sym} ENTERED {direction.upper()} ({trade_type}) @ {state.entry_px:.2f} [{size_label}] (trades today: {state.daily_trades}/{state.max_daily_trades})")
+            log.info(f"ORB {state.sym} ENTERED {direction.upper()} ({trade_type}) @ {state.entry_px:.2f} [{size_label}] (trades today: {state.daily_trades}/{state.max_daily_trades})")
             self._save_or_levels(state)  # persist bo_fired/vwap_fired flags
             
         except Exception as e:
@@ -1847,7 +1847,7 @@ class BoofBot:
                 state.cooldown_until = datetime.now(TZ) + timedelta(minutes=state.cfg["cooldown_minutes"])
             outcome = "PROFIT" if pnl > 0 else "LOSS" if pnl < 0 else "FLAT"
             exit_type = "TRAIL" if reason == "Trail" else "NON-TRAIL"
-            log.info(f"{state.sym} EXITED ({reason}) [{outcome} | {exit_type}] ~{exit_px:.2f} | est PnL=${pnl:+,.0f} | day=${state.daily_pnl:+,.0f} | streak=L{state.consecutive_losses}/W{state.consecutive_wins}")
+            log.info(f"ORB {state.sym} EXITED ({reason}) [{outcome} | {exit_type}] ~{exit_px:.2f} | est PnL=${pnl:+,.0f} | day=${state.daily_pnl:+,.0f} | streak=L{state.consecutive_losses}/W{state.consecutive_wins}")
 
             state.in_position = False
             state.direction = ""

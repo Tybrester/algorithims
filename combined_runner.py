@@ -161,9 +161,19 @@ class CombinedRunner:
         self._connect_hub()
 
         # Monitor and reconnect centrally
+        last_heartbeat = 0
         try:
             while self._running:
                 time.sleep(2)
+                now = time.time()
+
+                # Combined heartbeat every 60s
+                if now - last_heartbeat >= 60:
+                    last_heartbeat = now
+                    orb_conn = "DISCONNECTED" if self.boof._ws_closed else "CONNECTED" if now - self.boof._last_quote_time < 15 else "STALE"
+                    fade_conn = "DISCONNECTED" if self.fade._ws_closed else "CONNECTED" if now - self.fade._last_quote_time < 15 else "STALE"
+                    log.info(f"[HEARTBEAT] ORB={orb_conn} | FADE={fade_conn}")
+
                 now_et = datetime.now(TZ)
                 is_rth = dtime(9, 0) <= now_et.time() <= dtime(16, 30)
 
