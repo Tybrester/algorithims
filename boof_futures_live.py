@@ -337,6 +337,7 @@ class InstrumentState:
         self.best_excursion = 0.0
         self.daily_trades = 0  # Reset daily trade count
         self.daily_pnl = 0.0
+        self._trail_logged = False
         self.daily_profit_floor_armed = False
         self.daily_profit_halted = False
         self.consecutive_losses = 0
@@ -591,6 +592,17 @@ class BoofBot:
                 if not matched:
                     raise RuntimeError(f"No accounts matched ACCOUNT_NAME_FILTER={name_filter!r}")
                 accounts = matched
+
+        # Filter out accounts with insufficient balance to avoid partial fills / rejected orders
+        min_balance = float(os.environ.get("MIN_ACCOUNT_BALANCE", "100").strip() or "100")
+        funded_accounts = [a for a in accounts if a.get("balance", 0) is not None and a.get("balance", 0) >= min_balance]
+        underfunded = [a for a in accounts if a not in funded_accounts]
+        if underfunded:
+            log.warning(f"Excluding underfunded account(s) below ${min_balance}: "
+                        f"{[(a['id'], a.get('balance')) for a in underfunded]}")
+        if not funded_accounts:
+            raise RuntimeError(f"No accounts with balance >= ${min_balance}")
+        accounts = funded_accounts
 
         self.account_ids = [a["id"] for a in accounts]
         self.account_id  = self.account_ids[0]  # primary for position checks
@@ -1512,9 +1524,13 @@ class BoofBot:
             stop = max(state.best_excursion - trail, state.entry_px + profit_floor)
             activate = state.cfg.get("trail_activate", trail)
             trail_active = state.best_excursion >= state.entry_px + activate  # activate after 5pts profit
-            if trail_active and last <= stop:
-                log.info(f"{state.sym} TRAIL LONG hit @ {last:.2f} stop={stop:.2f}")
-                self.exit_position(state, "TRAIL")
+            if trail_active:
+                if not getattr(state, '_trail_logged', False):
+                    log.info(f"{state.sym} TRAIL ACTIVE LONG | best={state.best_excursion:.2f} activate={state.entry_px + activate:.2f} stop={stop:.2f}")
+                    state._trail_logged = True
+                if last <= stop:
+                    log.info(f"{state.sym} TRAIL LONG hit @ {last:.2f} stop={stop:.2f}")
+                    self.exit_position(state, "TRAIL")
         elif state.direction == "short":
             if state.best_excursion == 0.0:
                 state.best_excursion = state.entry_px
@@ -1523,9 +1539,13 @@ class BoofBot:
             stop = min(state.best_excursion + trail, state.entry_px - profit_floor)
             activate = state.cfg.get("trail_activate", trail)
             trail_active = state.best_excursion <= state.entry_px - activate  # activate after 5pts profit
-            if trail_active and last >= stop:
-                log.info(f"{state.sym} TRAIL SHORT hit @ {last:.2f} stop={stop:.2f}")
-                self.exit_position(state, "TRAIL")
+            if trail_active:
+                if not getattr(state, '_trail_logged', False):
+                    log.info(f"{state.sym} TRAIL ACTIVE SHORT | best={state.best_excursion:.2f} activate={state.entry_px - activate:.2f} stop={stop:.2f}")
+                    state._trail_logged = True
+                if last >= stop:
+                    log.info(f"{state.sym} TRAIL SHORT hit @ {last:.2f} stop={stop:.2f}")
+                    self.exit_position(state, "TRAIL")
 
     def _check_sl(self, state: InstrumentState):
         """Hard SL ΓÇö polled every SL_POLL_SEC seconds"""
@@ -1712,8 +1732,9 @@ class BoofBot:
                     log.warning(f"{state.sym} ATR calc failed: {e} ΓÇö using fixed SL")
 
             # Verify position was actually created before marking in_position
+            # Retry more aggressively when sharing a client with fade bot (network/position lag)
             entry_verified = False
-            for attempt in range(5):
+            for attempt in range(15):
                 try:
                     net = self._aggregate_position_for_contract(cid)
                     if net != 0:
@@ -1721,7 +1742,7 @@ class BoofBot:
                         break
                 except Exception as e:
                     log.warning(f"{state.sym} entry position check attempt {attempt+1} failed: {e}")
-                time.sleep(0.3)
+                time.sleep(0.5)
             if not entry_verified:
                 log.critical(f"{state.sym} ENTRY WARNING: order accepted but broker position is still flat ΓÇö aborting local trade state")
                 state.active_account_qty = {}
@@ -1853,6 +1874,7 @@ class BoofBot:
             state.direction = ""
             state.entry_px = 0.0
             state.best_excursion = 0.0
+            state._trail_logged = False
             state.trade_type = ""
             state.fade_fired = False
             state._flip_pending_dir = None

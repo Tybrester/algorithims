@@ -279,6 +279,17 @@ class FadeScalpBot:
                     raise RuntimeError(f"No accounts matched ACCOUNT_NAME_FILTER={name_filter!r}")
                 accounts = matched
 
+        # Filter out accounts with insufficient balance to avoid partial fills / rejected orders
+        min_balance = float(os.environ.get("MIN_ACCOUNT_BALANCE", "50").strip() or "50")
+        funded_accounts = [a for a in accounts if a.get("balance", 0) is not None and a.get("balance", 0) >= min_balance]
+        underfunded = [a for a in accounts if a not in funded_accounts]
+        if underfunded:
+            log.warning(f"Excluding underfunded account(s) below ${min_balance}: "
+                        f"{[(a['id'], a.get('balance')) for a in underfunded]}")
+        if not funded_accounts:
+            raise RuntimeError(f"No accounts with balance >= ${min_balance}")
+        accounts = funded_accounts
+
         self.account_ids = [a["id"] for a in accounts]
         self.account_id = self.account_ids[0]
         self.client.account_id = self.account_ids[0]
