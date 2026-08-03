@@ -446,6 +446,8 @@ class FadeScalpBot:
         self.state.prev_bar_close = bar_close
         self.state.prev_bar_body = body
 
+        log.info(f"BAR CLOSE O={bar_open:.2f} H={bar_high:.2f} L={bar_low:.2f} C={bar_close:.2f} body={body:.1f}")
+
         if body < CANDLE_THRESH:
             return
 
