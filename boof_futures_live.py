@@ -118,6 +118,7 @@ INSTRUMENTS = {
 ORB_ENABLED = True   # Run first ORB only alongside bounces
 MAX_ORB = 3
 ENABLED_SYMBOLS = {"NQ"}
+ORB_ONLY_MODE = os.environ.get("ORB_ONLY_MODE", "false").lower() in ("1", "true", "yes")
 
 ATR_MULT = 0.5   # 0.7x ATR(14) on 1m bars
 ATR_PERIOD = 14
@@ -1074,7 +1075,10 @@ class BoofBot:
             t = now.time()
             if now.weekday() >= 5 or t < ENTRY_START or t >= EOD_EXIT:
                 return
-            if t < ENTRY_CUTOFF and state.cfg.get("immediate_orb") and state.or_complete and not state.or_chop_mode and not state.orb_disabled and not state.in_position and previous_price > 0 and (state.cooldown_until is None or now >= state.cooldown_until):
+            if (t < ENTRY_CUTOFF and state.cfg.get("immediate_orb") and not ORB_ONLY_MODE
+                    and state.or_complete and not state.or_chop_mode and not state.orb_disabled
+                    and not state.in_position and previous_price > 0
+                    and (state.cooldown_until is None or now >= state.cooldown_until)):
                 if previous_price <= state.or_high < last:
                     self.enter(state, "long", "ORB_TICK")
                     if state.in_position and self._is_failed_orb_filter_day(state):
@@ -1441,6 +1445,8 @@ class BoofBot:
                     state.bounce_low_count += 1
 
         # ΓöÇΓöÇ ES: VWAP mean-reversion signal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        if ORB_ONLY_MODE:
+            return
         if state.sym == "ES" and state.vwap_bars >= 3 and not state.in_position:
             sigma = cfg.get("vwap_sigma", 1.0)
             vwap_upper = state.vwap + sigma * state.vwap_std
