@@ -354,14 +354,13 @@
         return showMsg('An account with this email already exists. Please sign in instead.', false);
       }
 
-      // Log to access_requests for admin tracking
-      const { error: reqErr } = await sbClient.from('access_requests').upsert({
+      // Log to access_requests for admin tracking (fire and forget)
+      sbClient.from('access_requests').upsert({
         email,
         name: `${firstName} ${lastName}`,
-        status: 'pending',
+        status: 'approved',
         reason: 'Self-registered'
-      }, { onConflict: 'email' });
-      if (reqErr) console.error('access_requests upsert failed:', reqErr.message);
+      }, { onConflict: 'email' }).catch(() => {});
 
       // If email confirmation is required
       if (data?.user && !data.session) {

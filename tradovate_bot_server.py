@@ -48,10 +48,16 @@ from flask_cors import CORS
 TOPSTEP_API_URL = os.environ.get("PROJECT_X_API_URL", "https://api.topstepx.com")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# TEMPORARY: pointed at the lightweight connection-test bot while testing the
-# dashboard panel. Switch to a TopstepX-native version of boof_futures_live.py
-# before going live.
-BOT_SCRIPT = os.path.join(BASE_DIR, "topstep_test_bot.py")
+
+# Bot scripts — keyed by botType sent from the dashboard.
+# Each user can run one instance of each type simultaneously.
+BOT_SCRIPTS = {
+    "orb": os.path.join(BASE_DIR, "boof_futures_live.py"),
+    "fade": os.path.join(BASE_DIR, "fade_scalp_live.py"),
+    "combined": os.path.join(BASE_DIR, "combined_runner.py"),
+}
+DEFAULT_BOT_TYPE = "orb"
+
 # Per-user runtime config files live here — one JSON file per userId so
 # concurrent users' live qty/symbol updates never collide.
 RUNTIME_CONFIG_DIR = os.path.join(BASE_DIR, "bot_runtime_configs")
@@ -90,13 +96,18 @@ def _safe_filename(user_id: str) -> str:
     return "".join(c if c.isalnum() or c in "-_" else "_" for c in user_id)
 
 
-def _config_path(user_id: str) -> str:
-    return os.path.join(RUNTIME_CONFIG_DIR, f"{_safe_filename(user_id)}.json")
+def _session_key(user_id: str, bot_type: str) -> str:
+    return f"{user_id}:{bot_type}"
 
 
-def _get_session(user_id: str) -> dict:
+def _config_path(user_id: str, bot_type: str = "orb") -> str:
+    return os.path.join(RUNTIME_CONFIG_DIR, f"{_safe_filename(user_id)}_{bot_type}.json")
+
+
+def _get_session(user_id: str, bot_type: str = "orb") -> dict:
+    key = _session_key(user_id, bot_type)
     with _sessions_lock:
-        sess = _sessions.get(user_id)
+        sess = _sessions.get(key)
         if sess is None:
             sess = {
                 "process": None,
@@ -105,7 +116,7 @@ def _get_session(user_id: str) -> dict:
                 "log_lock": threading.Lock(),
                 "subscribers": [],
             }
-            _sessions[user_id] = sess
+            _sessions[key] = sess
         return sess
 
 
@@ -154,6 +165,10 @@ def start_bot():
     if err:
         return err
 
+    bot_type = body.get("botType", DEFAULT_BOT_TYPE)
+    if bot_type not in BOT_SCRIPTS:
+        return jsonify({"error": f"Unknown botType: {bot_type}. Valid: {list(BOT_SCRIPTS.keys())}"}), 400
+
     # TopstepX issues one username + API key per trading account (much
     # simpler than Tradovate's 5-credential model) — each user submits their
     # own from the dashboard. Only fall back to the runner's own env vars
@@ -163,18 +178,18 @@ def start_bot():
     if not user_username or not user_api_key:
         return jsonify({"error": "Missing TopstepX credentials: username and API key are required (from TopstepX \u2192 Settings \u2192 API Keys)."}), 400
 
-    sess = _get_session(user_id)
+    sess = _get_session(user_id, bot_type)
 
     with _sessions_lock:
         if sess["process"] is not None and sess["process"].poll() is None:
-            return jsonify({"error": "Bot is already running. Stop it first."}), 409
+            return jsonify({"error": f"{bot_type.upper()} bot is already running. Stop it first."}), 409
 
         env = dict(os.environ)
         env["PROJECT_X_USERNAME"] = user_username
         env["PROJECT_X_API_KEY"]  = user_api_key
         env["PYTHONUNBUFFERED"]   = "1"
         # Tell the bot process which per-user config file to poll.
-        env["BOT_RUNTIME_CONFIG_PATH"] = _config_path(user_id)
+        env["BOT_RUNTIME_CONFIG_PATH"] = _config_path(user_id, bot_type)
 
         try:
             base_qty = max(1, int(body.get("baseQty", 1)))
@@ -187,7 +202,7 @@ def start_bot():
         base_symbol = body.get("baseSymbol") if body.get("baseSymbol") in ("NQ", "MNQ") else "MNQ"
         loss_symbol = body.get("lossSymbol") if body.get("lossSymbol") in ("NQ", "MNQ") else base_symbol
         try:
-            with open(_config_path(user_id), "w") as f:
+            with open(_config_path(user_id, bot_type), "w") as f:
                 json.dump({
                     "baseSymbol": base_symbol, "baseQty": base_qty,
                     "lossSymbol": loss_symbol, "lossQty": loss_qty,
@@ -195,27 +210,28 @@ def start_bot():
         except Exception:
             pass
 
+        bot_script = BOT_SCRIPTS[bot_type]
         try:
             proc = subprocess.Popen(
-                [sys.executable, BOT_SCRIPT],
+                [sys.executable, bot_script],
                 cwd=BASE_DIR,
                 env=env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
         except Exception as e:
-            return jsonify({"error": f"Failed to launch bot: {e}"}), 500
+            return jsonify({"error": f"Failed to launch {bot_type} bot: {e}"}), 500
 
         sess["process"] = proc
         sess["started_at"] = time.time()
         with sess["log_lock"]:
             sess["log_lines"].clear()
-        _broadcast(sess, f"[server] Bot started pid={proc.pid}")
+        _broadcast(sess, f"[server] {bot_type.upper()} bot started pid={proc.pid}")
 
         t = threading.Thread(target=_reader, args=(sess, proc), daemon=True)
         t.start()
 
-    return jsonify({"status": "started", "pid": proc.pid})
+    return jsonify({"status": "started", "botType": bot_type, "pid": proc.pid})
 
 
 @app.route("/api/stop", methods=["POST", "OPTIONS"])
@@ -227,7 +243,8 @@ def stop_bot():
     if err:
         return err
 
-    sess = _get_session(user_id)
+    bot_type = body.get("botType", DEFAULT_BOT_TYPE)
+    sess = _get_session(user_id, bot_type)
     proc = sess["process"]
     if proc is None or proc.poll() is not None:
         return jsonify({"status": "not_running"})
@@ -237,8 +254,8 @@ def stop_bot():
     except subprocess.TimeoutExpired:
         proc.kill()
     sess["process"] = None
-    _broadcast(sess, "[server] Bot stopped by user.")
-    return jsonify({"status": "stopped"})
+    _broadcast(sess, f"[server] {bot_type.upper()} bot stopped by user.")
+    return jsonify({"status": "stopped", "botType": bot_type})
 
 
 @app.route("/api/set-config", methods=["POST", "OPTIONS"])
@@ -250,6 +267,7 @@ def set_config():
     if err:
         return err
 
+    bot_type = body.get("botType", DEFAULT_BOT_TYPE)
     base_symbol = body.get("baseSymbol")
     loss_symbol = body.get("lossSymbol")
     if base_symbol not in ("NQ", "MNQ") or loss_symbol not in ("NQ", "MNQ"):
@@ -263,14 +281,14 @@ def set_config():
         return jsonify({"error": "baseQty and lossQty must be at least 1"}), 400
 
     try:
-        with open(_config_path(user_id), "w") as f:
+        with open(_config_path(user_id, bot_type), "w") as f:
             json.dump({
                 "baseSymbol": base_symbol, "baseQty": base_qty,
                 "lossSymbol": loss_symbol, "lossQty": loss_qty,
             }, f)
     except Exception as e:
         return jsonify({"error": f"Failed to write config: {e}"}), 500
-    sess = _get_session(user_id)
+    sess = _get_session(user_id, bot_type)
     _broadcast(sess, f"[server] Config updated: base={base_qty}x{base_symbol} loss={loss_qty}x{loss_symbol}")
     return jsonify({
         "status": "ok",
@@ -362,12 +380,13 @@ def status():
     user_id, err = _require_user_id(request.args)
     if err:
         return err
-    sess = _get_session(user_id)
+    bot_type = request.args.get("botType", DEFAULT_BOT_TYPE)
+    sess = _get_session(user_id, bot_type)
     proc = sess["process"]
     running = proc is not None and proc.poll() is None
     pid = proc.pid if running else None
     started_at = sess["started_at"] if running else None
-    return jsonify({"running": running, "pid": pid, "started_at": started_at})
+    return jsonify({"running": running, "pid": pid, "started_at": started_at, "botType": bot_type})
 
 
 @app.route("/api/stream", methods=["GET"])
@@ -375,7 +394,8 @@ def stream():
     user_id, err = _require_user_id(request.args)
     if err:
         return err
-    sess = _get_session(user_id)
+    bot_type = request.args.get("botType", DEFAULT_BOT_TYPE)
+    sess = _get_session(user_id, bot_type)
 
     q = queue.Queue(maxsize=1000)
     with sess["log_lock"]:
@@ -405,5 +425,5 @@ def stream():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8787))
     print(f"Tradovate bot control server (multi-tenant) on http://0.0.0.0:{port}")
-    print(f"Bot script: {BOT_SCRIPT}")
+    print(f"Bot scripts: {BOT_SCRIPTS}")
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
