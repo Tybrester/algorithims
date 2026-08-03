@@ -1075,9 +1075,10 @@ class BoofBot:
             t = now.time()
             if now.weekday() >= 5 or t < ENTRY_START or t >= EOD_EXIT:
                 return
+            prev_in_or = state.or_low <= previous_price <= state.or_high
             if (t < ENTRY_CUTOFF and state.cfg.get("immediate_orb") and not ORB_ONLY_MODE
                     and state.or_complete and not state.or_chop_mode and not state.orb_disabled
-                    and not state.in_position and previous_price > 0
+                    and not state.in_position and previous_price > 0 and prev_in_or
                     and (state.cooldown_until is None or now >= state.cooldown_until)):
                 if previous_price <= state.or_high < last:
                     self.enter(state, "long", "ORB_TICK")
