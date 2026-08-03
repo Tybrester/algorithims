@@ -1762,7 +1762,7 @@ class BoofBot:
 
             # Verify broker actually shows flat before resetting state
             flat_verified = False
-            for attempt in range(10):
+            for attempt in range(40):
                 try:
                     if self._all_accounts_flat(cid):
                         flat_verified = True

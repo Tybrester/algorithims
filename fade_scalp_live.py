@@ -582,7 +582,7 @@ class FadeScalpBot:
 
         # Verify actually flat before resetting state
         flat_confirmed = False
-        for attempt in range(15):
+        for attempt in range(40):
             try:
                 if _is_flat(self.client.get_positions(), self.client.contract_id):
                     flat_confirmed = True
