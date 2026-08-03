@@ -512,29 +512,7 @@ class FadeScalpBot:
             log.error(f"ENTRY ABORTED ΓÇö no account accepted order")
             return
 
-        # Safety: double-check we are actually in a position before marking in_position
-        # Retry briefly — TopstepX position search can lag a few seconds after fill
-        # Check all accounts; some accounts may not have filled
-        verified = False
-        for attempt in range(10):
-            try:
-                any_in_position = False
-                position_summary = []
-                for acct_id in self.account_ids:
-                    positions = self.client.get_positions(acct_id)
-                    net = _net_position(positions, self.client.contract_id)
-                    position_summary.append(f"{acct_id}={net}")
-                    if net != 0:
-                        any_in_position = True
-                log.info(f"Entry verification attempt {attempt+1}: positions [{', '.join(position_summary)}]")
-                if any_in_position:
-                    verified = True
-                    break
-            except Exception as e:
-                log.warning(f"Entry verification attempt {attempt+1} failed: {e}")
-            time.sleep(0.5)
-        if not verified:
-            log.warning(f"ENTRY WARNING: could not verify broker position, but order(s) were accepted — managing position anyway")
+        # Trust order fills; do not retry position verification (TopstepX position search can 404)
 
         now = self._now_et()
         self.state.trade = TradeState(
