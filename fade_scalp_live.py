@@ -525,7 +525,8 @@ class FadeScalpBot:
             current_stop=price - SL_PTS if direction == "long" else price + SL_PTS,
         )
         self.state.daily_trades += 1
-        log.info(f"FADE ENTERED {direction.upper()} @ {price:.2f} | SL={self.state.trade.current_stop:.2f} | Trade #{self.state.daily_trades}")
+        big_close = self.state.pending_big_close
+        log.info(f"FADE ENTERED {direction.upper()} @ {price:.2f} | crossed_big_close={big_close:.2f} | SL={self.state.trade.current_stop:.2f} | Trade #{self.state.daily_trades}")
 
     def _manage_exit(self, price: float, now: datetime):
         """Check SL, trailing stop, and max hold"""
