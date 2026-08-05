@@ -58,8 +58,8 @@ class CombinedRunner:
         self.api_key, self.username = _load_credentials()
         self.client = TopstepClient(self.username, self.api_key)
         self.boof = BoofBot(client=self.client, combined_mode=True)
-        # Fade is disabled by default; set DISABLE_FADE=false to re-enable
-        self.disable_fade = os.environ.get("DISABLE_FADE", "true").lower() in ("1", "true", "yes")
+        # Set DISABLE_FADE=true env var to disable Fade (e.g. on Render)
+        self.disable_fade = os.environ.get("DISABLE_FADE", "false").lower() in ("1", "true", "yes")
         if self.disable_fade:
             log.info("Fade bot DISABLED — set DISABLE_FADE=false to re-enable")
             self.fade = None
